@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"sync"
 
@@ -20,29 +21,23 @@ type Server struct {
 }
 
 func (s *Server) initialHandler(ctx *fasthttp.RequestCtx) {
-	path := string(ctx.RequestURI())
+	uri := string(ctx.RequestURI())
 
 	if ctx.IsConnect() {
-		host, port, err := SplitHostPort(path)
+		host, port, err := SplitHostPort(uri)
 		if err != nil {
-			s.defaultErrorHandler(ctx, errors.Annotatef(err, "Cannot split host/port for path %s", path))
+			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot parse host/port for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
 		}
-
-		handler, err := s.makeHijackHandler(host, port)
-		if err != nil {
-			s.defaultErrorHandler(ctx, errors.Annotate(err, "Cannot create hijack handler"))
-			return
-		}
-		ctx.Hijack(handler)
+		ctx.Hijack(s.makeHijackHandler(host, port))
 		ctx.Success("", nil)
-
 		return
 	}
 
-	host, port, err := HostPortFromURL(path)
+	host, port, err := HostPortFromURL(uri)
 	if err != nil {
-		s.defaultErrorHandler(ctx, errors.Annotatef(err, "Cannot parse host/port for URL %s", path))
+		MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot parse host/port for request URI %s", uri), fasthttp.StatusBadRequest)
+		return
 	}
 
 	ctx.SetUserValue("host", host)
@@ -51,13 +46,12 @@ func (s *Server) initialHandler(ctx *fasthttp.RequestCtx) {
 	s.handleRequest(ctx)
 }
 
-func (s *Server) makeHijackHandler(host string, port int) (fasthttp.HijackHandler, error) {
+func (s *Server) makeHijackHandler(host string, port int) fasthttp.HijackHandler {
 	return func(conn net.Conn) {
 		defer conn.Close()
 
 		conf, err := s.certs.Get(host)
 		if err != nil {
-			// TODO
 			return
 		}
 		defer conf.Release()
@@ -66,7 +60,6 @@ func (s *Server) makeHijackHandler(host string, port int) (fasthttp.HijackHandle
 		defer tlsConn.Close()
 
 		if err = tlsConn.Handshake(); err != nil {
-			// TODO
 			return
 		}
 
@@ -79,11 +72,7 @@ func (s *Server) makeHijackHandler(host string, port int) (fasthttp.HijackHandle
 			s.handleRequest(ctx)
 		}
 		srv.ServeConn(tlsConn)
-	}, nil
-}
-
-func (s *Server) defaultErrorHandler(ctx *fasthttp.RequestCtx, err error) {
-	ctx.Error("Incorrect request", fasthttp.StatusBadRequest)
+	}
 }
 
 func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
@@ -144,7 +133,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	ctx.Response.SetStatusCode(responseCode)
 }
 
-func (s *Server) Serve(ln net.Listener) error {
+func (s *Server) ServeListener(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
@@ -261,11 +250,11 @@ Mn5BZ55xSGmAmKpM/5OH5hEZ0HvDED+ilblYt9qaHwoKT61/N+GnaikZ2m8bXHIR
 -----END RSA PRIVATE KEY-----`)
 
 func main() {
-	ln, _ := net.Listen("tcp", "127.0.0.1:3128")
+	ln, _ := MakeListener("tcp", "127.0.0.1:3128", false)
 	srv, _ := NewServer(ServerOpts{
 		CertCA:           DefaultCertCA,
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
 	}, []Layer{}, ProxyExecutor)
-	srv.Serve(ln)
+	srv.ServeListener(ln)
 }

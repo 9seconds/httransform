@@ -9,6 +9,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/9seconds/httransform/ca"
+	"github.com/9seconds/httransform/headerset"
 )
 
 type Server struct {
@@ -85,7 +86,29 @@ func (s *Server) defaultErrorHandler(ctx *fasthttp.RequestCtx, err error) {
 }
 
 func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
-	ctx.Success("text/plain", []byte("SUCCESS"))
+	requestHeaders := headerset.GetHeaderSet()
+	responseHeaders := headerset.GetHeaderSet()
+	defer func() {
+		headerset.ReleaseHeaderSet(requestHeaders)
+		headerset.ReleaseHeaderSet(responseHeaders)
+	}()
+
+	if err := headerset.Parse(requestHeaders, ctx.Request.Header.Header()); err != nil {
+		ctx.Error("Malformed request", 400)
+		return
+	}
+	ctx.SetUserValue("request_headers", requestHeaders)
+	ctx.SetUserValue("response_headers", responseHeaders)
+
+	ctx.Request.Header.Reset()
+	for _, v := range requestHeaders.Items() {
+		ctx.Request.Header.AddBytesV(v.Key, v.Value)
+	}
+
+	ctx.Response.Header.Reset()
+	for _, v := range responseHeaders.Items() {
+		ctx.Response.Header.AddBytesV(v.Key, v.Value)
+	}
 }
 
 func (s *Server) Serve(ln net.Listener) error {

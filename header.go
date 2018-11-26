@@ -1,4 +1,4 @@
-package headerset
+package main
 
 import "fmt"
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"sync"
 
@@ -9,13 +10,14 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/9seconds/httransform/ca"
-	"github.com/9seconds/httransform/headerset"
 )
 
 type Server struct {
 	serverPool sync.Pool
 	server     *fasthttp.Server
 	certs      ca.CA
+	layers     []Layer
+	executor   Executor
 }
 
 func (s *Server) initialHandler(ctx *fasthttp.RequestCtx) {
@@ -82,33 +84,71 @@ func (s *Server) makeHijackHandler(host string, port int) (fasthttp.HijackHandle
 }
 
 func (s *Server) defaultErrorHandler(ctx *fasthttp.RequestCtx, err error) {
-	ctx.Error("Incorrect request", 400)
+	ctx.Error("Incorrect request", fasthttp.StatusBadRequest)
 }
 
 func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
-	requestHeaders := headerset.GetHeaderSet()
-	responseHeaders := headerset.GetHeaderSet()
+	requestHeaders := getHeaderSet()
+	responseHeaders := getHeaderSet()
 	defer func() {
-		headerset.ReleaseHeaderSet(requestHeaders)
-		headerset.ReleaseHeaderSet(responseHeaders)
+		releaseHeaderSet(requestHeaders)
+		releaseHeaderSet(responseHeaders)
 	}()
 
-	if err := headerset.Parse(requestHeaders, ctx.Request.Header.Header()); err != nil {
-		ctx.Error("Malformed request", 400)
+	if err := parseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
+		ctx.Error("Malformed request", fasthttp.StatusBadRequest)
 		return
 	}
-	ctx.SetUserValue("request_headers", requestHeaders)
-	ctx.SetUserValue("response_headers", responseHeaders)
 
+	state := getLayerState()
+	defer releaseLayerState(state)
+	initLayerState(state, ctx, requestHeaders, responseHeaders)
+
+	currentLayer := -1
+	requestMethod := ctx.Request.Header.Method()
+	requestURI := ctx.Request.Header.RequestURI()
+	for _, layer := range s.layers {
+		if err := layer.OnRequest(state); err != nil {
+			// TODO MANAGE ERROR
+			break
+		}
+		currentLayer++
+	}
 	ctx.Request.Header.Reset()
+	ctx.Request.Header.DisableNormalizing()
 	for _, v := range requestHeaders.Items() {
-		ctx.Request.Header.AddBytesV(v.Key, v.Value)
+		ctx.Request.Header.SetBytesV(v.Key, v.Value)
+	}
+	ctx.Request.Header.SetMethodBytes(requestMethod)
+	ctx.Request.Header.SetRequestURIBytes(requestURI)
+
+	if err := s.executor(state); err != nil {
+		// TODO
+		fmt.Println(err)
+		ctx.Error("Malformed response", fasthttp.StatusBadRequest)
+		return
+	}
+
+	// TODO PERFORM REQUEST
+	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
+		ctx.Error("Malformed response", fasthttp.StatusBadRequest)
+		return
+	}
+	responseCode := ctx.Response.Header.StatusCode()
+	for currentLayer >= 0 {
+		if err := s.layers[currentLayer].OnResponse(state); err != nil {
+			// TODO MANAGE ERROR
+			break
+		}
+		currentLayer--
 	}
 
 	ctx.Response.Header.Reset()
+	ctx.Response.Header.DisableNormalizing()
 	for _, v := range responseHeaders.Items() {
-		ctx.Response.Header.AddBytesV(v.Key, v.Value)
+		ctx.Response.Header.SetBytesV(v.Key, v.Value)
 	}
+	ctx.Response.SetStatusCode(responseCode)
 }
 
 func (s *Server) Serve(ln net.Listener) error {
@@ -119,7 +159,7 @@ func (s *Server) Shutdown() error {
 	return s.server.Shutdown()
 }
 
-func NewServer(opts ServerOpts) (*Server, error) {
+func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error) {
 	certs, err := ca.NewCA(opts.GetCertCA(),
 		opts.GetCertKey(),
 		opts.GetTLSCertCacheSize(),
@@ -130,7 +170,9 @@ func NewServer(opts ServerOpts) (*Server, error) {
 	}
 
 	srv := &Server{
-		certs: certs,
+		certs:    certs,
+		layers:   lrs,
+		executor: executor,
 		serverPool: sync.Pool{
 			New: func() interface{} {
 				return &fasthttp.Server{
@@ -231,6 +273,6 @@ func main() {
 		CertCA:           DefaultCertCA,
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
-	})
+	}, []Layer{}, ProxyExecutor)
 	srv.Serve(ln)
 }

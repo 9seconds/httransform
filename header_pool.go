@@ -1,4 +1,4 @@
-package headerset
+package main
 
 import "sync"
 
@@ -16,13 +16,13 @@ func init() {
 	}
 }
 
-func GetHeaderSet() *HeaderSet {
+func getHeaderSet() *HeaderSet {
 	set := headersPool.Get().(*HeaderSet)
 	set.Clear()
 
 	return set
 }
 
-func ReleaseHeaderSet(set *HeaderSet) {
+func releaseHeaderSet(set *HeaderSet) {
 	headersPool.Put(set)
 }

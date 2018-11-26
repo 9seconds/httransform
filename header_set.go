@@ -1,4 +1,4 @@
-package headerset
+package main
 
 import (
 	"bufio"
@@ -55,7 +55,7 @@ func (hs *HeaderSet) Clear() {
 	hs.values = hs.values[:0]
 }
 
-func Parse(hset *HeaderSet, rawHeaders []byte) error {
+func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 	reader := textproto.NewReader(bufio.NewReader(bytes.NewReader(rawHeaders)))
 	reader.ReadContinuedLineBytes() // skip first line of HTTP
 

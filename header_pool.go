@@ -2,10 +2,13 @@ package main
 
 import "sync"
 
-var headersPool sync.Pool
+var (
+	headerSetPool sync.Pool
+	headersPool   sync.Pool
+)
 
 func init() {
-	headersPool = sync.Pool{
+	headerSetPool = sync.Pool{
 		New: func() interface{} {
 			return &HeaderSet{
 				index:          map[string]int{},
@@ -14,15 +17,33 @@ func init() {
 			}
 		},
 	}
+	headersPool = sync.Pool{
+		New: func() interface{} {
+			return &Header{}
+		},
+	}
+}
+
+func getHeader() *Header {
+	header := headersPool.Get().(*Header)
+	header.Key = header.Key[:0]
+	header.Value = header.Value[:0]
+	header.ID = ""
+
+	return header
 }
 
 func getHeaderSet() *HeaderSet {
-	set := headersPool.Get().(*HeaderSet)
+	set := headerSetPool.Get().(*HeaderSet)
 	set.Clear()
 
 	return set
 }
 
 func releaseHeaderSet(set *HeaderSet) {
-	headersPool.Put(set)
+	headerSetPool.Put(set)
+}
+
+func releaseHeader(header *Header) {
+	headersPool.Put(header)
 }

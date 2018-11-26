@@ -4,10 +4,10 @@ import "fmt"
 
 type Header struct {
 	ID    string
-	Key   string
+	Key   []byte
 	Value []byte
 }
 
 func (h *Header) String() string {
-	return fmt.Sprintf("%s: %s", h.Key, string(h.Value))
+	return fmt.Sprintf("%s: %s", string(h.Key), string(h.Value))
 }

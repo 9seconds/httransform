@@ -15,19 +15,24 @@ type HeaderSet struct {
 	removedHeaders map[string]struct{}
 }
 
-func (hs *HeaderSet) Add(key string, value []byte) {
-	lowerKey := strings.ToLower(key)
+func (hs *HeaderSet) AddString(key, value string) {
+	hs.AddBytes([]byte(key), []byte(value))
+}
+
+func (hs *HeaderSet) AddBytes(key []byte, value []byte) {
+	lowerKey := string(bytes.ToLower(key))
+
 	if position, ok := hs.index[lowerKey]; ok {
 		hs.values[position].Value = value
 	} else {
-		newHeader := &Header{
-			ID:    lowerKey,
-			Key:   key,
-			Value: value,
-		}
+		newHeader := getHeader()
+		newHeader.ID = lowerKey
+		newHeader.Key = append(newHeader.Key, key...)
+		newHeader.Value = append(newHeader.Value, value...)
 		hs.values = append(hs.values, newHeader)
 		hs.index[lowerKey] = len(hs.values) - 1
 	}
+
 	delete(hs.removedHeaders, lowerKey)
 }
 
@@ -51,6 +56,9 @@ func (hs *HeaderSet) Clear() {
 	}
 	for k := range hs.removedHeaders {
 		delete(hs.removedHeaders, k)
+	}
+	for _, v := range hs.values {
+		releaseHeader(v)
 	}
 	hs.values = hs.values[:0]
 }
@@ -80,6 +88,6 @@ func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 			colPosition++
 		}
 
-		hset.Add(string(line[:endKey]), line[colPosition:])
+		hset.AddBytes(line[:endKey], line[colPosition:])
 	}
 }

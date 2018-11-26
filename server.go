@@ -117,7 +117,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	ctx.Request.Header.Reset()
 	ctx.Request.Header.DisableNormalizing()
 	for _, v := range requestHeaders.Items() {
-		ctx.Request.Header.SetBytesV(v.Key, v.Value)
+		ctx.Request.Header.SetBytesKV(v.Key, v.Value)
 	}
 	ctx.Request.Header.SetMethodBytes(requestMethod)
 	ctx.Request.Header.SetRequestURIBytes(requestURI)
@@ -146,7 +146,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Reset()
 	ctx.Response.Header.DisableNormalizing()
 	for _, v := range responseHeaders.Items() {
-		ctx.Response.Header.SetBytesV(v.Key, v.Value)
+		ctx.Response.Header.SetBytesKV(v.Key, v.Value)
 	}
 	ctx.Response.SetStatusCode(responseCode)
 }

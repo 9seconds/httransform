@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"sync"
 
@@ -91,6 +90,8 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
 	defer func() {
+		requestHeaders.Clear()
+		responseHeaders.Clear()
 		releaseHeaderSet(requestHeaders)
 		releaseHeaderSet(responseHeaders)
 	}()
@@ -104,43 +105,38 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	defer releaseLayerState(state)
 	initLayerState(state, ctx, requestHeaders, responseHeaders)
 
-	currentLayer := -1
 	requestMethod := ctx.Request.Header.Method()
 	requestURI := ctx.Request.Header.RequestURI()
-	for _, layer := range s.layers {
-		if err := layer.OnRequest(state); err != nil {
-			// TODO MANAGE ERROR
+	currentLayer := 0
+	for ; currentLayer < len(s.layers); currentLayer++ {
+		if err := s.layers[currentLayer].OnRequest(state); err != nil {
+			ctx.Response.Reset()
+			ctx.Response.SetBodyString("Internal Server Error")
+			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response.Header.SetContentType("text/plain")
 			break
 		}
-		currentLayer++
-	}
-	ctx.Request.Header.Reset()
-	ctx.Request.Header.DisableNormalizing()
-	for _, v := range requestHeaders.Items() {
-		ctx.Request.Header.SetBytesKV(v.Key, v.Value)
-	}
-	ctx.Request.Header.SetMethodBytes(requestMethod)
-	ctx.Request.Header.SetRequestURIBytes(requestURI)
-
-	if err := s.executor(state); err != nil {
-		// TODO
-		fmt.Println(err)
-		ctx.Error("Malformed response", fasthttp.StatusBadRequest)
-		return
 	}
 
-	// TODO PERFORM REQUEST
+	if currentLayer == len(s.layers) {
+		ctx.Request.Header.Reset()
+		ctx.Request.Header.DisableNormalizing()
+		for _, v := range requestHeaders.Items() {
+			ctx.Request.Header.SetBytesKV(v.Key, v.Value)
+		}
+		ctx.Request.Header.SetMethodBytes(requestMethod)
+		ctx.Request.Header.SetRequestURIBytes(requestURI)
+
+		s.executor(state)
+	}
+
 	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
 		ctx.Error("Malformed response", fasthttp.StatusBadRequest)
 		return
 	}
 	responseCode := ctx.Response.Header.StatusCode()
-	for currentLayer >= 0 {
-		if err := s.layers[currentLayer].OnResponse(state); err != nil {
-			// TODO MANAGE ERROR
-			break
-		}
-		currentLayer--
+	for currentLayer--; currentLayer > 0; currentLayer-- {
+		s.layers[currentLayer].OnResponse(state)
 	}
 
 	ctx.Response.Header.Reset()

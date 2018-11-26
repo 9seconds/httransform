@@ -8,14 +8,18 @@ import (
 
 var DefaultHTTPClient *fasthttp.Client
 
-type Executor func(*LayerState) error
+type Executor func(*LayerState)
 
-func ProxyExecutor(state *LayerState) error {
-	fmt.Println(string(state.Request.Header.Method()))
-	fmt.Println(string(state.Request.RequestURI()))
-	fmt.Println(string(state.Request.Host()))
-	fmt.Println(string(state.Request.String()))
-	return DefaultHTTPClient.Do(state.Request, state.Response)
+func ProxyExecutor(state *LayerState) {
+	err := DefaultHTTPClient.Do(state.Request, state.Response)
+	if err != nil {
+		resp := fasthttp.AcquireResponse()
+		resp.SetBodyString(fmt.Sprintf("Cannot fetch from upstream: %s", err))
+		resp.SetStatusCode(fasthttp.StatusBadGateway)
+		resp.Header.SetContentType("text/plain")
+		resp.CopyTo(state.Response)
+		fasthttp.ReleaseResponse(resp)
+	}
 }
 
 func init() {

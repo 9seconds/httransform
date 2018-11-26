@@ -36,8 +36,42 @@ func (hs *HeaderSet) AddBytes(key []byte, value []byte) {
 	delete(hs.removedHeaders, lowerKey)
 }
 
-func (hs *HeaderSet) Delete(key string) {
+func (hs *HeaderSet) DeleteString(key string) {
 	hs.removedHeaders[strings.ToLower(key)] = struct{}{}
+}
+
+func (hs *HeaderSet) DeleteBytes(key []byte) {
+	hs.removedHeaders[string(bytes.ToLower(key))] = struct{}{}
+}
+
+func (hs *HeaderSet) GetString(key string) (string, bool) {
+	lowerKey := strings.ToLower(key)
+
+	_, ok := hs.removedHeaders[lowerKey]
+	if !ok {
+		return "", false
+	}
+
+	if pos, ok := hs.index[lowerKey]; ok {
+		return string(hs.values[pos].Value), true
+	}
+
+	return "", false
+}
+
+func (hs *HeaderSet) GetBytes(key []byte) ([]byte, bool) {
+	lowerKey := string(bytes.ToLower(key))
+
+	_, ok := hs.removedHeaders[lowerKey]
+	if !ok {
+		return nil, false
+	}
+
+	if pos, ok := hs.index[lowerKey]; ok {
+		return hs.values[pos].Value, true
+	}
+
+	return nil, false
 }
 
 func (hs *HeaderSet) Items() []*Header {

@@ -14,7 +14,17 @@ type LayerState struct {
 
 type Layer interface {
 	OnRequest(*LayerState) error
-	OnResponse(*LayerState) error
+	OnResponse(*LayerState)
+}
+
+type BaseLayer struct {
+}
+
+func (b BaseLayer) OnRequest(_ *LayerState) error {
+	return nil
+}
+
+func (b BaseLayer) OnResponse(_ *LayerState) {
 }
 
 func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,

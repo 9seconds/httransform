@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/juju/errors"
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -60,4 +61,11 @@ func HostPortFromURL(rawurl string) (string, int, error) {
 func parsePort(port string) (int, error) {
 	portUint, err := strconv.ParseUint(port, 10, 16)
 	return int(portUint), err
+}
+
+func MakeBadResponse(resp *fasthttp.Response, msg string, statusCode int) {
+	resp.Reset()
+	resp.SetBodyString(msg)
+	resp.SetStatusCode(statusCode)
+	resp.Header.SetContentType("text/plain")
 }

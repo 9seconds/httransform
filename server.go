@@ -97,7 +97,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	}()
 
 	if err := parseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
-		ctx.Error("Malformed request", fasthttp.StatusBadRequest)
+		MakeBadResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -110,10 +110,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	currentLayer := 0
 	for ; currentLayer < len(s.layers); currentLayer++ {
 		if err := s.layers[currentLayer].OnRequest(state); err != nil {
-			ctx.Response.Reset()
-			ctx.Response.SetBodyString("Internal Server Error")
-			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
-			ctx.Response.Header.SetContentType("text/plain")
+			MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
 		}
 	}
@@ -131,7 +128,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
-		ctx.Error("Malformed response", fasthttp.StatusBadRequest)
+		MakeBadResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
 		return
 	}
 	responseCode := ctx.Response.Header.StatusCode()

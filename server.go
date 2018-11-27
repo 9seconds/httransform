@@ -250,7 +250,7 @@ Mn5BZ55xSGmAmKpM/5OH5hEZ0HvDED+ilblYt9qaHwoKT61/N+GnaikZ2m8bXHIR
 -----END RSA PRIVATE KEY-----`)
 
 func main() {
-	ln, _ := MakeListener("tcp", "127.0.0.1:3128", false)
+	ln, _ := net.Listen("tcp", "127.0.0.1:3128")
 	srv, _ := NewServer(ServerOpts{
 		CertCA:           DefaultCertCA,
 		CertKey:          DefaultPrivateKey,

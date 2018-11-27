@@ -104,7 +104,9 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	currentLayer := 0
 	for ; currentLayer < len(s.layers); currentLayer++ {
 		if err := s.layers[currentLayer].OnRequest(state); err != nil {
-			MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
+			if err != LayerStop {
+				MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
+			}
 			break
 		}
 	}

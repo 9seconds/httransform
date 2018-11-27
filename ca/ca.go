@@ -48,7 +48,7 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 
 func (c *CA) sign(host string) (tls.Certificate, error) {
 	template := x509.Certificate{
-		SerialNumber:          new(big.Int),
+		SerialNumber:          &big.Int{},
 		Issuer:                c.ca.Leaf.Subject,
 		Subject:               pkix.Name{Organization: c.orgNames},
 		NotBefore:             time.Unix(0, 0),

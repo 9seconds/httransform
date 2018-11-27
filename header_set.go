@@ -15,11 +15,11 @@ type HeaderSet struct {
 	removedHeaders map[string]struct{}
 }
 
-func (hs *HeaderSet) AddString(key, value string) {
-	hs.AddBytes([]byte(key), []byte(value))
+func (hs *HeaderSet) SetString(key, value string) {
+	hs.SetBytes([]byte(key), []byte(value))
 }
 
-func (hs *HeaderSet) AddBytes(key []byte, value []byte) {
+func (hs *HeaderSet) SetBytes(key []byte, value []byte) {
 	lowerKey := string(bytes.ToLower(key))
 
 	if position, ok := hs.index[lowerKey]; ok {
@@ -122,6 +122,6 @@ func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 			colPosition++
 		}
 
-		hset.AddBytes(line[:endKey], line[colPosition:])
+		hset.SetBytes(line[:endKey], line[colPosition:])
 	}
 }

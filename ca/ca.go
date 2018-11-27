@@ -23,27 +23,62 @@ const (
 )
 
 type CA struct {
-	ca       tls.Certificate
-	orgNames []string
-	secret   []byte
-	cache    *ccache.Cache
+	ca          tls.Certificate
+	orgNames    []string
+	secret      []byte
+	cache       *ccache.Cache
+	workerQueue chan *signRequest
 }
 
 func (c *CA) Get(host string) (TLSConfig, error) {
 	item := c.cache.TrackingGet(host)
-	if item == ccache.NilTracked {
-		conf := &tls.Config{InsecureSkipVerify: true}
-		cert, err := c.sign(host)
-		if err != nil {
-			return TLSConfig{}, errors.Annotate(err, "Cannot create certificate for the host")
-		}
-		conf.Certificates = append(conf.Certificates, cert)
-		c.cache.Set(host, conf, defaultTTLForCertificate)
 
-		return c.Get(host)
+	if item == ccache.NilTracked {
+		request := signRequestPool.Get().(*signRequest)
+		defer signRequestPool.Put(request)
+
+		request.host = host
+		c.workerQueue <- request
+
+		response := <-request.responseChan
+		defer signResponsePool.Put(response)
+
+		if response.err != nil {
+			return TLSConfig{}, errors.Annotate(response.err, "Cannot create Certificate for the host")
+		}
+
+		item = response.item
 	}
 
 	return TLSConfig{item}, nil
+}
+
+func (c *CA) worker() {
+	for request := range c.workerQueue {
+		response := signResponsePool.Get().(*signResponse)
+		response.item = nil
+		response.err = nil
+
+		item := c.cache.TrackingGet(request.host)
+		if item != ccache.NilTracked {
+			response.item = item
+			request.responseChan <- response
+			continue
+		}
+
+		cert, err := c.sign(request.host)
+		if err != nil {
+			response.err = err
+			request.responseChan <- response
+			continue
+		}
+
+		conf := &tls.Config{InsecureSkipVerify: true}
+		conf.Certificates = append(conf.Certificates, cert)
+		c.cache.Set(request.host, conf, defaultTTLForCertificate)
+		response.item = c.cache.TrackingGet(request.host)
+		request.responseChan <- response
+	}
 }
 
 func (c *CA) sign(host string) (tls.Certificate, error) {
@@ -99,10 +134,14 @@ func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32,
 		return CA{}, errors.Annotate(err, "Invalid certificates")
 	}
 
-	return CA{
-		ca:       ca,
-		secret:   certKey,
-		orgNames: orgNames,
-		cache:    ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
-	}, nil
+	obj := CA{
+		ca:          ca,
+		secret:      certKey,
+		orgNames:    orgNames,
+		cache:       ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
+		workerQueue: make(chan *signRequest),
+	}
+	go obj.worker()
+
+	return obj, nil
 }

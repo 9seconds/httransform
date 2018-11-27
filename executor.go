@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"net"
@@ -88,6 +89,7 @@ func MakeHTTPClient() *fasthttp.Client {
 	return &fasthttp.Client{
 		DialDualStack:                 true,
 		DisableHeaderNamesNormalizing: true,
+		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
 	}
 }
 

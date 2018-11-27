@@ -118,16 +118,15 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 
 		s.executor(state)
 	}
-
 	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
 		MakeBadResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
 		return
 	}
+
 	responseCode := ctx.Response.Header.StatusCode()
 	for currentLayer--; currentLayer >= 0; currentLayer-- {
 		s.layers[currentLayer].OnResponse(state)
 	}
-
 	s.resetHeaders(&ctx.Response.Header, responseHeaders)
 	ctx.Response.SetStatusCode(responseCode)
 }

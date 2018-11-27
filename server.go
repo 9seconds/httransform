@@ -133,7 +133,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	ctx.Response.SetStatusCode(responseCode)
 }
 
-func (s *Server) ServeListener(ln net.Listener) error {
+func (s *Server) Serve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
@@ -256,5 +256,5 @@ func main() {
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
 	}, []Layer{}, ProxyExecutor)
-	srv.ServeListener(ln)
+	srv.Serve(ln)
 }

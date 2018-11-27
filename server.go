@@ -13,6 +13,12 @@ import (
 	"github.com/9seconds/httransform/ca"
 )
 
+type fasthttpHeader interface {
+	Reset()
+	DisableNormalizing()
+	SetBytesKV([]byte, []byte)
+}
+
 type Server struct {
 	serverPool sync.Pool
 	server     *fasthttp.Server
@@ -21,33 +27,36 @@ type Server struct {
 	executor   Executor
 }
 
-func (s *Server) initialHandler(ctx *fasthttp.RequestCtx) {
+func (s *Server) Serve(ln net.Listener) error {
+	return s.server.Serve(ln)
+}
+
+func (s *Server) Shutdown() error {
+	return s.server.Shutdown()
+}
+
+func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.RequestURI())
 
 	if ctx.IsConnect() {
-		host, port, err := SplitHostPort(uri)
+		host, err := ExtractHost(uri)
 		if err != nil {
-			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot parse host/port for request URI %s", uri), fasthttp.StatusBadRequest)
+			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
 		}
-		ctx.Hijack(s.makeHijackHandler(host, port))
+		ctx.Hijack(s.makeHijackHandler(host))
 		ctx.Success("", nil)
 		return
 	}
 
-	host, port, err := HostPortFromURL(uri)
-	if err != nil {
-		MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot parse host/port for request URI %s", uri), fasthttp.StatusBadRequest)
-		return
-	}
-
-	ctx.SetUserValue("host", host)
-	ctx.SetUserValue("port", port)
-
-	s.handleRequest(ctx)
+	s.handleRequest(ctx, false)
 }
 
-func (s *Server) makeHijackHandler(host string, port int) fasthttp.HijackHandler {
+func (s *Server) connectHandler(ctx *fasthttp.RequestCtx) {
+	s.handleRequest(ctx, true)
+}
+
+func (s *Server) makeHijackHandler(host string) fasthttp.HijackHandler {
 	return func(conn net.Conn) {
 		defer conn.Close()
 
@@ -67,16 +76,11 @@ func (s *Server) makeHijackHandler(host string, port int) fasthttp.HijackHandler
 		srv := s.serverPool.Get().(*fasthttp.Server)
 		defer s.serverPool.Put(srv)
 
-		srv.Handler = func(ctx *fasthttp.RequestCtx) {
-			ctx.SetUserValue("host", host)
-			ctx.SetUserValue("port", port)
-			s.handleRequest(ctx)
-		}
 		srv.ServeConn(tlsConn)
 	}
 }
 
-func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
+func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
 	defer func() {
@@ -93,7 +97,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 
 	state := getLayerState()
 	defer releaseLayerState(state)
-	initLayerState(state, ctx, requestHeaders, responseHeaders)
+	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect)
 
 	requestMethod := ctx.Request.Header.Method()
 	requestURI := ctx.Request.Header.RequestURI()
@@ -106,11 +110,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 	}
 
 	if currentLayer == len(s.layers) {
-		ctx.Request.Header.Reset()
-		ctx.Request.Header.DisableNormalizing()
-		for _, v := range requestHeaders.Items() {
-			ctx.Request.Header.SetBytesKV(v.Key, v.Value)
-		}
+		s.resetHeaders(&ctx.Request.Header, requestHeaders)
 		ctx.Request.Header.SetMethodBytes(requestMethod)
 		ctx.Request.Header.SetRequestURIBytes(requestURI)
 
@@ -126,20 +126,16 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 		s.layers[currentLayer].OnResponse(state)
 	}
 
-	ctx.Response.Header.Reset()
-	ctx.Response.Header.DisableNormalizing()
-	for _, v := range responseHeaders.Items() {
-		ctx.Response.Header.SetBytesKV(v.Key, v.Value)
-	}
+	s.resetHeaders(&ctx.Response.Header, responseHeaders)
 	ctx.Response.SetStatusCode(responseCode)
 }
 
-func (s *Server) Serve(ln net.Listener) error {
-	return s.server.Serve(ln)
-}
-
-func (s *Server) Shutdown() error {
-	return s.server.Shutdown()
+func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
+	headers.Reset()
+	headers.DisableNormalizing()
+	for _, v := range set.Items() {
+		headers.SetBytesKV(v.Key, v.Value)
+	}
 }
 
 func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error) {
@@ -156,25 +152,26 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error)
 		certs:    certs,
 		layers:   lrs,
 		executor: executor,
-		serverPool: sync.Pool{
-			New: func() interface{} {
-				return &fasthttp.Server{
-					Concurrency:                   opts.GetConcurrency(),
-					ReadBufferSize:                opts.GetReadBufferSize(),
-					WriteBufferSize:               opts.GetWriteBufferSize(),
-					ReadTimeout:                   opts.GetReadTimeout(),
-					WriteTimeout:                  opts.GetWriteTimeout(),
-					DisableKeepalive:              false,
-					TCPKeepalive:                  true,
-					DisableHeaderNamesNormalizing: true,
-					NoDefaultServerHeader:         true,
-					NoDefaultContentType:          true,
-				}
-			},
+	}
+	srv.serverPool = sync.Pool{
+		New: func() interface{} {
+			return &fasthttp.Server{
+				Handler:                       srv.connectHandler,
+				Concurrency:                   opts.GetConcurrency(),
+				ReadBufferSize:                opts.GetReadBufferSize(),
+				WriteBufferSize:               opts.GetWriteBufferSize(),
+				ReadTimeout:                   opts.GetReadTimeout(),
+				WriteTimeout:                  opts.GetWriteTimeout(),
+				DisableKeepalive:              false,
+				TCPKeepalive:                  true,
+				DisableHeaderNamesNormalizing: true,
+				NoDefaultServerHeader:         true,
+				NoDefaultContentType:          true,
+			}
 		},
 	}
 	srv.server = srv.serverPool.Get().(*fasthttp.Server)
-	srv.server.Handler = srv.initialHandler
+	srv.server.Handler = srv.mainHandler
 
 	return srv, nil
 }

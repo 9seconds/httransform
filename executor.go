@@ -21,18 +21,12 @@ var (
 
 func MakeHTTPExecutor(client *fasthttp.Client) Executor {
 	return func(state *LayerState) {
-		err := client.Do(state.Request, state.Response)
-		if err != nil {
-			resp := fasthttp.AcquireResponse()
-			MakeBadResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
-			resp.CopyTo(state.Response)
-			fasthttp.ReleaseResponse(resp)
-		}
+		executeRequest(client, state.Request, state.Response)
 	}
 }
 
 func ProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
-	client := MakeHTTPClient()
+	proxyClient := MakeHTTPClient()
 
 	switch proxyURL.Scheme {
 	case "socks5":
@@ -51,24 +45,25 @@ func ProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 			return nil, errors.Annotate(err, "Cannot build socks5 proxy dialer")
 		}
 
-		client.Dial = func(addr string) (net.Conn, error) {
+		proxyClient.Dial = func(addr string) (net.Conn, error) {
 			return proxyDialer.Dial("tcp", addr)
 		}
 
-		return MakeHTTPExecutor(client), nil
+		return MakeHTTPExecutor(proxyClient), nil
 
 	case "", "http", "https":
-		client.Dial = makeHTTPProxyDialer(proxyURL)
-		executor := MakeHTTPExecutor(client)
+		proxyClient.Dial = makeHTTPProxyDialer(proxyURL)
 
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
-		if proxyAuthorizationHeaderValue == "" {
-			return executor, nil
-		}
-
 		return func(state *LayerState) {
-			state.ResponseHeaders.SetString("Proxy-Authorization", proxyAuthorizationHeaderValue)
-			executor(state)
+			if proxyAuthorizationHeaderValue != "" {
+				state.ResponseHeaders.SetString("Proxy-Authorization", proxyAuthorizationHeaderValue)
+			}
+			if state.isConnect {
+				executeRequest(proxyClient, state.Request, state.Response)
+			} else {
+				executeRequest(DefaultHTTPClient, state.Request, state.Response)
+			}
 		}, nil
 	}
 
@@ -90,6 +85,15 @@ func MakeHTTPClient() *fasthttp.Client {
 	return &fasthttp.Client{
 		DialDualStack:                 true,
 		DisableHeaderNamesNormalizing: true,
+	}
+}
+
+func executeRequest(client *fasthttp.Client, req *fasthttp.Request, resp *fasthttp.Response) {
+	if err := client.Do(req, resp); err != nil {
+		newResponse := fasthttp.AcquireResponse()
+		MakeBadResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
+		resp.CopyTo(resp)
+		fasthttp.ReleaseResponse(newResponse)
 	}
 }
 

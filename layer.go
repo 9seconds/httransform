@@ -3,9 +3,9 @@ package main
 import "github.com/valyala/fasthttp"
 
 type LayerState struct {
+	isConnect bool
+
 	RequestID       uint64
-	Host            string
-	Port            int
 	RequestHeaders  *HeaderSet
 	ResponseHeaders *HeaderSet
 	Request         *fasthttp.Request
@@ -28,14 +28,14 @@ func (b BaseLayer) OnResponse(_ *LayerState) {
 }
 
 func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
-	requestHeaders, responseHeaders *HeaderSet) {
+	requestHeaders, responseHeaders *HeaderSet,
+	isConnect bool) {
 	state.RequestID = ctx.ID()
 	state.RequestHeaders = requestHeaders
 	state.ResponseHeaders = responseHeaders
 	state.Request = &ctx.Request
 	state.Response = &ctx.Response
-	state.Host = ctx.UserValue("host").(string)
-	state.Port = ctx.UserValue("port").(int)
+	state.isConnect = isConnect
 }
 
 type ConnectionCloseLayer struct {
@@ -55,7 +55,7 @@ func (p ProxyHeadersLayer) OnRequest(state *LayerState) error {
 }
 
 func (p ProxyHeadersLayer) OnResponse(state *LayerState) {
-	p.modifyHeaders(state.RequestHeaders)
+	p.modifyHeaders(state.ResponseHeaders)
 }
 
 func (p ProxyHeadersLayer) modifyHeaders(set *HeaderSet) {

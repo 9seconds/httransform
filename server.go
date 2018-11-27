@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/url"
 	"sync"
 
 	"github.com/juju/errors"
@@ -121,7 +122,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	responseCode := ctx.Response.Header.StatusCode()
-	for currentLayer--; currentLayer > 0; currentLayer-- {
+	for currentLayer--; currentLayer >= 0; currentLayer-- {
 		s.layers[currentLayer].OnResponse(state)
 	}
 
@@ -250,11 +251,16 @@ Mn5BZ55xSGmAmKpM/5OH5hEZ0HvDED+ilblYt9qaHwoKT61/N+GnaikZ2m8bXHIR
 -----END RSA PRIVATE KEY-----`)
 
 func main() {
-	ln, _ := net.Listen("tcp", "127.0.0.1:3128")
+	ln, _ := net.Listen("tcp", "127.0.0.1:3130")
+	u, _ := url.Parse("http://PREDEFINED_API_KEY:@127.0.0.1:8010")
+	pce, _ := ProxyChainExecutor(u)
 	srv, _ := NewServer(ServerOpts{
 		CertCA:           DefaultCertCA,
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
-	}, []Layer{}, ProxyExecutor)
+	}, []Layer{
+		ConnectionCloseLayer{},
+		ProxyHeadersLayer{},
+	}, pce)
 	srv.Serve(ln)
 }

@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"net"
 	"net/url"
+	"sync"
 
 	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
@@ -17,6 +19,7 @@ type Executor func(*LayerState)
 var (
 	DefaultHTTPClient *fasthttp.Client
 	HTTPExecutor      Executor
+	bytesBufferPool   sync.Pool
 )
 
 func MakeHTTPExecutor(client *fasthttp.Client) Executor {
@@ -56,8 +59,8 @@ func ProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 		return func(state *LayerState) {
-			if proxyAuthorizationHeaderValue != "" {
-				state.ResponseHeaders.SetString("Proxy-Authorization", proxyAuthorizationHeaderValue)
+			if proxyAuthorizationHeaderValue != nil {
+				state.ResponseHeaders.SetBytes([]byte("Proxy-Authorization"), proxyAuthorizationHeaderValue)
 			}
 			if state.isConnect {
 				executeRequest(proxyClient, state.Request, state.Response)
@@ -70,15 +73,15 @@ func ProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 	return nil, errors.Errorf("Unknown proxy scheme %s", proxyURL.Scheme)
 }
 
-func MakeProxyAuthorizationHeaderValue(proxyURL *url.URL) string {
+func MakeProxyAuthorizationHeaderValue(proxyURL *url.URL) []byte {
 	username := proxyURL.User.Username()
 	password, ok := proxyURL.User.Password()
 	if ok || username != "" {
-		line := fmt.Sprintf("%s:%s", username, password)
-		return "Basic " + base64.StdEncoding.EncodeToString([]byte(line))
+		line := username + ":" + password
+		return []byte("Basic " + base64.StdEncoding.EncodeToString([]byte(line)))
 	}
 
-	return ""
+	return nil
 }
 
 func MakeHTTPClient() *fasthttp.Client {
@@ -106,13 +109,24 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
 		}
 
-		connectRequest := fmt.Sprintf("CONNECT %s HTTP/1.1\r\nHost: %s\r\n", addr, addr)
-		if proxyAuthHeaderValue != "" {
-			connectRequest += fmt.Sprintf("Proxy-Authorization: %s\r\n", proxyAuthHeaderValue)
-		}
-		connectRequest += "\r\n"
+		connectRequest := bytesBufferPool.Get().(*bytes.Buffer)
+		defer bytesBufferPool.Put(connectRequest)
 
-		if _, err := conn.Write([]byte(connectRequest)); err != nil {
+		connectRequest.Reset()
+		connectRequest.Write([]byte("CONNECT "))
+		connectRequest.WriteString(addr)
+		connectRequest.Write([]byte(" HTTP/1.1\r\nHost: "))
+		connectRequest.WriteString(addr)
+		connectRequest.Write([]byte("\r\n"))
+
+		if proxyAuthHeaderValue != nil {
+			connectRequest.Write([]byte("Proxy-Authorization: "))
+			connectRequest.Write(proxyAuthHeaderValue)
+			connectRequest.Write([]byte("\r\n"))
+		}
+		connectRequest.Write([]byte("\r\n"))
+
+		if _, err := conn.Write(connectRequest.Bytes()); err != nil {
 			return nil, errors.Annotate(err, "Cannot send CONNECT request")
 		}
 
@@ -137,4 +151,9 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 func init() {
 	DefaultHTTPClient = MakeHTTPClient()
 	HTTPExecutor = MakeHTTPExecutor(DefaultHTTPClient)
+	bytesBufferPool = sync.Pool{
+		New: func() interface{} {
+			return &bytes.Buffer{}
+		},
+	}
 }

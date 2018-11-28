@@ -103,14 +103,14 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	currentLayer := 0
 	for ; currentLayer < len(s.layers); currentLayer++ {
 		if err := s.layers[currentLayer].OnRequest(state); err != nil {
-			if err != LayerStop {
-				MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
-			}
+			state.Error = err
+			MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
 		}
 	}
 
 	if currentLayer == len(s.layers) {
+		currentLayer--
 		s.resetHeaders(&ctx.Request.Header, requestHeaders)
 		ctx.Request.Header.SetMethodBytes(requestMethod)
 		ctx.Request.Header.SetRequestURIBytes(requestURI)
@@ -122,10 +122,10 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 		return
 	}
 
-	responseCode := ctx.Response.Header.StatusCode()
-	for currentLayer--; currentLayer >= 0; currentLayer-- {
+	for ; currentLayer >= 0; currentLayer-- {
 		s.layers[currentLayer].OnResponse(state)
 	}
+	responseCode := ctx.Response.Header.StatusCode()
 	s.resetHeaders(&ctx.Response.Header, responseHeaders)
 	ctx.Response.SetStatusCode(responseCode)
 }
@@ -256,8 +256,9 @@ func main() {
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
 	}, []Layer{
-		ConnectionCloseLayer{},
-		ProxyHeadersLayer{},
+		&ProxyAuthorizationBasicLayer{true},
+		&ProxyHeadersLayer{},
+		&ConnectionCloseLayer{},
 	}, pce)
 	srv.Serve(ln)
 }

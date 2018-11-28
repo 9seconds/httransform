@@ -62,11 +62,9 @@ func (hs *HeaderSet) GetString(key string) (string, bool) {
 func (hs *HeaderSet) GetBytes(key []byte) ([]byte, bool) {
 	lowerKey := string(bytes.ToLower(key))
 
-	_, ok := hs.removedHeaders[lowerKey]
-	if !ok {
+	if _, ok := hs.removedHeaders[lowerKey]; ok {
 		return nil, false
 	}
-
 	if pos, ok := hs.index[lowerKey]; ok {
 		return hs.values[pos].Value, true
 	}
@@ -95,6 +93,15 @@ func (hs *HeaderSet) Clear() {
 		releaseHeader(v)
 	}
 	hs.values = hs.values[:0]
+}
+
+func (hs *HeaderSet) String() string {
+	builder := strings.Builder{}
+	for _, v := range hs.Items() {
+		builder.WriteString(v.String())
+		builder.WriteString("\n")
+	}
+	return builder.String()
 }
 
 func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {

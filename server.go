@@ -101,9 +101,10 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	requestMethod := ctx.Request.Header.Method()
 	requestURI := ctx.Request.Header.RequestURI()
 	currentLayer := 0
+	var err error
+
 	for ; currentLayer < len(s.layers); currentLayer++ {
-		if err := s.layers[currentLayer].OnRequest(state); err != nil {
-			state.Error = err
+		if err = s.layers[currentLayer].OnRequest(state); err != nil {
 			MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
 		}
@@ -123,7 +124,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	}
 
 	for ; currentLayer >= 0; currentLayer-- {
-		s.layers[currentLayer].OnResponse(state)
+		s.layers[currentLayer].OnResponse(state, err)
 	}
 	responseCode := ctx.Response.Header.StatusCode()
 	s.resetHeaders(&ctx.Response.Header, responseHeaders)
@@ -256,7 +257,7 @@ func main() {
 		CertKey:          DefaultPrivateKey,
 		OrganizationName: "TEST",
 	}, []Layer{
-		&ProxyAuthorizationBasicLayer{true},
+		&ProxyAuthorizationBasicLayer{User: []byte("1")},
 		&ProxyHeadersLayer{},
 		&ConnectionCloseLayer{},
 	}, pce)

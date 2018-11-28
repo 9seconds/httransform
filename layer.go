@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/base64"
 
 	"github.com/juju/errors"
@@ -10,7 +11,7 @@ import (
 
 type Layer interface {
 	OnRequest(*LayerState) error
-	OnResponse(*LayerState)
+	OnResponse(*LayerState, error)
 }
 
 type LayerState struct {
@@ -59,11 +60,11 @@ func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 type ConnectionCloseLayer struct {
 }
 
-func (c *ConnectionCloseLayer) OnRequest(state *LayerState) error {
+func (c *ConnectionCloseLayer) OnRequest(_ *LayerState) error {
 	return nil
 }
 
-func (c *ConnectionCloseLayer) OnResponse(state *LayerState) {
+func (c *ConnectionCloseLayer) OnResponse(state *LayerState, _ error) {
 	state.ResponseHeaders.SetString("Connection", "close")
 }
 
@@ -75,7 +76,7 @@ func (p *ProxyHeadersLayer) OnRequest(state *LayerState) error {
 	return nil
 }
 
-func (p *ProxyHeadersLayer) OnResponse(state *LayerState) {
+func (p *ProxyHeadersLayer) OnResponse(state *LayerState, _ error) {
 	p.modifyHeaders(state.ResponseHeaders)
 }
 
@@ -91,42 +92,43 @@ func (p *ProxyHeadersLayer) modifyHeaders(set *HeaderSet) {
 }
 
 type ProxyAuthorizationBasicLayer struct {
-	Mandatory bool
+	User     []byte
+	Password []byte
 }
 
 func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
-	username, password, err := p.extract(state)
-	if err == nil {
-		state.Set("username", username)
-		state.Set("password", password)
-		return nil
-	}
-
-	if p.Mandatory {
+	username, password, err := p.Extract(state)
+	if err != nil {
 		return ProxyAuthorizationError
 	}
+	if subtle.ConstantTimeCompare(username, p.User) != 1 || subtle.ConstantTimeCompare(password, p.Password) != 1 {
+		return ProxyAuthorizationError
+	}
+
+	state.Set("authUsername", string(username))
+	state.Set("authPassword", string(password))
 
 	return nil
 }
 
-func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState) {
-	if state.Error == ProxyAuthorizationError {
+func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) {
+	if err == ProxyAuthorizationError {
 		MakeBadResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
 	}
 }
 
-func (p *ProxyAuthorizationBasicLayer) extract(state *LayerState) (string, string, error) {
+func (p *ProxyAuthorizationBasicLayer) Extract(state *LayerState) ([]byte, []byte, error) {
 	line, ok := state.RequestHeaders.GetBytes([]byte("proxy-authorization"))
 	if !ok {
-		return "", "", errors.New("Cannot extract contents of Proxy-Authorization header")
+		return nil, nil, errors.New("Cannot extract contents of Proxy-Authorization header")
 	}
 
 	pos := bytes.IndexByte(line, ' ')
 	if pos < 0 {
-		return "", "", errors.New("Malformed Proxy-Authorization header")
+		return nil, nil, errors.New("Malformed Proxy-Authorization header")
 	}
 	if !bytes.HasPrefix(bytes.ToLower(line[:pos]), []byte("basic")) {
-		return "", "", errors.New("Incorrect authorization prefix")
+		return nil, nil, errors.New("Incorrect authorization prefix")
 	}
 
 	for pos < len(line) && (line[pos] == ' ' || line[pos] == '\t') {
@@ -135,13 +137,13 @@ func (p *ProxyAuthorizationBasicLayer) extract(state *LayerState) (string, strin
 
 	line, err := base64.StdEncoding.DecodeString(string(line[pos:]))
 	if err != nil {
-		return "", "", errors.Annotate(err, "Incorrectly encoded authorization payload")
+		return nil, nil, errors.Annotate(err, "Incorrectly encoded authorization payload")
 	}
 
 	pos = bytes.IndexByte(line, ':')
 	if pos < 0 {
-		return "", "", errors.New("Cannot find a user/password delimiter in decoded authorization string")
+		return nil, nil, errors.New("Cannot find a user/password delimiter in decoded authorization string")
 	}
 
-	return string(line[:pos]), string(line[pos+1:]), nil
+	return line[:pos], line[pos+1:], nil
 }

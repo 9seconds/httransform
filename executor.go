@@ -112,9 +112,9 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 		}
 
 		connectRequest := bytesBufferPool.Get().(*bytes.Buffer)
+		connectRequest.Reset()
 		defer bytesBufferPool.Put(connectRequest)
 
-		connectRequest.Reset()
 		connectRequest.Write([]byte("CONNECT "))
 		connectRequest.WriteString(addr)
 		connectRequest.Write([]byte(" HTTP/1.1\r\nHost: "))

@@ -2,6 +2,11 @@ package main
 
 import "github.com/valyala/fasthttp"
 
+type Layer interface {
+	OnRequest(*LayerState) error
+	OnResponse(*LayerState)
+}
+
 type LayerState struct {
 	isConnect bool
 	ctx       map[string]interface{}
@@ -20,11 +25,6 @@ func (l *LayerState) Set(key string, value interface{}) {
 func (l *LayerState) Get(key string) (interface{}, bool) {
 	item, ok := l.ctx[key]
 	return item, ok
-}
-
-type Layer interface {
-	OnRequest(*LayerState) error
-	OnResponse(*LayerState)
 }
 
 type BaseLayer struct {

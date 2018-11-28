@@ -36,9 +36,8 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
-	uri := string(ctx.RequestURI())
-
 	if ctx.IsConnect() {
+		uri := string(ctx.RequestURI())
 		host, err := ExtractHost(uri)
 		if err != nil {
 			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)

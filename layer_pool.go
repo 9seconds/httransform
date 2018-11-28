@@ -7,15 +7,22 @@ var layerStatePool sync.Pool
 func init() {
 	layerStatePool = sync.Pool{
 		New: func() interface{} {
-			return &LayerState{}
+			return &LayerState{
+				ctx: make(map[string]interface{}),
+			}
 		},
 	}
 }
 
 func getLayerState() *LayerState {
-	return layerStatePool.Get().(*LayerState)
+	state := layerStatePool.Get().(*LayerState)
+	for k := range state.ctx {
+		delete(state.ctx, k)
+	}
+
+	return state
 }
 
-func releaseLayerState(statek *LayerState) {
-	layerStatePool.Put(statek)
+func releaseLayerState(state *LayerState) {
+	layerStatePool.Put(state)
 }

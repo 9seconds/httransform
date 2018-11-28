@@ -1,28 +1,25 @@
 package main
 
-import (
-	"context"
-
-	"github.com/valyala/fasthttp"
-)
+import "github.com/valyala/fasthttp"
 
 type LayerState struct {
 	isConnect bool
+	ctx       map[string]interface{}
 
 	RequestID       uint64
-	Context         context.Context
 	RequestHeaders  *HeaderSet
 	ResponseHeaders *HeaderSet
 	Request         *fasthttp.Request
 	Response        *fasthttp.Response
 }
 
-func (l *LayerState) Set(key, value interface{}) {
-	l.Context = context.WithValue(l.Context, key, value)
+func (l *LayerState) Set(key string, value interface{}) {
+	l.ctx[key] = value
 }
 
-func (l *LayerState) Get(key interface{}) interface{} {
-	return l.Context.Value(key)
+func (l *LayerState) Get(key string) (interface{}, bool) {
+	item, ok := l.ctx[key]
+	return item, ok
 }
 
 type Layer interface {
@@ -44,7 +41,6 @@ func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 	requestHeaders, responseHeaders *HeaderSet,
 	isConnect bool) {
 	state.RequestID = ctx.ID()
-	state.Context = context.Background()
 	state.RequestHeaders = requestHeaders
 	state.ResponseHeaders = responseHeaders
 	state.Request = &ctx.Request

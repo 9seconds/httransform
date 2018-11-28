@@ -127,7 +127,7 @@ func (p *ProxyAuthorizationBasicLayer) Extract(state *LayerState) ([]byte, []byt
 	if pos < 0 {
 		return nil, nil, errors.New("Malformed Proxy-Authorization header")
 	}
-	if !bytes.HasPrefix(bytes.ToLower(line[:pos]), []byte("basic")) {
+	if !bytes.Equal(bytes.ToLower(line[:pos]), []byte("basic")) {
 		return nil, nil, errors.New("Incorrect authorization prefix")
 	}
 

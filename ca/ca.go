@@ -8,10 +8,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/binary"
+	"hash"
 	"math/big"
 	"math/rand"
 	"net"
-	"sync"
+	"runtime"
 	"time"
 
 	"github.com/juju/errors"
@@ -23,35 +24,65 @@ const (
 	defaultRSAKeyLength      = 1024
 )
 
+var certWorkerCount uint32
+
 type CA struct {
-	ca       tls.Certificate
-	orgNames []string
-	secret   []byte
-	cache    *ccache.Cache
-	mutex    *sync.Mutex
+	ca           tls.Certificate
+	orgNames     []string
+	secret       []byte
+	cache        *ccache.Cache
+	requestChans []chan *signRequest
 }
 
 func (c *CA) Get(host string) (TLSConfig, error) {
 	item := c.cache.TrackingGet(host)
 
 	if item == ccache.NilTracked {
-		c.mutex.Lock()
-		defer c.mutex.Unlock()
+		newHash := hashPool.Get().(hash.Hash32)
+		defer hashPool.Put(newHash)
 
-		if item = c.cache.TrackingGet(host); item != ccache.NilTracked {
-			return TLSConfig{item}, nil
-		}
-		cert, err := c.sign(host)
-		if err != nil {
-			return TLSConfig{}, errors.Annotate(err, "Cannot create certificate for the host")
-		}
-		conf := &tls.Config{InsecureSkipVerify: true}
-		conf.Certificates = append(conf.Certificates, cert)
-		c.cache.Set(host, conf, defaultTTLForCertificate)
-		item = c.cache.TrackingGet(host)
+		newRequest := signRequestPool.Get().(*signRequest)
+		defer signRequestPool.Put(newRequest)
+
+		newHash.Reset()
+		newHash.Write([]byte(host))
+		chanNumber := newHash.Sum32() % certWorkerCount
+
+		newRequest.host = host
+		c.requestChans[chanNumber] <- newRequest
+		response := <-newRequest.response
+		defer signRequestPool.Put(response)
+
+		item = response.item
 	}
 
 	return TLSConfig{item}, nil
+}
+
+func (c *CA) worker(requests chan *signRequest) {
+	for req := range requests {
+		resp := signResponsePool.Get().(*signResponse)
+		resp.err = nil
+
+		if item := c.cache.TrackingGet(req.host); item != ccache.NilTracked {
+			resp.item = item
+			req.response <- resp
+			continue
+		}
+
+		cert, err := c.sign(req.host)
+		if err != nil {
+			resp.err = err
+			req.response <- resp
+			continue
+		}
+
+		conf := &tls.Config{InsecureSkipVerify: true}
+		conf.Certificates = append(conf.Certificates, cert)
+		c.cache.Set(req.host, conf, defaultTTLForCertificate)
+		resp.item = c.cache.TrackingGet(req.host)
+		req.response <- resp
+	}
 }
 
 func (c *CA) sign(host string) (tls.Certificate, error) {
@@ -108,11 +139,21 @@ func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32,
 	}
 
 	obj := CA{
-		ca:       ca,
-		secret:   certKey,
-		orgNames: orgNames,
-		cache:    ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
+		ca:           ca,
+		secret:       certKey,
+		orgNames:     orgNames,
+		cache:        ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
+		requestChans: make([]chan *signRequest, 0, certWorkerCount),
+	}
+	for i := 0; i < int(certWorkerCount); i++ {
+		newChan := make(chan *signRequest)
+		obj.requestChans = append(obj.requestChans, newChan)
+		go obj.worker(newChan)
 	}
 
 	return obj, nil
+}
+
+func init() {
+	certWorkerCount = uint32(runtime.NumCPU())
 }

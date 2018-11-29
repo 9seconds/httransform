@@ -56,7 +56,7 @@ func ProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 		return MakeHTTPExecutor(proxyClient), nil
 
 	case "", "http", "https":
-		proxyClient.Dial = makeHTTPProxyDialer(proxyURL)
+		proxyClient.Dial = MakeHTTPProxyDialer(proxyURL)
 
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 		return func(state *LayerState) {
@@ -102,7 +102,7 @@ func executeRequest(client *fasthttp.Client, req *fasthttp.Request, resp *fastht
 	}
 }
 
-func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
+func MakeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 	proxyAuthHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
 	return func(addr string) (net.Conn, error) {

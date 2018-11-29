@@ -107,6 +107,11 @@ func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 
 func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) {
 	if err == ProxyAuthorizationError {
-		MakeProxyAuthRequiredResponse(state)
+		p.MakeProxyAuthRequiredResponse(state)
 	}
+}
+
+func (p *ProxyAuthorizationBasicLayer) MakeProxyAuthRequiredResponse(state *LayerState) {
+	MakeSimpleResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
+	state.ResponseHeaders.SetString("Proxy-Authenticate", "Basic")
 }

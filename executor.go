@@ -96,7 +96,7 @@ func MakeHTTPClient() *fasthttp.Client {
 func executeRequest(client *fasthttp.Client, req *fasthttp.Request, resp *fasthttp.Response) {
 	if err := client.Do(req, resp); err != nil {
 		newResponse := fasthttp.AcquireResponse()
-		MakeBadResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
+		MakeSimpleResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
 		resp.CopyTo(resp)
 		fasthttp.ReleaseResponse(newResponse)
 	}

@@ -23,16 +23,11 @@ func ExtractHost(rawurl string) (string, error) {
 	return host, nil
 }
 
-func MakeBadResponse(resp *fasthttp.Response, msg string, statusCode int) {
+func MakeSimpleResponse(resp *fasthttp.Response, msg string, statusCode int) {
 	resp.Reset()
 	resp.SetBodyString(msg)
 	resp.SetStatusCode(statusCode)
 	resp.Header.SetContentType("text/plain")
-}
-
-func MakeProxyAuthRequiredResponse(state *LayerState) {
-	MakeBadResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
-	state.ResponseHeaders.SetString("Proxy-Authenticate", "Basic")
 }
 
 func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
@@ -48,7 +43,7 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 		pos++
 	}
 
-	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(text[pos:])))
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(text)-pos))
 	_, err := base64.StdEncoding.Decode(decoded, text[pos:])
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "Incorrectly encoded authorization payload")

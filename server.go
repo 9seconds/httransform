@@ -52,7 +52,7 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 		uri := string(ctx.RequestURI())
 		host, err := ExtractHost(uri)
 		if err != nil {
-			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
+			MakeSimpleResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
 		}
 		ctx.Hijack(s.makeHijackHandler(host, user, password))
@@ -106,7 +106,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	}()
 
 	if err := parseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
-		MakeBadResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
+		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
 		return
 	}
 
@@ -121,7 +121,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 
 	for ; currentLayer < len(s.layers); currentLayer++ {
 		if err = s.layers[currentLayer].OnRequest(state); err != nil {
-			MakeBadResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
+			MakeSimpleResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
 		}
 	}
@@ -135,7 +135,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 		s.executor(state)
 	}
 	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
-		MakeBadResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
+		MakeSimpleResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
 		return
 	}
 

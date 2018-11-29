@@ -30,9 +30,9 @@ func MakeBadResponse(resp *fasthttp.Response, msg string, statusCode int) {
 	resp.Header.SetContentType("text/plain")
 }
 
-func MakeProxyAuthRequiredResponse(resp *fasthttp.Response) {
-	MakeBadResponse(resp, "", fasthttp.StatusProxyAuthRequired)
-	resp.Header.Set("Proxy-Authenticate", "Basic")
+func MakeProxyAuthRequiredResponse(state *LayerState) {
+	MakeBadResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
+	state.ResponseHeaders.SetString("Proxy-Authenticate", "Basic")
 }
 
 func ExtractAuthentication(text []byte) ([]byte, []byte, error) {

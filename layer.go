@@ -107,6 +107,6 @@ func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 
 func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) {
 	if err == ProxyAuthorizationError {
-		MakeProxyAuthRequiredResponse(state.Response)
+		MakeProxyAuthRequiredResponse(state)
 	}
 }

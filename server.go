@@ -35,6 +35,19 @@ func (s *Server) Shutdown() error {
 }
 
 func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
+	var user []byte
+	var password []byte
+	var err error
+
+	proxyAuthHeaderValue := ctx.Request.Header.PeekBytes([]byte("Proxy-Authorization"))
+	if len(proxyAuthHeaderValue) > 0 {
+		user, password, err = ExtractAuthentication(proxyAuthHeaderValue)
+		if err != nil {
+			user = nil
+			password = nil
+		}
+	}
+
 	if ctx.IsConnect() {
 		uri := string(ctx.RequestURI())
 		host, err := ExtractHost(uri)
@@ -42,19 +55,18 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 			MakeBadResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
 		}
-		ctx.Hijack(s.makeHijackHandler(host))
+		ctx.Hijack(s.makeHijackHandler(host, user, password))
 		ctx.Success("", nil)
 		return
 	}
 
+	ctx.SetUserValue("proxy_auth_user", user)
+	ctx.SetUserValue("proxy_auth_password", password)
+
 	s.handleRequest(ctx, false)
 }
 
-func (s *Server) connectHandler(ctx *fasthttp.RequestCtx) {
-	s.handleRequest(ctx, true)
-}
-
-func (s *Server) makeHijackHandler(host string) fasthttp.HijackHandler {
+func (s *Server) makeHijackHandler(host string, user, password []byte) fasthttp.HijackHandler {
 	return func(conn net.Conn) {
 		defer conn.Close()
 
@@ -72,6 +84,10 @@ func (s *Server) makeHijackHandler(host string) fasthttp.HijackHandler {
 		}
 
 		srv := s.serverPool.Get().(*fasthttp.Server)
+		srv.Handler = func(ctx *fasthttp.RequestCtx) {
+			ctx.SetUserValue("proxy_auth_user", user)
+			ctx.SetUserValue("proxy_auth_password", password)
+		}
 		defer s.serverPool.Put(srv)
 
 		srv.ServeConn(tlsConn)
@@ -156,7 +172,6 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error)
 	srv.serverPool = sync.Pool{
 		New: func() interface{} {
 			return &fasthttp.Server{
-				Handler:                       srv.connectHandler,
 				Concurrency:                   opts.GetConcurrency(),
 				ReadBufferSize:                opts.GetReadBufferSize(),
 				WriteBufferSize:               opts.GetWriteBufferSize(),

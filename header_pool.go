@@ -3,8 +3,9 @@ package httransform
 import "sync"
 
 var (
-	headerSetPool sync.Pool
-	headersPool   sync.Pool
+	headerSetPool  sync.Pool
+	headersPool    sync.Pool
+	layerStatePool sync.Pool
 )
 
 func init() {
@@ -20,6 +21,13 @@ func init() {
 	headersPool = sync.Pool{
 		New: func() interface{} {
 			return &Header{}
+		},
+	}
+	layerStatePool = sync.Pool{
+		New: func() interface{} {
+			return &LayerState{
+				ctx: make(map[string]interface{}),
+			}
 		},
 	}
 }
@@ -46,4 +54,17 @@ func releaseHeaderSet(set *HeaderSet) {
 
 func releaseHeader(header *Header) {
 	headersPool.Put(header)
+}
+
+func getLayerState() *LayerState {
+	state := layerStatePool.Get().(*LayerState)
+	for k := range state.ctx {
+		delete(state.ctx, k)
+	}
+
+	return state
+}
+
+func releaseLayerState(state *LayerState) {
+	layerStatePool.Put(state)
 }

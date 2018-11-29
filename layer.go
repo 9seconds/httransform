@@ -45,15 +45,15 @@ func (b BaseLayer) OnResponse(_ *LayerState) {
 
 func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 	requestHeaders, responseHeaders *HeaderSet,
-	isConnect bool) {
+	isConnect bool, user, password []byte) {
 	state.RequestID = ctx.ID()
 	state.RequestHeaders = requestHeaders
 	state.ResponseHeaders = responseHeaders
 	state.Request = &ctx.Request
 	state.Response = &ctx.Response
 	state.isConnect = isConnect
-	state.ProxyUser = ctx.UserValue("proxy_auth_user").([]byte)
-	state.ProxyPassword = ctx.UserValue("proxy_auth_password").([]byte)
+	state.ProxyUser = user
+	state.ProxyPassword = password
 }
 
 type ConnectionCloseLayer struct {

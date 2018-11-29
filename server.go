@@ -24,6 +24,7 @@ type Server struct {
 	certs      ca.CA
 	layers     []Layer
 	executor   Executor
+	logger     Logger
 }
 
 func (s *Server) Serve(ln net.Listener) error {
@@ -39,39 +40,48 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	var password []byte
 	var err error
 
+	method := string(ctx.Method())
+	uri := string(ctx.RequestURI())
+	reqID := ctx.ID()
+
+	s.logger.Info("[%s] (%d) %s %s: new connection",
+		ctx.RemoteAddr(), reqID, method, uri)
+
 	proxyAuthHeaderValue := ctx.Request.Header.PeekBytes([]byte("Proxy-Authorization"))
 	if len(proxyAuthHeaderValue) > 0 {
 		user, password, err = ExtractAuthentication(proxyAuthHeaderValue)
 		if err != nil {
+			s.logger.Debug("[%s] (%d) %s %s: incorrect proxy-authorization header: %s",
+				ctx.RemoteAddr(), reqID, method, uri, err)
 			user = nil
 			password = nil
 		}
 	}
 
 	if ctx.IsConnect() {
-		uri := string(ctx.RequestURI())
 		host, err := ExtractHost(uri)
 		if err != nil {
+			s.logger.Debug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
+				ctx.RemoteAddr(), reqID, method, uri, err)
 			MakeSimpleResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
 		}
-		ctx.Hijack(s.makeHijackHandler(host, user, password))
+		ctx.Hijack(s.makeHijackHandler(host, reqID, user, password))
 		ctx.Success("", nil)
 		return
 	}
 
-	ctx.SetUserValue("proxy_auth_user", user)
-	ctx.SetUserValue("proxy_auth_password", password)
-
-	s.handleRequest(ctx, false)
+	s.handleRequest(ctx, false, user, password)
 }
 
-func (s *Server) makeHijackHandler(host string, user, password []byte) fasthttp.HijackHandler {
+func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []byte) fasthttp.HijackHandler {
 	return func(conn net.Conn) {
 		defer conn.Close()
 
 		conf, err := s.certs.Get(host)
 		if err != nil {
+			s.logger.Warn("[%s] (%d): cennot generate certificate for the host %s: %s",
+				conn.RemoteAddr(), reqID, host, err)
 			return
 		}
 		defer conf.Release()
@@ -80,14 +90,14 @@ func (s *Server) makeHijackHandler(host string, user, password []byte) fasthttp.
 		defer tlsConn.Close()
 
 		if err = tlsConn.Handshake(); err != nil {
+			s.logger.Warn("[%s] (%d): cennot finish TLS handshake: %s",
+				conn.RemoteAddr(), reqID, err)
 			return
 		}
 
 		srv := s.serverPool.Get().(*fasthttp.Server)
 		srv.Handler = func(ctx *fasthttp.RequestCtx) {
-			ctx.SetUserValue("proxy_auth_user", user)
-			ctx.SetUserValue("proxy_auth_password", password)
-			s.handleRequest(ctx, true)
+			s.handleRequest(ctx, true, user, password)
 		}
 		defer s.serverPool.Put(srv)
 
@@ -95,7 +105,11 @@ func (s *Server) makeHijackHandler(host string, user, password []byte) fasthttp.
 	}
 }
 
-func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
+func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) {
+	reqID := ctx.ID()
+	method := string(ctx.Method())
+	uri := string(ctx.RequestURI())
+
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
 	defer func() {
@@ -106,13 +120,15 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 	}()
 
 	if err := parseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
+		s.logger.Debug("[%s] (%d) %s %s: malformed request headers: %s",
+			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
 		return
 	}
 
 	state := getLayerState()
 	defer releaseLayerState(state)
-	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect)
+	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect, user, password)
 
 	requestMethod := ctx.Request.Header.Method()
 	requestURI := ctx.Request.Header.RequestURI()
@@ -135,6 +151,8 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool) {
 		s.executor(state)
 	}
 	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
+		s.logger.Debug("[%s] (%d) %s %s: malformed response headers: %s",
+			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
 		return
 	}
@@ -155,7 +173,7 @@ func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
 	}
 }
 
-func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error) {
+func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger) (*Server, error) {
 	certs, err := ca.NewCA(opts.GetCertCA(),
 		opts.GetCertKey(),
 		opts.GetTLSCertCacheSize(),
@@ -169,6 +187,7 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor) (*Server, error)
 		certs:    certs,
 		layers:   lrs,
 		executor: executor,
+		logger:   logger,
 	}
 	srv.serverPool = sync.Pool{
 		New: func() interface{} {

@@ -3,11 +3,22 @@ package httransform
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"net/textproto"
 	"strings"
 
 	"github.com/juju/errors"
 )
+
+type Header struct {
+	ID    string
+	Key   []byte
+	Value []byte
+}
+
+func (h *Header) String() string {
+	return fmt.Sprintf("%s: %s", string(h.Key), string(h.Value))
+}
 
 type HeaderSet struct {
 	index          map[string]int

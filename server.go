@@ -87,6 +87,7 @@ func (s *Server) makeHijackHandler(host string, user, password []byte) fasthttp.
 		srv.Handler = func(ctx *fasthttp.RequestCtx) {
 			ctx.SetUserValue("proxy_auth_user", user)
 			ctx.SetUserValue("proxy_auth_password", password)
+			s.handleRequest(ctx, true)
 		}
 		defer s.serverPool.Put(srv)
 

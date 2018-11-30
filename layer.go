@@ -65,6 +65,7 @@ func (c *ConnectionCloseLayer) OnRequest(_ *LayerState) error {
 
 func (c *ConnectionCloseLayer) OnResponse(state *LayerState, _ error) {
 	state.ResponseHeaders.SetString("Connection", "close")
+	state.ResponseHeaders.SetString("Proxy-Connection", "close")
 }
 
 type ProxyHeadersLayer struct {

@@ -1,36 +1,16 @@
 package httransform
 
-import "sync"
-
-var (
-	headerSetPool  sync.Pool
-	headersPool    sync.Pool
-	layerStatePool sync.Pool
+import (
+	"bytes"
+	"sync"
 )
 
-func init() {
-	headerSetPool = sync.Pool{
-		New: func() interface{} {
-			return &HeaderSet{
-				index:          map[string]int{},
-				values:         []*Header{},
-				removedHeaders: map[string]struct{}{},
-			}
-		},
-	}
-	headersPool = sync.Pool{
-		New: func() interface{} {
-			return &Header{}
-		},
-	}
-	layerStatePool = sync.Pool{
-		New: func() interface{} {
-			return &LayerState{
-				ctx: make(map[string]interface{}),
-			}
-		},
-	}
-}
+var (
+	headerSetPool            sync.Pool
+	headersPool              sync.Pool
+	layerStatePool           sync.Pool
+	connectRequestBufferPool sync.Pool
+)
 
 func getHeader() *Header {
 	header := headersPool.Get().(*Header)
@@ -67,4 +47,33 @@ func getLayerState() *LayerState {
 
 func releaseLayerState(state *LayerState) {
 	layerStatePool.Put(state)
+}
+
+func init() {
+	headerSetPool = sync.Pool{
+		New: func() interface{} {
+			return &HeaderSet{
+				index:          map[string]int{},
+				values:         []*Header{},
+				removedHeaders: map[string]struct{}{},
+			}
+		},
+	}
+	headersPool = sync.Pool{
+		New: func() interface{} {
+			return &Header{}
+		},
+	}
+	layerStatePool = sync.Pool{
+		New: func() interface{} {
+			return &LayerState{
+				ctx: make(map[string]interface{}),
+			}
+		},
+	}
+	connectRequestBufferPool = sync.Pool{
+		New: func() interface{} {
+			return &bytes.Buffer{}
+		},
+	}
 }

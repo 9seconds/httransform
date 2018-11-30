@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"net"
+	"net/url"
 
 	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
@@ -55,4 +56,15 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	}
 
 	return decoded[:pos], decoded[pos+1:], nil
+}
+
+func MakeProxyAuthorizationHeaderValue(proxyURL *url.URL) []byte {
+	username := proxyURL.User.Username()
+	password, ok := proxyURL.User.Password()
+	if ok || username != "" {
+		line := username + ":" + password
+		return []byte("Basic " + base64.StdEncoding.EncodeToString([]byte(line)))
+	}
+
+	return nil
 }

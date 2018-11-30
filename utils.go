@@ -10,11 +10,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const (
-	defaultHTTPPort  = 80
-	defaultHTTPSPort = 443
-)
-
 func ExtractHost(rawurl string) (string, error) {
 	host, _, err := net.SplitHostPort(rawurl)
 	if err != nil {

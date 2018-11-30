@@ -44,9 +44,6 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	uri := string(ctx.RequestURI())
 	reqID := ctx.ID()
 
-	s.logger.Info("[%s] (%d) %s %s: new connection",
-		ctx.RemoteAddr(), reqID, method, uri)
-
 	proxyAuthHeaderValue := ctx.Request.Header.PeekBytes([]byte("Proxy-Authorization"))
 	if len(proxyAuthHeaderValue) > 0 {
 		user, password, err = ExtractAuthentication(proxyAuthHeaderValue)

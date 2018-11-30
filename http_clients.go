@@ -15,14 +15,16 @@ import (
 )
 
 const (
-	MaxConnsPerHost = 8192
-	dialTimeout     = 30 * time.Second
+	MaxConnsPerHost    = 8192
+	ConnectDialTimeout = 30 * time.Second
+	DefaultHTTPTImeout = 3 * time.Minute
 )
 
 var HTTP HTTPRequestExecutor
 
 type HTTPRequestExecutor interface {
 	Do(*fasthttp.Request, *fasthttp.Response) error
+	DoTimeout(*fasthttp.Request, *fasthttp.Response, time.Duration) error
 }
 
 func MakeHTTPClient() HTTPRequestExecutor {
@@ -77,7 +79,7 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 	proxyAuthHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
 	return func(addr string) (net.Conn, error) {
-		conn, err := fasthttp.DialDualStackTimeout(proxyURL.Host, dialTimeout)
+		conn, err := fasthttp.DialDualStackTimeout(proxyURL.Host, ConnectDialTimeout)
 		if err != nil {
 			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
 		}

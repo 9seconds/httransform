@@ -31,7 +31,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 	case "http", "https", "":
 		client := MakeHTTPProxyClient(proxyURL)
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
-		if len(proxyAuthorizationHeaderValue) > 0 {
+		if len(proxyAuthorizationHeaderValue) == 0 {
 			return func(state *LayerState) {
 				if state.isConnect {
 					ExecuteRequest(client, state.Request, state.Response)

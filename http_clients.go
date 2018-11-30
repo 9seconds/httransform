@@ -7,13 +7,17 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/proxy"
 )
 
-const MaxConnsPerHost = 8192
+const (
+	MaxConnsPerHost = 8192
+	dialTimeout     = 30 * time.Second
+)
 
 var HTTP HTTPRequestExecutor
 
@@ -73,7 +77,7 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 	proxyAuthHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
 	return func(addr string) (net.Conn, error) {
-		conn, err := fasthttp.Dial(proxyURL.Host)
+		conn, err := fasthttp.DialDualStackTimeout(proxyURL.Host, dialTimeout)
 		if err != nil {
 			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
 		}

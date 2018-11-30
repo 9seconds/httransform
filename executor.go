@@ -1,6 +1,7 @@
 package httransform
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 
@@ -31,23 +32,26 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 	case "http", "https", "":
 		client := MakeHTTPProxyClient(proxyURL)
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
-		if len(proxyAuthorizationHeaderValue) == 0 {
-			return func(state *LayerState) {
-				if state.isConnect {
-					ExecuteRequest(client, state.Request, state.Response)
-				} else {
-					ExecuteRequest(executorDefaultHttpClient, state.Request, state.Response)
-				}
-			}, nil
-		}
 
 		return func(state *LayerState) {
-			state.Request.Header.SetBytesV("Proxy-Authorization", proxyAuthorizationHeaderValue)
-			if state.isConnect {
-				ExecuteRequest(client, state.Request, state.Response)
-			} else {
-				ExecuteRequest(executorDefaultHttpClient, state.Request, state.Response)
+			if len(proxyAuthorizationHeaderValue) > 0 {
+				state.Request.Header.SetBytesV("Proxy-Authorization", proxyAuthorizationHeaderValue)
 			}
+
+			if !state.isConnect {
+				host := state.Request.Host()
+				if bytes.IndexByte(host, ':') < 0 {
+					state.Request.Header.SetHostBytes(append(host, ':', '8', '0'))
+				}
+
+				uri := fasthttp.AcquireURI()
+				defer fasthttp.ReleaseURI(uri)
+
+				uri.Parse(nil, state.Request.RequestURI())
+				state.Request.SetRequestURIBytes(uri.RequestURI())
+			}
+
+			ExecuteRequest(client, state.Request, state.Response)
 		}, nil
 	}
 

@@ -51,7 +51,7 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 		newRequest.host = host
 		c.requestChans[chanNumber] <- newRequest
 		response := <-newRequest.response
-		defer signRequestPool.Put(response)
+		defer signResponsePool.Put(response)
 
 		item = response.item
 	}

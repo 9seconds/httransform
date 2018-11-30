@@ -44,8 +44,9 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 		pos++
 	}
 
-	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(text)-pos))
-	_, err := base64.StdEncoding.Decode(decoded, text[pos:])
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(text[pos:])))
+	n, err := base64.StdEncoding.Decode(decoded, text[pos:])
+	decoded = decoded[:n]
 	if err != nil {
 		return nil, nil, errors.Annotate(err, "Incorrectly encoded authorization payload")
 	}

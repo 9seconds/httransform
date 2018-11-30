@@ -1,7 +1,6 @@
 package httransform
 
 import (
-	"bytes"
 	"fmt"
 	"net/url"
 
@@ -9,7 +8,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var executorDefaultHttpClient *fasthttp.Client
+var executorDefaultHttpClient HTTPRequestExecutor
 
 type Executor func(*LayerState)
 
@@ -30,7 +29,8 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 		}, nil
 
 	case "http", "https", "":
-		client := MakeHTTPProxyClient(proxyURL)
+		httpProxyClient := MakeHTTPProxyClient(proxyURL)
+		httpsProxyClient := MakeHTTPSProxyClient(proxyURL)
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
 		return func(state *LayerState) {
@@ -38,17 +38,9 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 				state.Request.Header.SetBytesV("Proxy-Authorization", proxyAuthorizationHeaderValue)
 			}
 
+			client := httpsProxyClient
 			if !state.isConnect {
-				host := state.Request.Host()
-				if bytes.IndexByte(host, ':') < 0 {
-					state.Request.Header.SetHostBytes(append(host, ':', '8', '0'))
-				}
-
-				uri := fasthttp.AcquireURI()
-				defer fasthttp.ReleaseURI(uri)
-
-				uri.Parse(nil, state.Request.RequestURI())
-				state.Request.SetRequestURIBytes(uri.RequestURI())
+				client = httpProxyClient
 			}
 
 			ExecuteRequest(client, state.Request, state.Response)
@@ -58,7 +50,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 	return nil, errors.Errorf("Unknown proxy URL scheme %s", proxyURL.Scheme)
 }
 
-func ExecuteRequest(client *fasthttp.Client, req *fasthttp.Request, resp *fasthttp.Response) {
+func ExecuteRequest(client HTTPRequestExecutor, req *fasthttp.Request, resp *fasthttp.Response) {
 	if err := client.Do(req, resp); err != nil {
 		newResponse := fasthttp.AcquireResponse()
 		MakeSimpleResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)

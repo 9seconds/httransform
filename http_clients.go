@@ -14,18 +14,18 @@ import (
 
 const MaxConnsPerHost = 8192
 
-var HTTP *fasthttp.Client
+var HTTP HTTPRequestExecutor
 
-func MakeHTTPClient() *fasthttp.Client {
-	return &fasthttp.Client{
-		DialDualStack:                 true,
-		DisableHeaderNamesNormalizing: true,
-		MaxConnsPerHost:               MaxConnsPerHost,
-		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
-	}
+type HTTPRequestExecutor interface {
+	Do(*fasthttp.Request, *fasthttp.Response) error
 }
-func MakeProxySOCKS5Client(proxyURL *url.URL) (*fasthttp.Client, error) {
-	client := MakeHTTPClient()
+
+func MakeHTTPClient() HTTPRequestExecutor {
+	return makeHTTPClient()
+}
+
+func MakeProxySOCKS5Client(proxyURL *url.URL) (HTTPRequestExecutor, error) {
+	client := makeHTTPClient()
 	dialer, err := makeSOCKS5Dialer(proxyURL)
 	if err != nil {
 		return nil, errors.Annotate(err, "Cannot build SOCKS5 client")
@@ -36,8 +36,12 @@ func MakeProxySOCKS5Client(proxyURL *url.URL) (*fasthttp.Client, error) {
 	return client, nil
 }
 
-func MakeHTTPProxyClient(proxyURL *url.URL) *fasthttp.Client {
-	client := MakeHTTPClient()
+func MakeHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeHTTPHostClient(proxyURL.Host)
+}
+
+func MakeHTTPSProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
+	client := makeHTTPClient()
 	client.Dial = makeHTTPProxyDialer(proxyURL)
 
 	return client
@@ -109,6 +113,25 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 		}
 
 		return conn, nil
+	}
+}
+
+func makeHTTPClient() *fasthttp.Client {
+	return &fasthttp.Client{
+		DialDualStack:                 true,
+		DisableHeaderNamesNormalizing: true,
+		MaxConnsPerHost:               MaxConnsPerHost,
+		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
+	}
+}
+
+func makeHTTPHostClient(addr string) *fasthttp.HostClient {
+	return &fasthttp.HostClient{
+		Addr:                          addr,
+		DialDualStack:                 true,
+		DisableHeaderNamesNormalizing: true,
+		MaxConns:                      MaxConnsPerHost,
+		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
 	}
 }
 

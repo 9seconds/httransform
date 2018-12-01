@@ -33,16 +33,6 @@ func (l *LayerState) Get(key string) (interface{}, bool) {
 	return item, ok
 }
 
-type BaseLayer struct {
-}
-
-func (b BaseLayer) OnRequest(_ *LayerState) error {
-	return nil
-}
-
-func (b BaseLayer) OnResponse(_ *LayerState) {
-}
-
 func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 	requestHeaders, responseHeaders *HeaderSet,
 	isConnect bool, user, password []byte) {

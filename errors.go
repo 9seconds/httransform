@@ -1,6 +1,6 @@
 package httransform
 
-import "github.com/juju/errors"
+import "errors"
 
 var (
 	ErrProxyAuthorization = errors.New("Cannot authenticate proxy user")

@@ -98,7 +98,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 		}
 		defer s.serverPool.Put(srv)
 
-		srv.ServeConn(tlsConn)
+		srv.ServeConn(tlsConn) // nolint: errcheck
 	}
 }
 

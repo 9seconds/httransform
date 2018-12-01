@@ -131,7 +131,7 @@ func makeHTTPClient() *fasthttp.Client {
 		DialDualStack:                 true,
 		DisableHeaderNamesNormalizing: true,
 		MaxConnsPerHost:               MaxConnsPerHost,
-		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
+		TLSConfig:                     &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 	}
 }
 
@@ -141,7 +141,7 @@ func makeHTTPHostClient(addr string) *fasthttp.HostClient {
 		DialDualStack:                 true,
 		DisableHeaderNamesNormalizing: true,
 		MaxConns:                      MaxConnsPerHost,
-		TLSConfig:                     &tls.Config{InsecureSkipVerify: true},
+		TLSConfig:                     &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 	}
 }
 

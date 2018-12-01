@@ -9,12 +9,12 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var executorDefaultHttpClient HTTPRequestExecutor
+var executorDefaultHTTPClient HTTPRequestExecutor
 
 type Executor func(*LayerState)
 
 func HTTPExecutor(state *LayerState) {
-	ExecuteRequestTimeout(executorDefaultHttpClient, state.Request, state.Response, DefaultHTTPTImeout)
+	ExecuteRequestTimeout(executorDefaultHTTPClient, state.Request, state.Response, DefaultHTTPTImeout)
 }
 
 func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
@@ -70,5 +70,5 @@ func ExecuteRequestTimeout(client HTTPRequestExecutor, req *fasthttp.Request, re
 }
 
 func init() {
-	executorDefaultHttpClient = MakeHTTPClient()
+	executorDefaultHTTPClient = MakeHTTPClient()
 }

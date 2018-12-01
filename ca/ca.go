@@ -3,7 +3,7 @@ package ca
 import (
 	"crypto/hmac"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" // nolint: gosec
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -45,7 +45,7 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 		defer signRequestPool.Put(newRequest)
 
 		newHash.Reset()
-		newHash.Write([]byte(host))
+		newHash.Write([]byte(host)) // nolint: errcheck
 		chanNumber := newHash.Sum32() % certWorkerCount
 
 		newRequest.host = host
@@ -77,7 +77,7 @@ func (c *CA) worker(requests chan *signRequest) {
 			continue
 		}
 
-		conf := &tls.Config{InsecureSkipVerify: true}
+		conf := &tls.Config{InsecureSkipVerify: true} // nolint: gosec
 		conf.Certificates = append(conf.Certificates, cert)
 		c.cache.Set(req.host, conf, defaultTTLForCertificate)
 		resp.item = c.cache.TrackingGet(req.host)
@@ -98,7 +98,7 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	}
 
 	hash := hmac.New(sha1.New, c.secret)
-	hash.Write([]byte(host))
+	hash.Write([]byte(host)) // nolint: errcheck
 	if ip := net.ParseIP(host); ip != nil {
 		template.IPAddresses = append(template.IPAddresses, ip)
 	} else {
@@ -107,7 +107,7 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	}
 	hashed := hash.Sum(nil)
 	template.SerialNumber.SetBytes(hashed)
-	hash.Write(c.secret)
+	hash.Write(c.secret) // nolint: errcheck
 
 	randSeed := int64(binary.LittleEndian.Uint64(hash.Sum(nil)[:8]))
 	randGen := rand.New(rand.NewSource(randSeed))

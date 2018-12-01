@@ -71,12 +71,12 @@ func (hs *HeaderSet) GetString(key string) (string, bool) {
 }
 
 func (hs *HeaderSet) GetBytes(key []byte) ([]byte, bool) {
-	lowerKey := string(bytes.ToLower(key))
+	key = bytes.ToLower(key)
 
-	if _, ok := hs.removedHeaders[lowerKey]; ok {
+	if _, ok := hs.removedHeaders[string(key)]; ok {
 		return nil, false
 	}
-	if pos, ok := hs.index[lowerKey]; ok {
+	if pos, ok := hs.index[string(key)]; ok {
 		return hs.values[pos].Value, true
 	}
 
@@ -117,7 +117,8 @@ func (hs *HeaderSet) String() string {
 
 func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 	reader := textproto.NewReader(bufio.NewReader(bytes.NewReader(rawHeaders)))
-	reader.ReadContinuedLineBytes() // skip first line of HTTP
+	// skip first line of HTTP
+	reader.ReadContinuedLineBytes() // nolint: errcheck
 
 	for {
 		line, err := reader.ReadContinuedLineBytes()

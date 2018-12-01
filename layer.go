@@ -100,14 +100,14 @@ func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 	userFault := subtle.ConstantTimeCompare(state.ProxyUser, p.User) != 1
 	passwordFault := subtle.ConstantTimeCompare(state.ProxyPassword, p.Password) != 1
 	if userFault || passwordFault {
-		return ProxyAuthorizationError
+		return ErrProxyAuthorization
 	}
 
 	return nil
 }
 
 func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) {
-	if err == ProxyAuthorizationError {
+	if err == ErrProxyAuthorization {
 		p.MakeProxyAuthRequiredResponse(state)
 	}
 }

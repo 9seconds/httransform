@@ -78,12 +78,12 @@ func (p *ProxyHeadersLayer) modifyHeaders(set *HeaderSet) {
 	set.DeleteString("keep-alive")
 	set.DeleteString("te")
 	set.DeleteString("trailers")
-	set.DeleteString("upgrade")
 }
 
 type ProxyAuthorizationBasicLayer struct {
 	User     []byte
 	Password []byte
+	Realm    string
 }
 
 func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
@@ -104,5 +104,12 @@ func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) 
 
 func (p *ProxyAuthorizationBasicLayer) MakeProxyAuthRequiredResponse(state *LayerState) {
 	MakeSimpleResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
-	state.ResponseHeaders.SetString("Proxy-Authenticate", "Basic")
+
+	var authString string
+	if p.Realm != "" {
+		authString = "Basic realm=\"" + p.Realm + "\""
+	} else {
+		authString = "Basic"
+	}
+	state.ResponseHeaders.SetString("Proxy-Authenticate", authString)
 }

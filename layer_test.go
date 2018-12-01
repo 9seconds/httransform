@@ -112,10 +112,72 @@ func (suite *ConnectionCloseLayerTestSuite) TestOnResponseNoHeaderError() {
 	suite.Equal(value, "close")
 }
 
+type ProxyHeadersLayerTestSuite struct {
+	BaseLayerStateTestSuite
+
+	layer           *ProxyHeadersLayer
+	hopByHopHeaders []string
+}
+
+func (suite *ProxyHeadersLayerTestSuite) SetupTest() {
+	suite.BaseLayerStateTestSuite.SetupTest()
+
+	suite.layer = &ProxyHeadersLayer{}
+	suite.hopByHopHeaders = []string{
+		"Proxy-Connection",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"Connection",
+		"Keep-Alive",
+		"TE",
+		"Trailers",
+	}
+}
+
+func (suite *ProxyHeadersLayerTestSuite) TestOnRequest() {
+	for _, header := range suite.hopByHopHeaders {
+		suite.state.RequestHeaders.SetString(header, "value")
+	}
+	suite.Nil(suite.layer.OnRequest(suite.state))
+
+	for _, header := range suite.hopByHopHeaders {
+		_, ok := suite.state.RequestHeaders.GetString(header)
+		suite.False(ok, header)
+	}
+}
+
+func (suite *ProxyHeadersLayerTestSuite) TestOnResponseError() {
+	for _, header := range suite.hopByHopHeaders {
+		suite.state.ResponseHeaders.SetString(header, "value")
+	}
+	suite.layer.OnResponse(suite.state, errors.New("error"))
+
+	for _, header := range suite.hopByHopHeaders {
+		_, ok := suite.state.ResponseHeaders.GetString(header)
+		suite.False(ok, header)
+	}
+}
+
+func (suite *ProxyHeadersLayerTestSuite) TestOnResponseNoError() {
+	for _, header := range suite.hopByHopHeaders {
+		suite.state.ResponseHeaders.SetString(header, "value")
+	}
+	suite.layer.OnResponse(suite.state, nil)
+
+	for _, header := range suite.hopByHopHeaders {
+		_, ok := suite.state.ResponseHeaders.GetString(header)
+		suite.False(ok, header)
+	}
+}
+
 func TestLayerState(t *testing.T) {
 	suite.Run(t, &LayerStateTestSuite{})
 }
 
 func TestConnectionCloseLayer(t *testing.T) {
 	suite.Run(t, &ConnectionCloseLayerTestSuite{})
+}
+
+func TestProxyHeadersLayer(t *testing.T) {
+	suite.Run(t, &ProxyHeadersLayerTestSuite{})
 }

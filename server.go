@@ -110,8 +110,6 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
 	defer func() {
-		requestHeaders.Clear()
-		responseHeaders.Clear()
 		releaseHeaderSet(requestHeaders)
 		releaseHeaderSet(responseHeaders)
 	}()

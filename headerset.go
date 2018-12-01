@@ -59,7 +59,7 @@ func (hs *HeaderSet) GetString(key string) (string, bool) {
 	lowerKey := strings.ToLower(key)
 
 	_, ok := hs.removedHeaders[lowerKey]
-	if !ok {
+	if ok {
 		return "", false
 	}
 

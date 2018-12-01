@@ -1,7 +1,6 @@
 package httransform
 
 import (
-	"bytes"
 	"net/url"
 	"testing"
 
@@ -48,11 +47,13 @@ func (suite *ExtractHostTestSuite) TestEmpty() {
 
 type MakeSimpleResponseTestSuite struct {
 	suite.Suite
+
 	resp *fasthttp.Response
 }
 
 func (suite *MakeSimpleResponseTestSuite) SetupTest() {
 	suite.resp = fasthttp.AcquireResponse()
+	suite.resp.Reset()
 }
 
 func (suite *MakeSimpleResponseTestSuite) TearDownTest() {
@@ -68,8 +69,8 @@ func (suite *MakeSimpleResponseTestSuite) TestOverrideValues() {
 
 	suite.Equal(suite.resp.StatusCode(), fasthttp.StatusOK)
 	suite.False(suite.resp.ConnectionClose())
-	suite.True(bytes.Equal(suite.resp.Body(), []byte("overriden")))
-	suite.True(bytes.Equal(suite.resp.Header.ContentType(), []byte("text/plain")))
+	suite.Equal(suite.resp.Body(), []byte("overriden"))
+	suite.Equal(suite.resp.Header.ContentType(), []byte("text/plain"))
 }
 
 type ExtractAuthenticationTestSuite struct {
@@ -115,7 +116,7 @@ func (suite *ExtractAuthenticationTestSuite) TestNoPassword() {
 func (suite *ExtractAuthenticationTestSuite) TestEmptyPassword() {
 	user, password, err := ExtractAuthentication([]byte("Basic dXNlcjo="))
 
-	suite.True(bytes.Equal(user, []byte("user")))
+	suite.Equal(user, []byte("user"))
 	suite.Len(password, 0)
 	suite.Nil(err)
 }
@@ -123,7 +124,7 @@ func (suite *ExtractAuthenticationTestSuite) TestEmptyPassword() {
 func (suite *ExtractAuthenticationTestSuite) TestEmptyUser() {
 	user, password, err := ExtractAuthentication([]byte("Basic OnBhc3M="))
 
-	suite.True(bytes.Equal(password, []byte("pass")))
+	suite.Equal(password, []byte("pass"))
 	suite.Len(user, 0)
 	suite.Nil(err)
 }
@@ -139,8 +140,8 @@ func (suite *ExtractAuthenticationTestSuite) TestAllEmpty() {
 func (suite *ExtractAuthenticationTestSuite) TestUserPass() {
 	user, password, err := ExtractAuthentication([]byte("Basic dXNlcjpwYXNz"))
 
-	suite.True(bytes.Equal(user, []byte("user")))
-	suite.True(bytes.Equal(password, []byte("pass")))
+	suite.Equal(user, []byte("user"))
+	suite.Equal(password, []byte("pass"))
 	suite.Nil(err)
 }
 
@@ -159,7 +160,7 @@ func (suite *MakeProxyAuthorizationHeaderValueTestSuite) TestUserOnly() {
 		User: url.User("username"),
 	})
 
-	suite.True(bytes.Equal(result, []byte("Basic dXNlcm5hbWU6")))
+	suite.Equal(result, []byte("Basic dXNlcm5hbWU6"))
 }
 
 func (suite *MakeProxyAuthorizationHeaderValueTestSuite) TestUserPass() {
@@ -167,7 +168,7 @@ func (suite *MakeProxyAuthorizationHeaderValueTestSuite) TestUserPass() {
 		User: url.UserPassword("username", "password"),
 	})
 
-	suite.True(bytes.Equal(result, []byte("Basic dXNlcm5hbWU6cGFzc3dvcmQ=")))
+	suite.Equal(result, []byte("Basic dXNlcm5hbWU6cGFzc3dvcmQ="))
 }
 
 func TestExtractHost(t *testing.T) {

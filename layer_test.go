@@ -170,6 +170,65 @@ func (suite *ProxyHeadersLayerTestSuite) TestOnResponseNoError() {
 	}
 }
 
+type ProxyAuthorizationBasicLayerTestSuite struct {
+	BaseLayerStateTestSuite
+
+	layer *ProxyAuthorizationBasicLayer
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) SetupTest() {
+	suite.BaseLayerStateTestSuite.SetupTest()
+
+	suite.layer = &ProxyAuthorizationBasicLayer{}
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnRequestAllMismatch() {
+	suite.Equal(suite.layer.OnRequest(suite.state), ErrProxyAuthorization)
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnRequestUserMismatch() {
+	suite.layer.Password = suite.state.ProxyPassword
+	suite.Equal(suite.layer.OnRequest(suite.state), ErrProxyAuthorization)
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnRequestPasswordMismatch() {
+	suite.layer.User = suite.state.ProxyUser
+	suite.Equal(suite.layer.OnRequest(suite.state), ErrProxyAuthorization)
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnRequestMatch() {
+	suite.layer.User = suite.state.ProxyUser
+	suite.layer.Password = suite.state.ProxyPassword
+	suite.Nil(suite.layer.OnRequest(suite.state))
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnResponseAnotherError() {
+	suite.layer.OnResponse(suite.state, errors.New("Another error"))
+
+	suite.Equal(suite.state.Response.StatusCode(), fasthttp.StatusOK)
+	_, ok := suite.state.ResponseHeaders.GetString("proxy-authenticate")
+	suite.False(ok)
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnResponseErrorNoRealm() {
+	suite.layer.OnResponse(suite.state, ErrProxyAuthorization)
+
+	suite.Equal(suite.state.Response.StatusCode(), fasthttp.StatusProxyAuthRequired)
+	value, ok := suite.state.ResponseHeaders.GetString("proxy-authenticate")
+	suite.True(ok)
+	suite.Equal(value, "Basic")
+}
+
+func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnResponseErrorRealm() {
+	suite.layer.Realm = "My realm"
+	suite.layer.OnResponse(suite.state, ErrProxyAuthorization)
+
+	suite.Equal(suite.state.Response.StatusCode(), fasthttp.StatusProxyAuthRequired)
+	value, ok := suite.state.ResponseHeaders.GetString("proxy-authenticate")
+	suite.True(ok)
+	suite.Equal(value, "Basic realm=\"My realm\"")
+}
+
 func TestLayerState(t *testing.T) {
 	suite.Run(t, &LayerStateTestSuite{})
 }
@@ -180,4 +239,8 @@ func TestConnectionCloseLayer(t *testing.T) {
 
 func TestProxyHeadersLayer(t *testing.T) {
 	suite.Run(t, &ProxyHeadersLayerTestSuite{})
+}
+
+func TestProxyAuthorizationBasicLayer(t *testing.T) {
+	suite.Run(t, &ProxyAuthorizationBasicLayerTestSuite{})
 }

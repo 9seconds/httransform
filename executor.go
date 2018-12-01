@@ -53,20 +53,21 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 
 func ExecuteRequest(client HTTPRequestExecutor, req *fasthttp.Request, resp *fasthttp.Response) {
 	if err := client.Do(req, resp); err != nil {
-		newResponse := fasthttp.AcquireResponse()
-		MakeSimpleResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
-		resp.CopyTo(resp)
-		fasthttp.ReleaseResponse(newResponse)
+		failResponse(resp, err)
 	}
 }
 
 func ExecuteRequestTimeout(client HTTPRequestExecutor, req *fasthttp.Request, resp *fasthttp.Response, timeout time.Duration) {
 	if err := client.DoTimeout(req, resp, timeout); err != nil {
-		newResponse := fasthttp.AcquireResponse()
-		MakeSimpleResponse(resp, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
-		resp.CopyTo(resp)
-		fasthttp.ReleaseResponse(newResponse)
+		failResponse(resp, err)
 	}
+}
+
+func failResponse(resp *fasthttp.Response, err error) {
+	newResponse := fasthttp.AcquireResponse()
+	MakeSimpleResponse(newResponse, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
+	newResponse.CopyTo(resp)
+	fasthttp.ReleaseResponse(newResponse)
 }
 
 func init() {

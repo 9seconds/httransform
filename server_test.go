@@ -76,7 +76,7 @@ func (suite *ServerTestSuite) SetupTest() {
 	}
 	suite.srv = srv
 
-	go srv.Serve(ln)
+	go srv.Serve(ln) // nolint: errcheck
 
 	proxyURL := &url.URL{
 		Host:   ln.Addr().String(),
@@ -85,7 +85,7 @@ func (suite *ServerTestSuite) SetupTest() {
 	suite.client = &http.Client{
 		Transport: &http.Transport{
 			Proxy:           http.ProxyURL(proxyURL),
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 		},
 	}
 }

@@ -21,8 +21,8 @@ func (suite *BaseLayerStateTestSuite) SetupTest() {
 	defer fasthttp.ReleaseResponse(resp)
 
 	ctx := &fasthttp.RequestCtx{
-		Request:  *req,
-		Response: *resp,
+		Request:  *req,  // nolint: govet
+		Response: *resp, // nolint: govet
 	}
 	requestHeaderSet := getHeaderSet()
 	responseHeaderSet := getHeaderSet()

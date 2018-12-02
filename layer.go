@@ -46,38 +46,36 @@ func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 	state.ProxyPassword = password
 }
 
-type ConnectionCloseLayer struct {
+type AddRemoveHeaderLayer struct {
+	FrozenRequestHeaders   map[string]string
+	FrozenResponseHeaders  map[string]string
+	DefaultRequestHeaders  map[string]string
+	DefaultResponseHeaders map[string]string
+	AbsentRequestHeaders   []string
+	AbsentResponseHeaders  []string
 }
 
-func (c *ConnectionCloseLayer) OnRequest(_ *LayerState) error {
+func (a *AddRemoveHeaderLayer) OnRequest(state *LayerState) error {
+	a.apply(state.RequestHeaders, a.FrozenRequestHeaders, a.DefaultRequestHeaders, a.AbsentRequestHeaders)
 	return nil
 }
 
-func (c *ConnectionCloseLayer) OnResponse(state *LayerState, _ error) {
-	state.ResponseHeaders.SetString("Connection", "close")
-	state.ResponseHeaders.SetString("Proxy-Connection", "close")
+func (a *AddRemoveHeaderLayer) OnResponse(state *LayerState, err error) {
+	a.apply(state.ResponseHeaders, a.FrozenResponseHeaders, a.DefaultResponseHeaders, a.AbsentResponseHeaders)
 }
 
-type ProxyHeadersLayer struct {
-}
-
-func (p *ProxyHeadersLayer) OnRequest(state *LayerState) error {
-	p.modifyHeaders(state.RequestHeaders)
-	return nil
-}
-
-func (p *ProxyHeadersLayer) OnResponse(state *LayerState, _ error) {
-	p.modifyHeaders(state.ResponseHeaders)
-}
-
-func (p *ProxyHeadersLayer) modifyHeaders(set *HeaderSet) {
-	set.DeleteString("proxy-connection")
-	set.DeleteString("proxy-authenticate")
-	set.DeleteString("proxy-authorization")
-	set.DeleteString("connection")
-	set.DeleteString("keep-alive")
-	set.DeleteString("te")
-	set.DeleteString("trailers")
+func (a *AddRemoveHeaderLayer) apply(set *HeaderSet, frozen, defaults map[string]string, absent []string) {
+	for key, value := range defaults {
+		if _, ok := set.GetString(key); !ok {
+			set.SetString(key, value)
+		}
+	}
+	for key, value := range frozen {
+		set.SetString(key, value)
+	}
+	for _, key := range absent {
+		set.DeleteString(key)
+	}
 }
 
 type ProxyAuthorizationBasicLayer struct {

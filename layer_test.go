@@ -47,127 +47,120 @@ func (suite *LayerStateTestSuite) TestGetSet() {
 	suite.Equal(val.(string), "value")
 }
 
-type ConnectionCloseLayerTestSuite struct {
+type AddRemoveHeaderLayerTestSuite struct {
 	BaseLayerStateTestSuite
 
-	layer *ConnectionCloseLayer
+	layer *AddRemoveHeaderLayer
 }
 
-func (suite *ConnectionCloseLayerTestSuite) SetupTest() {
+func (suite *AddRemoveHeaderLayerTestSuite) SetupTest() {
 	suite.BaseLayerStateTestSuite.SetupTest()
-
-	suite.layer = &ConnectionCloseLayer{}
+	suite.layer = &AddRemoveHeaderLayer{}
 }
 
-func (suite *ConnectionCloseLayerTestSuite) TestOnRequestHasHeader() {
-	suite.state.RequestHeaders.SetString("Connection", "close")
+func (suite *AddRemoveHeaderLayerTestSuite) TestOnRequest() {
+	suite.layer.FrozenRequestHeaders = map[string]string{
+		"User-Agent": "curl/7.58.0",
+	}
+	suite.layer.DefaultRequestHeaders = map[string]string{
+		"User-Agent":      "golang",
+		"Accept-Encoding": "gzip, deflate",
+		"X-Token":         "123456",
+	}
+	suite.layer.AbsentRequestHeaders = []string{"proxy-authorization"}
+
+	suite.state.RequestHeaders.SetString("user-agent", "???")
+	suite.state.RequestHeaders.SetString("accept-Encoding", "gzip")
+	suite.state.RequestHeaders.SetString("Proxy-Authorization", "basic")
+	suite.state.RequestHeaders.SetString("Authorization", "Basic OG==")
 
 	suite.Nil(suite.layer.OnRequest(suite.state))
-	value, ok := suite.state.RequestHeaders.GetString("connection")
+	suite.Len(suite.state.RequestHeaders.Items(), 4)
+
+	value, ok := suite.state.RequestHeaders.GetString("user-agent")
 	suite.True(ok)
-	suite.Equal(value, "close")
-}
+	suite.Equal(value, "curl/7.58.0")
 
-func (suite *ConnectionCloseLayerTestSuite) TestOnRequestNoHeader() {
-	suite.Nil(suite.layer.OnRequest(suite.state))
-	_, ok := suite.state.RequestHeaders.GetString("connection")
+	value, ok = suite.state.RequestHeaders.GetString("accept-encoding")
+	suite.True(ok)
+	suite.Equal(value, "gzip")
+
+	_, ok = suite.state.RequestHeaders.GetString("proxy-authorization")
 	suite.False(ok)
+
+	value, ok = suite.state.RequestHeaders.GetString("x-token")
+	suite.True(ok)
+	suite.Equal(value, "123456")
 }
 
-func (suite *ConnectionCloseLayerTestSuite) TestOnResponseHasHeaderNoError() {
-	suite.state.ResponseHeaders.SetString("Connection", "keep-alive")
+func (suite *AddRemoveHeaderLayerTestSuite) TestOnResponseNoError() {
+	suite.layer.FrozenResponseHeaders = map[string]string{
+		"User-Agent": "curl/7.58.0",
+	}
+	suite.layer.DefaultResponseHeaders = map[string]string{
+		"User-Agent":      "golang",
+		"Accept-Encoding": "gzip, deflate",
+		"X-Token":         "123456",
+	}
+	suite.layer.AbsentResponseHeaders = []string{"proxy-authorization"}
+
+	suite.state.ResponseHeaders.SetString("user-agent", "???")
+	suite.state.ResponseHeaders.SetString("accept-Encoding", "gzip")
+	suite.state.ResponseHeaders.SetString("Proxy-Authorization", "basic")
+	suite.state.ResponseHeaders.SetString("Authorization", "Basic OG==")
 
 	suite.layer.OnResponse(suite.state, nil)
-	value, ok := suite.state.ResponseHeaders.GetString("connection")
+	suite.Len(suite.state.ResponseHeaders.Items(), 4)
+
+	value, ok := suite.state.ResponseHeaders.GetString("user-agent")
 	suite.True(ok)
-	suite.Equal(value, "close")
+	suite.Equal(value, "curl/7.58.0")
 
-	value, ok = suite.state.ResponseHeaders.GetString("proxy-connection")
+	value, ok = suite.state.ResponseHeaders.GetString("accept-encoding")
 	suite.True(ok)
-	suite.Equal(value, "close")
-}
+	suite.Equal(value, "gzip")
 
-func (suite *ConnectionCloseLayerTestSuite) TestOnResponseHasHeaderError() {
-	suite.state.ResponseHeaders.SetString("Connection", "keep-alive")
+	_, ok = suite.state.ResponseHeaders.GetString("proxy-authorization")
+	suite.False(ok)
 
-	suite.layer.OnResponse(suite.state, errors.New("Some error"))
-	value, ok := suite.state.ResponseHeaders.GetString("connection")
+	value, ok = suite.state.ResponseHeaders.GetString("x-token")
 	suite.True(ok)
-	suite.Equal(value, "close")
+	suite.Equal(value, "123456")
+}
 
-	value, ok = suite.state.ResponseHeaders.GetString("proxy-connection")
+func (suite *AddRemoveHeaderLayerTestSuite) TestOnResponseError() {
+	suite.layer.FrozenResponseHeaders = map[string]string{
+		"User-Agent": "curl/7.58.0",
+	}
+	suite.layer.DefaultResponseHeaders = map[string]string{
+		"User-Agent":      "golang",
+		"Accept-Encoding": "gzip, deflate",
+		"X-Token":         "123456",
+	}
+	suite.layer.AbsentResponseHeaders = []string{"proxy-authorization"}
+
+	suite.state.ResponseHeaders.SetString("user-agent", "???")
+	suite.state.ResponseHeaders.SetString("accept-Encoding", "gzip")
+	suite.state.ResponseHeaders.SetString("Proxy-Authorization", "basic")
+	suite.state.ResponseHeaders.SetString("Authorization", "Basic OG==")
+
+	suite.layer.OnResponse(suite.state, errors.New("123"))
+	suite.Len(suite.state.ResponseHeaders.Items(), 4)
+
+	value, ok := suite.state.ResponseHeaders.GetString("user-agent")
 	suite.True(ok)
-	suite.Equal(value, "close")
-}
+	suite.Equal(value, "curl/7.58.0")
 
-func (suite *ConnectionCloseLayerTestSuite) TestOnResponseNoHeaderError() {
-	suite.layer.OnResponse(suite.state, errors.New("Some error"))
-
-	value, ok := suite.state.ResponseHeaders.GetString("connection")
+	value, ok = suite.state.ResponseHeaders.GetString("accept-encoding")
 	suite.True(ok)
-	suite.Equal(value, "close")
+	suite.Equal(value, "gzip")
 
-	value, ok = suite.state.ResponseHeaders.GetString("proxy-connection")
+	_, ok = suite.state.ResponseHeaders.GetString("proxy-authorization")
+	suite.False(ok)
+
+	value, ok = suite.state.ResponseHeaders.GetString("x-token")
 	suite.True(ok)
-	suite.Equal(value, "close")
-}
-
-type ProxyHeadersLayerTestSuite struct {
-	BaseLayerStateTestSuite
-
-	layer           *ProxyHeadersLayer
-	hopByHopHeaders []string
-}
-
-func (suite *ProxyHeadersLayerTestSuite) SetupTest() {
-	suite.BaseLayerStateTestSuite.SetupTest()
-
-	suite.layer = &ProxyHeadersLayer{}
-	suite.hopByHopHeaders = []string{
-		"Proxy-Connection",
-		"Proxy-Authenticate",
-		"Proxy-Authorization",
-		"Connection",
-		"Keep-Alive",
-		"TE",
-		"Trailers",
-	}
-}
-
-func (suite *ProxyHeadersLayerTestSuite) TestOnRequest() {
-	for _, header := range suite.hopByHopHeaders {
-		suite.state.RequestHeaders.SetString(header, "value")
-	}
-	suite.Nil(suite.layer.OnRequest(suite.state))
-
-	for _, header := range suite.hopByHopHeaders {
-		_, ok := suite.state.RequestHeaders.GetString(header)
-		suite.False(ok, header)
-	}
-}
-
-func (suite *ProxyHeadersLayerTestSuite) TestOnResponseError() {
-	for _, header := range suite.hopByHopHeaders {
-		suite.state.ResponseHeaders.SetString(header, "value")
-	}
-	suite.layer.OnResponse(suite.state, errors.New("error"))
-
-	for _, header := range suite.hopByHopHeaders {
-		_, ok := suite.state.ResponseHeaders.GetString(header)
-		suite.False(ok, header)
-	}
-}
-
-func (suite *ProxyHeadersLayerTestSuite) TestOnResponseNoError() {
-	for _, header := range suite.hopByHopHeaders {
-		suite.state.ResponseHeaders.SetString(header, "value")
-	}
-	suite.layer.OnResponse(suite.state, nil)
-
-	for _, header := range suite.hopByHopHeaders {
-		_, ok := suite.state.ResponseHeaders.GetString(header)
-		suite.False(ok, header)
-	}
+	suite.Equal(value, "123456")
 }
 
 type ProxyAuthorizationBasicLayerTestSuite struct {
@@ -233,12 +226,8 @@ func TestLayerState(t *testing.T) {
 	suite.Run(t, &LayerStateTestSuite{})
 }
 
-func TestConnectionCloseLayer(t *testing.T) {
-	suite.Run(t, &ConnectionCloseLayerTestSuite{})
-}
-
-func TestProxyHeadersLayer(t *testing.T) {
-	suite.Run(t, &ProxyHeadersLayerTestSuite{})
+func TestAddRemoveHeaderLayer(t *testing.T) {
+	suite.Run(t, &AddRemoveHeaderLayerTestSuite{})
 }
 
 func TestProxyAuthorizationBasicLayer(t *testing.T) {

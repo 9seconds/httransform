@@ -32,6 +32,7 @@ func (s *Server) Serve(ln net.Listener) error {
 }
 
 func (s *Server) Shutdown() error {
+	s.certs.Close()
 	return s.server.Shutdown()
 }
 

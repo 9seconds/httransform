@@ -59,6 +59,12 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 	return TLSConfig{item}, nil
 }
 
+func (c *CA) Close() {
+	for _, ch := range c.requestChans {
+		close(ch)
+	}
+}
+
 func (c *CA) worker(requests chan *signRequest) {
 	for req := range requests {
 		resp := signResponsePool.Get().(*signResponse)

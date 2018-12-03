@@ -72,7 +72,7 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 		panic(err)
 	}
 
-	go srv.Serve(ln)
+	go srv.Serve(ln) // nolint: errcheck
 
 	proxyURL := &url.URL{
 		Host:   ln.Addr().String(),
@@ -84,15 +84,17 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 		},
 	}
 
-	resp, err := client.Get("http://httpbin.org/status/200")
+	resp, _ := client.Get("http://httpbin.org/status/200")
 	fmt.Println(resp.Status)
 
-	io.Copy(ioutil.Discard, resp.Body)
+	if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
+		panic(err)
+	}
 	resp.Body.Close()
 
 	proxyURL.User = url.UserPassword("user", "password")
 	client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	resp, err = client.Get("http://httpbin.org/status/200")
+	resp, _ = client.Get("http://httpbin.org/status/200")
 	fmt.Println(resp.Status)
 	// Output:
 	// 407 Proxy Authentication Required

@@ -49,7 +49,7 @@ type LayerState struct {
 	ProxyPassword []byte
 
 	// RequestHeaders contains request headers. This structure is populated
-	// by httransform so you do not need to fill it from the inital
+	// by httransform so you do not need to fill it from the initial
 	// contents of Request.
 	//
 	// If you want to update request headers, you should do it using
@@ -60,7 +60,7 @@ type LayerState struct {
 
 	// ResponseHeaders contains response headers. This structure is
 	// populated by httransform so you do not need to fill it from the
-	// inital contents of Response.
+	// initial contents of Response.
 	//
 	// If you want to update response headers, you should do it using this
 	// field, do not modify Response directly. After the last layer but

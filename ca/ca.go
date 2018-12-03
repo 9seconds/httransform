@@ -13,6 +13,7 @@ import (
 	"math/rand"
 	"net"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/juju/errors"
@@ -20,20 +21,38 @@ import (
 )
 
 const (
-	defaultTTLForCertificate = 10 * time.Minute
-	defaultRSAKeyLength      = 1024
+	// TTLForCertificate is minimal time until certificate is
+	// considered as expired. This is a time from the last usage. If the
+	// certificate is expired, it does not necessary wiped out from LRU
+	// cache.
+	TTLForCertificate = 10 * time.Minute
+
+	// RSAKeyLength is the bit size of RSA private key for the certificate.
+	RSAKeyLength = 2048
 )
 
-var certWorkerCount uint32
+var (
+	certWorkerCount = uint32(runtime.NumCPU())
+	bigBangTime     = time.Unix(0, 0)
+)
 
+// CA is a datastructure which presents TLS CA (certificate authority).
+// The main purpose of this type is to generate TLS certificates
+// on-the-fly, using given CA certificate and private key.
+//
+// CA generates certificates concurrently but in thread-safe way. The
+// number of concurrently generated certificates is equal to the number
+// of CPUs.
 type CA struct {
 	ca           tls.Certificate
 	orgNames     []string
 	secret       []byte
-	cache        *ccache.Cache
 	requestChans []chan *signRequest
+	cache        *ccache.Cache
+	wg           *sync.WaitGroup
 }
 
+// Get returns generated TLSConfig instance for the given hostname.
 func (c *CA) Get(host string) (TLSConfig, error) {
 	item := c.cache.TrackingGet(host)
 
@@ -53,19 +72,32 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 		response := <-newRequest.response
 		defer signResponsePool.Put(response)
 
+		if response.err != nil {
+			return TLSConfig{}, errors.Annotatef(response.err,
+				"Cannot create TLS certificate for host %s", host)
+		}
+
 		item = response.item
 	}
 
 	return TLSConfig{item}, nil
 }
 
-func (c *CA) Close() {
+// Close stops CA instance. This includes all signing workers and LRU
+// cache.
+func (c *CA) Close() error {
 	for _, ch := range c.requestChans {
 		close(ch)
 	}
+	c.wg.Wait()
+	c.cache.Stop()
+
+	return nil
 }
 
-func (c *CA) worker(requests chan *signRequest) {
+func (c *CA) worker(requests chan *signRequest, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	for req := range requests {
 		resp := signResponsePool.Get().(*signResponse)
 		resp.err = nil
@@ -85,7 +117,7 @@ func (c *CA) worker(requests chan *signRequest) {
 
 		conf := &tls.Config{InsecureSkipVerify: true} // nolint: gosec
 		conf.Certificates = append(conf.Certificates, cert)
-		c.cache.Set(req.host, conf, defaultTTLForCertificate)
+		c.cache.Set(req.host, conf, TTLForCertificate)
 		resp.item = c.cache.TrackingGet(req.host)
 		req.response <- resp
 	}
@@ -96,8 +128,8 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 		SerialNumber:          &big.Int{},
 		Issuer:                c.ca.Leaf.Subject,
 		Subject:               pkix.Name{Organization: c.orgNames},
-		NotBefore:             time.Unix(0, 0),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotBefore:             bigBangTime,
+		NotAfter:              timeNotAfter(),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -118,7 +150,7 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	randSeed := int64(binary.LittleEndian.Uint64(hash.Sum(nil)[:8]))
 	randGen := rand.New(rand.NewSource(randSeed))
 
-	certpriv, err := rsa.GenerateKey(randGen, defaultRSAKeyLength)
+	certpriv, err := rsa.GenerateKey(randGen, RSAKeyLength)
 	if err != nil {
 		panic(err)
 	}
@@ -134,8 +166,12 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	}, nil
 }
 
-func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32,
-	orgNames ...string) (CA, error) {
+func timeNotAfter() time.Time {
+	now := time.Now()
+	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+}
+
+func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32, orgNames ...string) (CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {
 		return CA{}, errors.Annotate(err, "Invalid certificates")
@@ -150,16 +186,14 @@ func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32,
 		orgNames:     orgNames,
 		cache:        ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
 		requestChans: make([]chan *signRequest, 0, certWorkerCount),
+		wg:           &sync.WaitGroup{},
 	}
 	for i := 0; i < int(certWorkerCount); i++ {
 		newChan := make(chan *signRequest)
 		obj.requestChans = append(obj.requestChans, newChan)
-		go obj.worker(newChan)
+		obj.wg.Add(1)
+		go obj.worker(newChan, obj.wg)
 	}
 
 	return obj, nil
-}
-
-func init() {
-	certWorkerCount = uint32(runtime.NumCPU())
 }

@@ -35,7 +35,7 @@ func (s *Server) Serve(ln net.Listener) error {
 
 // Shutdown gracefully stops the server.
 func (s *Server) Shutdown() error {
-	s.certs.Close()
+	defer s.certs.Close()
 	return s.server.Shutdown()
 }
 

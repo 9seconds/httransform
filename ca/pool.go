@@ -8,9 +8,25 @@ import (
 )
 
 var (
-	signRequestPool  sync.Pool
-	signResponsePool sync.Pool
-	hashPool         sync.Pool
+	signRequestPool = sync.Pool{
+		New: func() interface{} {
+			return &signRequest{
+				response: make(chan *signResponse),
+			}
+		},
+	}
+
+	signResponsePool = sync.Pool{
+		New: func() interface{} {
+			return &signResponse{}
+		},
+	}
+
+	hashPool = sync.Pool{
+		New: func() interface{} {
+			return fnv.New32a()
+		},
+	}
 )
 
 type signRequest struct {
@@ -21,24 +37,4 @@ type signRequest struct {
 type signResponse struct {
 	item ccache.TrackedItem
 	err  error
-}
-
-func init() {
-	signRequestPool = sync.Pool{
-		New: func() interface{} {
-			return &signRequest{
-				response: make(chan *signResponse),
-			}
-		},
-	}
-	signResponsePool = sync.Pool{
-		New: func() interface{} {
-			return &signResponse{}
-		},
-	}
-	hashPool = sync.Pool{
-		New: func() interface{} {
-			return fnv.New32a()
-		},
-	}
 }

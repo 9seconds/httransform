@@ -3,22 +3,15 @@ package httransform
 import (
 	"bytes"
 	"encoding/base64"
-	"net"
 	"net/url"
 
 	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
 )
 
-func ExtractHost(rawurl string) (string, error) {
-	host, _, err := net.SplitHostPort(rawurl)
-	if err != nil {
-		return "", errors.Annotate(err, "Cannot split host/port")
-	}
-
-	return host, nil
-}
-
+// MakeSimpleResponse is a shortcut function which sets given message
+// and status code to response. This is destructive function, all
+// existing contents of the response are cleared, even body.
 func MakeSimpleResponse(resp *fasthttp.Response, msg string, statusCode int) {
 	resp.Reset()
 	resp.SetBodyString(msg)
@@ -26,6 +19,9 @@ func MakeSimpleResponse(resp *fasthttp.Response, msg string, statusCode int) {
 	resp.Header.SetContentType("text/plain")
 }
 
+// ExtractAuthentication parses the value of Proxy-Authorization header
+// and returns values for user and password. Only Basic authentication
+// scheme is supported.
 func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	pos := bytes.IndexByte(text, ' ')
 	if pos < 0 {
@@ -54,6 +50,11 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	return decoded[:pos], decoded[pos+1:], nil
 }
 
+// MakeProxyAuthorizationHeaderValue builds a value of
+// Proxy-Authorization header with Basic authentication scheme based on
+// information, given in URL.
+//
+// If no user/pass is defined, then function returns nil.
 func MakeProxyAuthorizationHeaderValue(proxyURL *url.URL) []byte {
 	username := proxyURL.User.Username()
 	password, ok := proxyURL.User.Password()

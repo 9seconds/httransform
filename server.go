@@ -57,7 +57,7 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ctx.IsConnect() {
-		host, err := ExtractHost(uri)
+		host, _, err := net.SplitHostPort(uri)
 		if err != nil {
 			s.logger.Debug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
 				ctx.RemoteAddr(), reqID, method, uri, err)

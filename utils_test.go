@@ -8,43 +8,6 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type ExtractHostTestSuite struct {
-	suite.Suite
-}
-
-func (suite *ExtractHostTestSuite) TestOK() {
-	host, err := ExtractHost("hostname:80")
-
-	suite.Equal(host, "hostname")
-	suite.Nil(err)
-}
-
-func (suite *ExtractHostTestSuite) TestIPv4() {
-	host, err := ExtractHost("127.0.0.1:80")
-
-	suite.Equal(host, "127.0.0.1")
-	suite.Nil(err)
-}
-
-func (suite *ExtractHostTestSuite) TestIPv6() {
-	host, err := ExtractHost("[::1]:80")
-
-	suite.Equal(host, "::1")
-	suite.Nil(err)
-}
-
-func (suite *ExtractHostTestSuite) TestErr() {
-	_, err := ExtractHost("hostname")
-
-	suite.NotNil(err)
-}
-
-func (suite *ExtractHostTestSuite) TestEmpty() {
-	_, err := ExtractHost("")
-
-	suite.NotNil(err)
-}
-
 type MakeSimpleResponseTestSuite struct {
 	suite.Suite
 
@@ -169,10 +132,6 @@ func (suite *MakeProxyAuthorizationHeaderValueTestSuite) TestUserPass() {
 	})
 
 	suite.Equal(result, []byte("Basic dXNlcm5hbWU6cGFzc3dvcmQ="))
-}
-
-func TestExtractHost(t *testing.T) {
-	suite.Run(t, &ExtractHostTestSuite{})
 }
 
 func TestMakeSimpleResponse(t *testing.T) {

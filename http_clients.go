@@ -14,6 +14,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
+// Defaults for HTTP clients.
 const (
 	// MaxConnsPerHost is the maximal number of open connections to some
 	// host in HTTP client.

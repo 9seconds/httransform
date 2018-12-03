@@ -18,6 +18,7 @@ type fasthttpHeader interface {
 	SetBytesKV([]byte, []byte)
 }
 
+// Server presents a HTTP proxy service.
 type Server struct {
 	serverPool sync.Pool
 	server     *fasthttp.Server
@@ -27,10 +28,12 @@ type Server struct {
 	logger     Logger
 }
 
+// Serve starts to work using given listener.
 func (s *Server) Serve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
+// Shutdown gracefully stops the server.
 func (s *Server) Shutdown() error {
 	s.certs.Close()
 	return s.server.Shutdown()
@@ -169,6 +172,7 @@ func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
 	}
 }
 
+// NewServer creates new instance of the Server.
 func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger) (*Server, error) {
 	certs, err := ca.NewCA(opts.GetCertCA(),
 		opts.GetCertKey(),

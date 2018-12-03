@@ -28,11 +28,11 @@ func (suite *MakeSimpleResponseTestSuite) TestOverrideValues() {
 	suite.resp.SetBodyString("HELLO")
 	suite.resp.SetConnectionClose()
 
-	MakeSimpleResponse(suite.resp, "overriden", fasthttp.StatusOK)
+	MakeSimpleResponse(suite.resp, "overridden", fasthttp.StatusOK)
 
 	suite.Equal(suite.resp.StatusCode(), fasthttp.StatusOK)
 	suite.False(suite.resp.ConnectionClose())
-	suite.Equal(suite.resp.Body(), []byte("overriden"))
+	suite.Equal(suite.resp.Body(), []byte("overridden"))
 	suite.Equal(suite.resp.Header.ContentType(), []byte("text/plain"))
 }
 

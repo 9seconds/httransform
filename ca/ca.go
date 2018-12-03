@@ -171,6 +171,7 @@ func timeNotAfter() time.Time {
 	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 }
 
+// NewCA creates new instance of TLS CA.
 func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32, orgNames ...string) (CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {

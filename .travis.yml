@@ -15,6 +15,9 @@ script:
   - make lint
   - make citest
 
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
 matrix:
   allow_failures:
     - go: master

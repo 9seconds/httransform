@@ -15,22 +15,39 @@ import (
 )
 
 const (
-	MaxConnsPerHost    = 8192
+	// MaxConnsPerHost is the maximal number of open connections to some
+	// host in HTTP client.
+	MaxConnsPerHost = 8192
+
+	// ConnectDialTimeout is the timeout to establish TCP connection to the
+	// host. Usually it is used only for proxy chains.
 	ConnectDialTimeout = 30 * time.Second
+
+	// DefaultHTTPTImeout is the timeout from starting of HTTP request to
+	// getting a response.
 	DefaultHTTPTImeout = 3 * time.Minute
 )
 
+// HTTP is the default HTTPRequestExecutor intended to be used by the
+// user. Default executors use other client.
 var HTTP HTTPRequestExecutor
 
+// HTTPRequestExecutor is an interface to be used for ExecuteRequest and
+// ExecuteRequestTimeout functions.
 type HTTPRequestExecutor interface {
 	Do(*fasthttp.Request, *fasthttp.Response) error
 	DoTimeout(*fasthttp.Request, *fasthttp.Response, time.Duration) error
 }
 
+// MakeHTTPClient creates a new instance of HTTPRequestExecutor. This
+// executor knows nothing about proxies, simply executes given HTTP
+// request and writes to HTTP response.
 func MakeHTTPClient() HTTPRequestExecutor {
 	return makeHTTPClient()
 }
 
+// MakeProxySOCKS5Client creates a new instance of HTTPRequestExecutor
+// which uses given SOCKS5 proxy from URL.
 func MakeProxySOCKS5Client(proxyURL *url.URL) (HTTPRequestExecutor, error) {
 	client := makeHTTPClient()
 	dialer, err := makeSOCKS5Dialer(proxyURL)
@@ -43,10 +60,17 @@ func MakeProxySOCKS5Client(proxyURL *url.URL) (HTTPRequestExecutor, error) {
 	return client, nil
 }
 
+// MakeHTTPProxyClient creates a new instance of HTTPRequestExecutor
+// which can work with HTTP proxies. Please pay attention that you can
+// execute only HTTP requests using this executor, it does not support
+// request of HTTPS resources.
 func MakeHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeHTTPHostClient(proxyURL.Host)
 }
 
+// MakeHTTPSProxyClient creates a new instance of HTTPRequestExecutor
+// which can work with HTTPS proxies (i.e execute CONNECT request
+// first). It does not work with plain HTTP requests.
 func MakeHTTPSProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	client := makeHTTPClient()
 	client.Dial = makeHTTPProxyDialer(proxyURL)

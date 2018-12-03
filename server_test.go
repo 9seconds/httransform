@@ -151,8 +151,6 @@ func (suite *ServerTestSuite) TestLayerNoError() {
 	suite.Nil(err)
 	suite.Equal(body, []byte("Not found!"))
 
-	mocked.AssertExpectations(suite.T())
-
 	suite.Equal(resp.Header.Get("x-test"), "value")
 }
 
@@ -168,8 +166,6 @@ func (suite *ServerTestSuite) TestLayerError() {
 	suite.Nil(err)
 
 	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
-
-	mocked.AssertExpectations(suite.T())
 
 	suite.Equal(resp.Header.Get("x-test"), "value")
 }

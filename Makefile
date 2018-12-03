@@ -38,6 +38,7 @@ test:
 	@$(MOD_ON) go test -v ./...
 
 .PHONY: citest
+citest:
 	@$(MOD_ON) go test  -coverprofile=coverage.txt -covermode=atomic -race -v ./...
 
 .PHONY: lint

@@ -72,12 +72,9 @@ type ServerTestSuite struct {
 	ln     net.Listener
 	srv    *Server
 	client *http.Client
-	mocked *MockLayer
 }
 
 func (suite *ServerTestSuite) SetupTest() {
-	suite.mocked = &MockLayer{}
-
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
@@ -138,10 +135,11 @@ func (suite *ServerTestSuite) TestHTTPSRequest() {
 }
 
 func (suite *ServerTestSuite) TestLayerNoError() {
-	suite.mocked.On("OnRequest", mock.Anything).Return(nil)
-	suite.mocked.On("OnResponse", mock.Anything, nil).Return("value")
+	mocked := &MockLayer{}
+	mocked.On("OnRequest", mock.Anything).Return(nil)
+	mocked.On("OnResponse", mock.Anything, nil).Return("value")
 
-	suite.srv.layers = append(suite.srv.layers, suite.mocked)
+	suite.srv.layers = append(suite.srv.layers, mocked)
 
 	resp, err := suite.client.Get("http://example.com")
 
@@ -153,24 +151,25 @@ func (suite *ServerTestSuite) TestLayerNoError() {
 	suite.Nil(err)
 	suite.Equal(body, []byte("Not found!"))
 
-	suite.mocked.AssertExpectations(suite.T())
+	mocked.AssertExpectations(suite.T())
 
 	suite.Equal(resp.Header.Get("x-test"), "value")
 }
 
 func (suite *ServerTestSuite) TestLayerError() {
 	err := errors.New("Some error")
-	suite.mocked.On("OnRequest", mock.Anything).Return(err)
-	suite.mocked.On("OnResponse", mock.Anything, err).Return("value")
+	mocked := &MockLayer{}
+	mocked.On("OnRequest", mock.Anything).Return(err)
+	mocked.On("OnResponse", mock.Anything, err).Return("value")
 
-	suite.srv.layers = append(suite.srv.layers, suite.mocked)
+	suite.srv.layers = append(suite.srv.layers, mocked)
 
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
 
 	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
 
-	suite.mocked.AssertExpectations(suite.T())
+	mocked.AssertExpectations(suite.T())
 
 	suite.Equal(resp.Header.Get("x-test"), "value")
 }

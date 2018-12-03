@@ -42,7 +42,7 @@ citest:
 	@$(MOD_ON) go test  -coverprofile=coverage.txt -covermode=atomic -race -v ./...
 
 .PHONY: lint
-lint: prepare
+lint:
 	@$(MOD_ON) golangci-lint run
 
 .PHONY: clean

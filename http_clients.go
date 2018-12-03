@@ -31,7 +31,7 @@ const (
 
 // HTTP is the default HTTPRequestExecutor intended to be used by the
 // user. Default executors use other client.
-var HTTP HTTPRequestExecutor
+var HTTP = MakeHTTPClient()
 
 // HTTPRequestExecutor is an interface to be used for ExecuteRequest and
 // ExecuteRequestTimeout functions.
@@ -168,8 +168,4 @@ func makeHTTPHostClient(addr string) *fasthttp.HostClient {
 		MaxConns:                      MaxConnsPerHost,
 		TLSConfig:                     &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 	}
-}
-
-func init() {
-	HTTP = MakeHTTPClient()
 }

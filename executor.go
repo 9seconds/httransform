@@ -9,7 +9,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var executorDefaultHTTPClient HTTPRequestExecutor
+var executorDefaultHTTPClient = MakeHTTPClient()
 
 // Executor presents a type which converts HTTP request to HTTP
 // response. It is not necessary that executor is limited to HTTP. It
@@ -82,8 +82,4 @@ func failResponse(resp *fasthttp.Response, err error) {
 	MakeSimpleResponse(newResponse, fmt.Sprintf("Cannot fetch from upstream: %s", err), fasthttp.StatusBadGateway)
 	newResponse.CopyTo(resp)
 	fasthttp.ReleaseResponse(newResponse)
-}
-
-func init() {
-	executorDefaultHTTPClient = MakeHTTPClient()
 }

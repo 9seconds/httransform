@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/juju/errors"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
 )
@@ -50,15 +52,32 @@ func testServerExecutor(state *LayerState) {
 	state.Response.SetBodyString("Not found!")
 }
 
+type MockLayer struct {
+	mock.Mock
+}
+
+func (m *MockLayer) OnRequest(state *LayerState) error {
+	args := m.Called(state)
+	return args.Error(0)
+}
+
+func (m *MockLayer) OnResponse(state *LayerState, err error) {
+	args := m.Called(state, err)
+	state.ResponseHeaders.SetString("X-Test", args.Get(0).(string))
+}
+
 type ServerTestSuite struct {
 	suite.Suite
 
 	ln     net.Listener
 	srv    *Server
 	client *http.Client
+	mocked *MockLayer
 }
 
 func (suite *ServerTestSuite) SetupTest() {
+	suite.mocked = &MockLayer{}
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
@@ -116,6 +135,44 @@ func (suite *ServerTestSuite) TestHTTPSRequest() {
 	body, err := ioutil.ReadAll(resp.Body)
 	suite.Nil(err)
 	suite.Equal(body, []byte("Not found!"))
+}
+
+func (suite *ServerTestSuite) TestLayerNoError() {
+	suite.mocked.On("OnRequest", mock.Anything).Return(nil)
+	suite.mocked.On("OnResponse", mock.Anything, nil).Return("value")
+
+	suite.srv.layers = append(suite.srv.layers, suite.mocked)
+
+	resp, err := suite.client.Get("http://example.com")
+
+	suite.Equal(resp.StatusCode, http.StatusNotFound)
+	suite.Nil(err)
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	suite.Nil(err)
+	suite.Equal(body, []byte("Not found!"))
+
+	suite.mocked.AssertExpectations(suite.T())
+
+	suite.Equal(resp.Header.Get("x-test"), "value")
+}
+
+func (suite *ServerTestSuite) TestLayerError() {
+	err := errors.New("Some error")
+	suite.mocked.On("OnRequest", mock.Anything).Return(err)
+	suite.mocked.On("OnResponse", mock.Anything, err).Return("value")
+
+	suite.srv.layers = append(suite.srv.layers, suite.mocked)
+
+	resp, err := suite.client.Get("http://example.com")
+	suite.Nil(err)
+
+	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
+
+	suite.mocked.AssertExpectations(suite.T())
+
+	suite.Equal(resp.Header.Get("x-test"), "value")
 }
 
 func TestServer(t *testing.T) {

@@ -146,7 +146,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 
 		s.executor(state)
 	}
-	if err := parseHeaders(responseHeaders, state.Response.Header.Header()); err != nil {
+	if err2 := parseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
 		s.logger.Debug("[%s] (%d) %s %s: malformed response headers: %s",
 			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)

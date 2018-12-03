@@ -170,12 +170,26 @@ func (a *AddRemoveHeaderLayer) apply(set *HeaderSet, frozen, defaults map[string
 	}
 }
 
+// ProxyAuthorizationBasicLayer is the layer to manage Basic Proxy
+// Authorization protocol (i.e Proxy-Authorization header) with
+// predefined user/password pair.
 type ProxyAuthorizationBasicLayer struct {
-	User     []byte
+	// User is the username for proxy authorization.
+	User []byte
+
+	// Password is the password for proxy authorization.
 	Password []byte
-	Realm    string
+
+	// Realm is the proxy realm. This is not a mandatory header, this is
+	// required only if we want to tell user about the realm she tries to
+	// access.
+	//
+	// In other words, on authorization error, the value of
+	// Proxy-Authenticate header would be 'Basic realm="RealmYouTold"'.
+	Realm string
 }
 
+// OnRequest is the callback for Layer interface.
 func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 	userFault := subtle.ConstantTimeCompare(state.ProxyUser, p.User) != 1
 	passwordFault := subtle.ConstantTimeCompare(state.ProxyPassword, p.Password) != 1
@@ -186,12 +200,15 @@ func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 	return nil
 }
 
+// OnResponse is the callback for Layer interface.
 func (p *ProxyAuthorizationBasicLayer) OnResponse(state *LayerState, err error) {
 	if err == ErrProxyAuthorization {
 		p.MakeProxyAuthRequiredResponse(state)
 	}
 }
 
+// MakeProxyAuthRequiredResponse sets 407 response (Proxy Authorization
+// Required).
 func (p *ProxyAuthorizationBasicLayer) MakeProxyAuthRequiredResponse(state *LayerState) {
 	MakeSimpleResponse(state.Response, "", fasthttp.StatusProxyAuthRequired)
 

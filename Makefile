@@ -7,23 +7,6 @@ MOD_OFF := env GO111MODULE=auto
 
 # -----------------------------------------------------------------------------
 
-$(APP_NAME): $(APP_DEPS)
-	@$(MOD_ON) go build $(COMMON_BUILD_FLAGS) -o "$(APP_NAME)"
-
-$(APP_NAME)-%: GOOS=$(shell echo -n "$@" | sed 's?$(APP_NAME)-??' | cut -f1 -d-)
-$(APP_NAME)-%: GOARCH=$(shell echo -n "$@" | sed 's?$(APP_NAME)-??' | cut -f2 -d-)
-$(APP_NAME)-%: $(APP_DEPS) ccbuilds
-	@$(MOD_ON) env "GOOS=$(GOOS)" "GOARCH=$(GOARCH)" \
-		go build \
-		$(COMMON_BUILD_FLAGS) \
-		-o "./ccbuilds/$(APP_NAME)-$(GOOS)-$(GOARCH)"
-
-ccbuilds:
-	@rm -rf ./ccbuilds && mkdir -p ./ccbuilds
-
-proxy/certs.go:
-	@$(MOD_ON) go generate proxy/proxy.go
-
 vendor: go.mod go.sum
 	@$(MOD_ON) go mod vendor
 

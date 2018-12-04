@@ -144,11 +144,17 @@ func (s *ServerOpts) GetOrganizationName() string {
 // GetTLSCertCacheSize returns the number of items to store in LRU cache
 // of generated TLS certificates before starting to prune obsoletes.
 func (s *ServerOpts) GetTLSCertCacheSize() int64 {
+	if s.TLSCertCacheSize == 0 {
+		return DefaultTLSCertCacheSize
+	}
 	return int64(s.TLSCertCacheSize)
 }
 
 // GetTLSCertCachePrune returns the number of items to prune from LRU
 // cache per attempt.
 func (s *ServerOpts) GetTLSCertCachePrune() uint32 {
+	if s.TLSCertCachePrune == 0 {
+		return DefaultTLSCertCachePrune
+	}
 	return uint32(s.TLSCertCachePrune)
 }

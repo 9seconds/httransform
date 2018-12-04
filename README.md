@@ -103,7 +103,9 @@ func main() {
 		panic(err)
 	}
 
-	go srv.Serve(ln)
+	if err := srv.Serve(ln); err != nil {
+		panic(err)
+	}
 }
 ```
 

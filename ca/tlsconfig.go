@@ -27,5 +27,6 @@ func (t *TLSConfig) Get() *tls.Config {
 func (t *TLSConfig) Release() {
 	if t.item != nil {
 		t.item.Release()
+		t.item = nil
 	}
 }

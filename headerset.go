@@ -138,20 +138,6 @@ func (hs *HeaderSet) Items() []*Header {
 	return headers
 }
 
-// Clear clears internal state of the header set.
-func (hs *HeaderSet) Clear() {
-	for k := range hs.index {
-		delete(hs.index, k)
-	}
-	for k := range hs.removedHeaders {
-		delete(hs.removedHeaders, k)
-	}
-	for _, v := range hs.values {
-		releaseHeader(v)
-	}
-	hs.values = hs.values[:0]
-}
-
 // String returns a string representation of the header set. So,
 // *HeaderSet implements fmt.Stringer interface.
 func (hs *HeaderSet) String() string {

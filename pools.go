@@ -38,38 +38,42 @@ var (
 )
 
 func getHeader() *Header {
-	header := headersPool.Get().(*Header)
-	header.Key = header.Key[:0]
-	header.Value = header.Value[:0]
-	header.ID = ""
-
-	return header
+	return headersPool.Get().(*Header)
 }
 
 func getHeaderSet() *HeaderSet {
-	set := headerSetPool.Get().(*HeaderSet)
-	set.Clear()
-
-	return set
+	return headerSetPool.Get().(*HeaderSet)
 }
 
 func releaseHeaderSet(set *HeaderSet) {
+	for k := range set.index {
+		delete(set.index, k)
+	}
+	for k := range set.removedHeaders {
+		delete(set.removedHeaders, k)
+	}
+	for _, v := range set.values {
+		releaseHeader(v)
+	}
+	set.values = set.values[:0]
+
 	headerSetPool.Put(set)
 }
 
 func releaseHeader(header *Header) {
+	header.Key = header.Key[:0]
+	header.Value = header.Value[:0]
+	header.ID = ""
 	headersPool.Put(header)
 }
 
 func getLayerState() *LayerState {
-	state := layerStatePool.Get().(*LayerState)
-	for k := range state.ctx {
-		delete(state.ctx, k)
-	}
-
-	return state
+	return layerStatePool.Get().(*LayerState)
 }
 
 func releaseLayerState(state *LayerState) {
+	for k := range state.ctx {
+		delete(state.ctx, k)
+	}
 	layerStatePool.Put(state)
 }

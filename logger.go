@@ -1,6 +1,9 @@
 package httransform
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // Logger is the common interface for the logger which can be used
 // within httransform internals. Basically, if you need to log something
@@ -10,7 +13,6 @@ import "log"
 // All methods of this interface should work in Print mode: messages and
 // arguments.
 type Logger interface {
-
 	// Debug logs information which is usable only for debugging. Usually
 	// this is quite noisy data you absolutely do not want to have in
 	// production.
@@ -47,7 +49,9 @@ func (n *NoopLogger) Warn(_ string, _ ...interface{}) {}
 func (n *NoopLogger) Error(_ string, _ ...interface{}) {}
 
 // Panic is to support Logger interface.
-func (n *NoopLogger) Panic(_ string, _ ...interface{}) {}
+func (n *NoopLogger) Panic(msg string, args ...interface{}) {
+	panic(fmt.Sprintf(msg, args...))
+}
 
 // StdLogger is the wrapper over default log.Logger instance which provides
 // Logger inteface for httransform.

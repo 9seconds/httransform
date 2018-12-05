@@ -37,7 +37,7 @@ type LayerStateTestSuite struct {
 	BaseLayerStateTestSuite
 }
 
-func (suite *LayerStateTestSuite) TestGetSet() {
+func (suite *LayerStateTestSuite) TestGetSetDelete() {
 	_, ok := suite.state.Get("key")
 	suite.False(ok)
 
@@ -45,6 +45,13 @@ func (suite *LayerStateTestSuite) TestGetSet() {
 	val, ok := suite.state.Get("key")
 	suite.True(ok)
 	suite.Equal(val.(string), "value")
+
+	suite.state.Delete("key")
+	suite.state.Delete("key")
+	suite.state.Delete("key2")
+
+	_, ok = suite.state.Get("key")
+	suite.False(ok)
 }
 
 type AddRemoveHeaderLayerTestSuite struct {

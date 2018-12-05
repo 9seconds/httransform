@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/juju/errors"
@@ -108,8 +107,8 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 		if err != nil {
 			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
 		}
-		if !strings.Contains(addr, ":") {
-			addr += ":443"
+		if _, _, err = net.SplitHostPort(addr); err != nil {
+			addr = net.JoinHostPort(addr, "443")
 		}
 
 		connectRequest := connectRequestBufferPool.Get().(*bytes.Buffer)

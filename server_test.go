@@ -222,7 +222,7 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnect() {
 	srv, err := NewServer(suite.opts, []Layer{}, executor, &NoopLogger{})
 	suite.Nil(err)
 
-	go srv.Serve(suite.ln)
+	go srv.Serve(suite.ln) // nolint: errcheck
 
 	called := false
 	endSrv := http.Server{
@@ -238,7 +238,7 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnect() {
 			},
 		},
 	}
-	go endSrv.Serve(suite.endListener)
+	go endSrv.Serve(suite.endListener) // nolint: errcheck
 
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)

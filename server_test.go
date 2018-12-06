@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/juju/errors"
@@ -191,6 +192,8 @@ func (suite *ServerTestSuite) TestLayerError() {
 type ServerProxyChainTestSuite struct {
 	BaseServerTestSuite
 
+	status      int
+	endSrv      *http.Server
 	endListener net.Listener
 }
 
@@ -202,15 +205,7 @@ func (suite *ServerProxyChainTestSuite) SetupTest() {
 		panic(err)
 	}
 	suite.endListener = ln
-}
 
-func (suite *ServerProxyChainTestSuite) TearDownTest() {
-	suite.BaseServerTestSuite.TearDownTest()
-
-	suite.endListener.Close()
-}
-
-func (suite *ServerProxyChainTestSuite) TestChainDropsConnect() {
 	proxyURL := &url.URL{
 		Scheme: "http",
 		Host:   suite.endListener.Addr().String(),
@@ -224,31 +219,88 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnect() {
 
 	go srv.Serve(suite.ln) // nolint: errcheck
 
-	called := false
-	endSrv := http.Server{
+	suite.status = http.StatusOK
+	suite.endSrv = &http.Server{
 		Handler: &Handler{
 			callback: func(w http.ResponseWriter, req *http.Request) {
-				if called {
-					called = false
-					w.WriteHeader(http.StatusNotFound)
-				} else {
-					called = true
-					w.WriteHeader(http.StatusProxyAuthRequired)
-				}
+				w.WriteHeader(suite.status)
 			},
 		},
 	}
-	go endSrv.Serve(suite.endListener) // nolint: errcheck
+}
 
+func (suite *ServerProxyChainTestSuite) TearDownTest() {
+	suite.BaseServerTestSuite.TearDownTest()
+
+	suite.endListener.Close()
+}
+
+func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
+	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
+
+	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
-	suite.True(called)
 	suite.Equal(resp.StatusCode, http.StatusProxyAuthRequired)
 
+	suite.status = http.StatusNotFound
 	resp, err = suite.client.Get("http://example.com")
 	suite.Nil(err)
-	suite.False(called)
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
+}
+
+func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
+	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
+
+	suite.status = http.StatusProxyAuthRequired
+	resp, err := suite.client.Get("https://example.com")
+	suite.Nil(err)
+	suite.Equal(resp.StatusCode, http.StatusBadGateway)
+
+	suite.status = http.StatusOK
+	resp, err = suite.client.Get("https://example.com")
+	suite.Nil(err)
+	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
+}
+
+func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
+	certFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(certFile.Name())
+
+	if _, err = certFile.Write(testServerCACert); err != nil {
+		panic(err)
+	}
+	if err = certFile.Sync(); err != nil {
+		panic(err)
+	}
+
+	certKey, err := ioutil.TempFile("", "")
+	if err != nil {
+		panic(err)
+	}
+	defer os.Remove(certKey.Name())
+
+	if _, err = certKey.Write(testServerPrivateKey); err != nil {
+		panic(err)
+	}
+	if err = certKey.Sync(); err != nil {
+		panic(err)
+	}
+
+	go suite.endSrv.ServeTLS(suite.endListener, certFile.Name(), certKey.Name()) // nolint: errcheck
+
+	suite.status = http.StatusProxyAuthRequired
+	resp, err := suite.client.Get("https://example.com")
+	suite.Nil(err)
+	suite.Equal(resp.StatusCode, http.StatusBadGateway)
+
+	suite.status = http.StatusOK
+	resp, err = suite.client.Get("https://example.com")
+	suite.Nil(err)
+	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
 }
 
 func TestServer(t *testing.T) {

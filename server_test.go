@@ -52,6 +52,14 @@ func testServerExecutor(state *LayerState) {
 	state.Response.SetBodyString("Not found!")
 }
 
+type Handler struct {
+	callback func(http.ResponseWriter, *http.Request)
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.callback(w, r)
+}
+
 type MockLayer struct {
 	mock.Mock
 }
@@ -66,33 +74,25 @@ func (m *MockLayer) OnResponse(state *LayerState, err error) {
 	state.ResponseHeaders.SetString("X-Test", args.Get(0).(string))
 }
 
-type ServerTestSuite struct {
+type BaseServerTestSuite struct {
 	suite.Suite
 
 	ln     net.Listener
-	srv    *Server
 	client *http.Client
+	opts   ServerOpts
 }
 
-func (suite *ServerTestSuite) SetupTest() {
+func (suite *BaseServerTestSuite) SetupTest() {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}
 
 	suite.ln = ln
-
-	opts := ServerOpts{
+	suite.opts = ServerOpts{
 		CertCA:  testServerCACert,
 		CertKey: testServerPrivateKey,
 	}
-	srv, err := NewServer(opts, []Layer{}, testServerExecutor, &NoopLogger{})
-	if err != nil {
-		panic(err)
-	}
-	suite.srv = srv
-
-	go srv.Serve(ln) // nolint: errcheck
 
 	proxyURL := &url.URL{
 		Host:   ln.Addr().String(),
@@ -106,8 +106,26 @@ func (suite *ServerTestSuite) SetupTest() {
 	}
 }
 
-func (suite *ServerTestSuite) TearDownTest() {
+func (suite *BaseServerTestSuite) TearDownTest() {
 	suite.ln.Close()
+}
+
+type ServerTestSuite struct {
+	BaseServerTestSuite
+
+	srv *Server
+}
+
+func (suite *ServerTestSuite) SetupTest() {
+	suite.BaseServerTestSuite.SetupTest()
+
+	srv, err := NewServer(suite.opts, []Layer{}, testServerExecutor, &NoopLogger{})
+	if err != nil {
+		panic(err)
+	}
+	suite.srv = srv
+
+	go srv.Serve(suite.ln) // nolint: errcheck
 }
 
 func (suite *ServerTestSuite) TestHTTPRequest() {
@@ -170,6 +188,73 @@ func (suite *ServerTestSuite) TestLayerError() {
 	suite.Equal(resp.Header.Get("x-test"), "value")
 }
 
+type ServerProxyChainTestSuite struct {
+	BaseServerTestSuite
+
+	endListener net.Listener
+}
+
+func (suite *ServerProxyChainTestSuite) SetupTest() {
+	suite.BaseServerTestSuite.SetupTest()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	suite.endListener = ln
+}
+
+func (suite *ServerProxyChainTestSuite) TearDownTest() {
+	suite.BaseServerTestSuite.TearDownTest()
+
+	suite.endListener.Close()
+}
+
+func (suite *ServerProxyChainTestSuite) TestChainDropsConnect() {
+	proxyURL := &url.URL{
+		Scheme: "http",
+		Host:   suite.endListener.Addr().String(),
+	}
+	executor, err := MakeProxyChainExecutor(proxyURL)
+
+	suite.Nil(err)
+
+	srv, err := NewServer(suite.opts, []Layer{}, executor, &NoopLogger{})
+	suite.Nil(err)
+
+	go srv.Serve(suite.ln)
+
+	called := false
+	endSrv := http.Server{
+		Handler: &Handler{
+			callback: func(w http.ResponseWriter, req *http.Request) {
+				if called {
+					called = false
+					w.WriteHeader(http.StatusNotFound)
+				} else {
+					called = true
+					w.WriteHeader(http.StatusProxyAuthRequired)
+				}
+			},
+		},
+	}
+	go endSrv.Serve(suite.endListener)
+
+	resp, err := suite.client.Get("http://example.com")
+	suite.Nil(err)
+	suite.True(called)
+	suite.Equal(resp.StatusCode, http.StatusProxyAuthRequired)
+
+	resp, err = suite.client.Get("http://example.com")
+	suite.Nil(err)
+	suite.False(called)
+	suite.Equal(resp.StatusCode, http.StatusNotFound)
+}
+
 func TestServer(t *testing.T) {
 	suite.Run(t, &ServerTestSuite{})
+}
+
+func TestServerProxyChain(t *testing.T) {
+	suite.Run(t, &ServerProxyChainTestSuite{})
 }

@@ -97,8 +97,7 @@ func main() {
 		&httransform.AddRemoveHeaderLayer{
 			AbsentRequestHeaders: []string{"proxy-authorization"},
 		},
-	}, httransform.HTTPExecutor,
-		&httransform.NoopLogger{})
+	}, httransform.HTTPExecutor, &httransform.NoopLogger{}, &httransform.NoopMetrics{})
 	if err != nil {
 		panic(err)
 	}

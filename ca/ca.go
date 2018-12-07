@@ -65,18 +65,11 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 	item := c.cache.TrackingGet(host)
 
 	if item == ccache.NilTracked {
-		newHash := hashPool.Get().(hash.Hash32)
-		defer hashPool.Put(newHash)
-
 		newRequest := signRequestPool.Get().(*signRequest)
 		defer signRequestPool.Put(newRequest)
 
-		newHash.Reset()
-		newHash.Write([]byte(host)) // nolint: errcheck
-		chanNumber := newHash.Sum32() % certWorkerCount
-
 		newRequest.host = host
-		c.requestChans[chanNumber] <- newRequest
+		c.getWorkerChan(host) <- newRequest
 		response := <-newRequest.response
 		defer signResponsePool.Put(response)
 
@@ -175,9 +168,14 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	}, nil
 }
 
-func timeNotAfter() time.Time {
-	now := time.Now()
-	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+func (c *CA) getWorkerChan(host string) chan<- *signRequest {
+	newHash := hashPool.Get().(hash.Hash32)
+	newHash.Reset()
+	newHash.Write([]byte(host)) // nolint: errcheck
+	chanNumber := newHash.Sum32() % certWorkerCount
+	hashPool.Put(newHash)
+
+	return c.requestChans[chanNumber]
 }
 
 // NewCA creates new instance of TLS CA.
@@ -213,4 +211,9 @@ func NewCA(certCA, certKey []byte, metrics CertificateMetrics,
 	}
 
 	return obj, nil
+}
+
+func timeNotAfter() time.Time {
+	now := time.Now()
+	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 }

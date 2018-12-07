@@ -36,6 +36,13 @@ var (
 	bigBangTime     = time.Unix(0, 0)
 )
 
+// CertificateMetrics is a subset of the main Metrics interface which
+// provides callbacks for certificates.
+type CertificateMetrics interface {
+	NewCertificate()
+	DropCertificate()
+}
+
 // CA is a datastructure which presents TLS CA (certificate authority).
 // The main purpose of this type is to generate TLS certificates
 // on-the-fly, using given CA certificate and private key.
@@ -50,6 +57,7 @@ type CA struct {
 	requestChans []chan *signRequest
 	cache        *ccache.Cache
 	wg           *sync.WaitGroup
+	metrics      CertificateMetrics
 }
 
 // Get returns generated TLSConfig instance for the given hostname.
@@ -114,6 +122,7 @@ func (c *CA) worker(requests chan *signRequest, wg *sync.WaitGroup) {
 			req.response <- resp
 			continue
 		}
+		c.metrics.NewCertificate()
 
 		conf := &tls.Config{InsecureSkipVerify: true} // nolint: gosec
 		conf.Certificates = append(conf.Certificates, cert)
@@ -172,7 +181,8 @@ func timeNotAfter() time.Time {
 }
 
 // NewCA creates new instance of TLS CA.
-func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32, orgNames ...string) (CA, error) {
+func NewCA(certCA, certKey []byte, metrics CertificateMetrics,
+	cacheMaxSize int64, cacheItemsToPrune uint32, orgNames ...string) (CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {
 		return CA{}, errors.Annotate(err, "Invalid certificates")
@@ -181,11 +191,17 @@ func NewCA(certCA, certKey []byte, cacheMaxSize int64, cacheItemsToPrune uint32,
 		return CA{}, errors.Annotate(err, "Invalid certificates")
 	}
 
+	ccacheConf := ccache.Configure()
+	ccacheConf = ccacheConf.MaxSize(cacheMaxSize)
+	ccacheConf = ccacheConf.ItemsToPrune(cacheItemsToPrune)
+	ccacheConf = ccacheConf.OnDelete(func(_ *ccache.Item) { metrics.DropCertificate() })
+
 	obj := CA{
 		ca:           ca,
+		metrics:      metrics,
 		secret:       certKey,
 		orgNames:     orgNames,
-		cache:        ccache.New(ccache.Configure().MaxSize(cacheMaxSize).ItemsToPrune(cacheItemsToPrune)),
+		cache:        ccache.New(ccacheConf),
 		requestChans: make([]chan *signRequest, 0, certWorkerCount),
 		wg:           &sync.WaitGroup{},
 	}

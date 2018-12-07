@@ -66,8 +66,11 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 		&AddRemoveHeaderLayer{
 			AbsentRequestHeaders: []string{"proxy-authorization"},
 		},
-	}, HTTPExecutor,
-		&NoopLogger{})
+	},
+		HTTPExecutor,
+		&NoopLogger{},
+		&NoopMetrics{},
+	)
 	if err != nil {
 		panic(err)
 	}

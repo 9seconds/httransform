@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -40,14 +41,29 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 4J45NsSQjuuAAWs=
 -----END PRIVATE KEY-----`)
 
+type MockCertificateMetrics struct {
+	mock.Mock
+}
+
+func (m *MockCertificateMetrics) NewCertificate() {
+	m.Called()
+}
+
+func (m *MockCertificateMetrics) DropCertificate() {
+	m.Called()
+}
+
 type CATestSuite struct {
 	suite.Suite
 
-	ca *CA
+	ca   *CA
+	mock *MockCertificateMetrics
 }
 
 func (suite *CATestSuite) SetupTest() {
-	ca, err := NewCA(testCaCACert, testCaPrivateKey, 1000, 100)
+	suite.mock = &MockCertificateMetrics{}
+
+	ca, err := NewCA(testCaCACert, testCaPrivateKey, suite.mock, 1000, 100)
 	if err != nil {
 		panic(err)
 	}
@@ -59,6 +75,8 @@ func (suite *CATestSuite) TearDownTest() {
 }
 
 func (suite *CATestSuite) TestDoubleGet() {
+	suite.mock.On("NewCertificate")
+
 	conf1, err := suite.ca.Get("hostname")
 	suite.Nil(err)
 
@@ -67,9 +85,13 @@ func (suite *CATestSuite) TestDoubleGet() {
 
 	suite.Equal(conf1.Get().Certificates[0].PrivateKey, conf2.Get().Certificates[0].PrivateKey)
 	suite.Equal(conf1.Get().Certificates[0].Certificate[0], conf2.Get().Certificates[0].Certificate[0])
+
+	suite.mock.AssertExpectations(suite.T())
 }
 
 func (suite *CATestSuite) TestSigner() {
+	suite.mock.On("NewCertificate")
+
 	conf, err := suite.ca.Get("hostname")
 	suite.Nil(err)
 
@@ -89,6 +111,8 @@ func (suite *CATestSuite) TestSigner() {
 		Roots:   pool,
 	})
 	suite.Nil(err)
+
+	suite.mock.AssertExpectations(suite.T())
 }
 
 func TestCA(t *testing.T) {

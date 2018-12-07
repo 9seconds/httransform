@@ -26,6 +26,7 @@ type Server struct {
 	layers     []Layer
 	executor   Executor
 	logger     Logger
+	metrics    Metrics
 }
 
 // Serve starts to work using given listener.
@@ -44,6 +45,9 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	var password []byte
 	var err error
 
+	s.metrics.NewConnection()
+	defer s.metrics.DropConnection()
+
 	method := string(ctx.Method())
 	uri := string(ctx.RequestURI())
 	reqID := ctx.ID()
@@ -60,6 +64,9 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ctx.IsConnect() {
+		s.metrics.NewConnect()
+		defer s.metrics.NewConnect()
+
 		host, _, err := net.SplitHostPort(uri)
 		if err != nil {
 			s.logger.Debug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
@@ -108,8 +115,12 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 
 func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) {
 	reqID := ctx.ID()
-	method := string(ctx.Method())
+	methodBytes := ctx.Method()
+	method := string(methodBytes)
 	uri := string(ctx.RequestURI())
+
+	newMethodMetricsValue(s.metrics, methodBytes)
+	defer dropMethodMetricsValue(s.metrics, methodBytes)
 
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
@@ -173,9 +184,10 @@ func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
 }
 
 // NewServer creates new instance of the Server.
-func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger) (*Server, error) {
+func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger, metrics Metrics) (*Server, error) {
 	certs, err := ca.NewCA(opts.GetCertCA(),
 		opts.GetCertKey(),
+		metrics,
 		opts.GetTLSCertCacheSize(),
 		opts.GetTLSCertCachePrune(),
 		opts.GetOrganizationName())
@@ -188,6 +200,7 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger) (
 		layers:   lrs,
 		executor: executor,
 		logger:   logger,
+		metrics:  metrics,
 	}
 	srv.serverPool = sync.Pool{
 		New: func() interface{} {

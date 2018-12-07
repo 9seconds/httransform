@@ -75,15 +75,47 @@ func (m *MockLayer) OnResponse(state *LayerState, err error) {
 	state.ResponseHeaders.SetString("X-Test", args.Get(0).(string))
 }
 
+type MockMetrics struct {
+	mock.Mock
+}
+
+func (m *MockMetrics) NewConnection()   { m.Called() }
+func (m *MockMetrics) DropConnection()  { m.Called() }
+func (m *MockMetrics) NewGet()          { m.Called() }
+func (m *MockMetrics) NewHead()         { m.Called() }
+func (m *MockMetrics) NewPost()         { m.Called() }
+func (m *MockMetrics) NewPut()          { m.Called() }
+func (m *MockMetrics) NewDelete()       { m.Called() }
+func (m *MockMetrics) NewConnect()      { m.Called() }
+func (m *MockMetrics) NewOptions()      { m.Called() }
+func (m *MockMetrics) NewTrace()        { m.Called() }
+func (m *MockMetrics) NewPatch()        { m.Called() }
+func (m *MockMetrics) NewOther()        { m.Called() }
+func (m *MockMetrics) DropGet()         { m.Called() }
+func (m *MockMetrics) DropHead()        { m.Called() }
+func (m *MockMetrics) DropPost()        { m.Called() }
+func (m *MockMetrics) DropPut()         { m.Called() }
+func (m *MockMetrics) DropDelete()      { m.Called() }
+func (m *MockMetrics) DropConnect()     { m.Called() }
+func (m *MockMetrics) DropOptions()     { m.Called() }
+func (m *MockMetrics) DropTrace()       { m.Called() }
+func (m *MockMetrics) DropPatch()       { m.Called() }
+func (m *MockMetrics) DropOther()       { m.Called() }
+func (m *MockMetrics) NewCertificate()  { m.Called() }
+func (m *MockMetrics) DropCertificate() { m.Called() }
+
 type BaseServerTestSuite struct {
 	suite.Suite
 
-	ln     net.Listener
-	client *http.Client
-	opts   ServerOpts
+	ln      net.Listener
+	client  *http.Client
+	opts    ServerOpts
+	metrics *MockMetrics
 }
 
 func (suite *BaseServerTestSuite) SetupTest() {
+	suite.metrics = &MockMetrics{}
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
@@ -120,7 +152,8 @@ type ServerTestSuite struct {
 func (suite *ServerTestSuite) SetupTest() {
 	suite.BaseServerTestSuite.SetupTest()
 
-	srv, err := NewServer(suite.opts, []Layer{}, testServerExecutor, &NoopLogger{})
+	srv, err := NewServer(suite.opts, []Layer{}, testServerExecutor,
+		&NoopLogger{}, suite.metrics)
 	if err != nil {
 		panic(err)
 	}
@@ -130,6 +163,11 @@ func (suite *ServerTestSuite) SetupTest() {
 }
 
 func (suite *ServerTestSuite) TestHTTPRequest() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	resp, err := suite.client.Get("http://example.com")
 
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
@@ -142,6 +180,15 @@ func (suite *ServerTestSuite) TestHTTPRequest() {
 }
 
 func (suite *ServerTestSuite) TestHTTPSRequest() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("NewConnect")
+	suite.metrics.On("NewCertificate")
+	suite.metrics.On("DropGet")
+	suite.metrics.On("DropConnect")
+	suite.metrics.On("DropCertificate")
+
 	resp, err := suite.client.Get("https://example.com")
 
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
@@ -154,6 +201,11 @@ func (suite *ServerTestSuite) TestHTTPSRequest() {
 }
 
 func (suite *ServerTestSuite) TestLayerNoError() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	mocked := &MockLayer{}
 	mocked.On("OnRequest", mock.Anything).Return(nil)
 	mocked.On("OnResponse", mock.Anything, nil).Return("value")
@@ -174,6 +226,11 @@ func (suite *ServerTestSuite) TestLayerNoError() {
 }
 
 func (suite *ServerTestSuite) TestLayerError() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	err := errors.New("Some error")
 	mocked := &MockLayer{}
 	mocked.On("OnRequest", mock.Anything).Return(err)
@@ -214,7 +271,7 @@ func (suite *ServerProxyChainTestSuite) SetupTest() {
 
 	suite.Nil(err)
 
-	srv, err := NewServer(suite.opts, []Layer{}, executor, &NoopLogger{})
+	srv, err := NewServer(suite.opts, []Layer{}, executor, &NoopLogger{}, suite.metrics)
 	suite.Nil(err)
 
 	go srv.Serve(suite.ln) // nolint: errcheck
@@ -236,6 +293,11 @@ func (suite *ServerProxyChainTestSuite) TearDownTest() {
 }
 
 func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
 
 	suite.status = http.StatusProxyAuthRequired
@@ -250,6 +312,15 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
 }
 
 func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewConnect")
+	suite.metrics.On("DropConnect")
+	suite.metrics.On("NewCertificate")
+	suite.metrics.On("DropCertificate")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
 
 	suite.status = http.StatusProxyAuthRequired
@@ -264,6 +335,15 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
 }
 
 func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewConnect")
+	suite.metrics.On("DropConnect")
+	suite.metrics.On("NewCertificate")
+	suite.metrics.On("DropCertificate")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
 	certFile, err := ioutil.TempFile("", "")
 	if err != nil {
 		panic(err)

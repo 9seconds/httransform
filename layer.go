@@ -2,6 +2,7 @@ package httransform
 
 import (
 	"crypto/subtle"
+	"net"
 
 	"github.com/valyala/fasthttp"
 )
@@ -74,6 +75,10 @@ type LayerState struct {
 	// Response is the instance of the original response.
 	Response *fasthttp.Response
 
+	// RemoteAddr is an IP address + port of the client initiated the
+	// connection.
+	RemoteAddr net.Addr
+
 	isConnect bool
 	ctx       map[string]interface{}
 }
@@ -106,6 +111,7 @@ func initLayerState(state *LayerState, ctx *fasthttp.RequestCtx,
 	state.Request = &ctx.Request
 	state.Response = &ctx.Response
 	state.isConnect = isConnect
+	state.RemoteAddr = ctx.RemoteAddr()
 	state.ProxyUser = user
 	state.ProxyPassword = password
 }

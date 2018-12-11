@@ -150,15 +150,15 @@ func (suite *ParseHeadersTestSuite) TearDownTest() {
 }
 
 func (suite *ParseHeadersTestSuite) TestEmpty() {
-	suite.NotNil(parseHeaders(suite.set, nil))
+	suite.NotNil(ParseHeaders(suite.set, nil))
 }
 
 func (suite *ParseHeadersTestSuite) TestOnlyFirstLine() {
-	suite.NotNil(parseHeaders(suite.set, []byte("GET / HTTP/1.1\r\n")))
+	suite.NotNil(ParseHeaders(suite.set, []byte("GET / HTTP/1.1\r\n")))
 }
 
 func (suite *ParseHeadersTestSuite) TestNoHeaders() {
-	suite.Nil(parseHeaders(suite.set, []byte("GET / HTTP/1.1\r\n\r\n")))
+	suite.Nil(ParseHeaders(suite.set, []byte("GET / HTTP/1.1\r\n\r\n")))
 	suite.Len(suite.set.Items(), 0)
 }
 
@@ -168,7 +168,7 @@ Header: Value
 H
 
 `)
-	suite.NotNil(parseHeaders(suite.set, text))
+	suite.NotNil(ParseHeaders(suite.set, text))
 }
 
 func (suite *ParseHeadersTestSuite) TestHeaderOrder() {
@@ -180,7 +180,7 @@ Val3: xxx
 val3: 1
 
 `)
-	suite.Nil(parseHeaders(suite.set, text))
+	suite.Nil(ParseHeaders(suite.set, text))
 
 	items := suite.set.Items()
 	suite.Len(items, 3)

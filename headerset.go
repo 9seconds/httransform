@@ -149,7 +149,8 @@ func (hs *HeaderSet) String() string {
 	return builder.String()
 }
 
-func parseHeaders(hset *HeaderSet, rawHeaders []byte) error {
+// ParseHeaders parses raw HTTP headers into the headerset.
+func ParseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 	reader := textproto.NewReader(bufio.NewReader(bytes.NewReader(rawHeaders)))
 	// skip first line of HTTP
 	reader.ReadContinuedLineBytes() // nolint: errcheck

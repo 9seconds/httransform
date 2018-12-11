@@ -149,6 +149,20 @@ func (hs *HeaderSet) String() string {
 	return builder.String()
 }
 
+// Clear drops internal state of the headerset.
+func (hs *HeaderSet) Clear() {
+	for k := range hs.index {
+		delete(hs.index, k)
+	}
+	for k := range hs.removedHeaders {
+		delete(hs.removedHeaders, k)
+	}
+	for _, v := range hs.values {
+		releaseHeader(v)
+	}
+	hs.values = hs.values[:0]
+}
+
 // ParseHeaders parses raw HTTP headers into the headerset.
 func ParseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 	reader := textproto.NewReader(bufio.NewReader(bytes.NewReader(rawHeaders)))

@@ -46,17 +46,7 @@ func getHeaderSet() *HeaderSet {
 }
 
 func releaseHeaderSet(set *HeaderSet) {
-	for k := range set.index {
-		delete(set.index, k)
-	}
-	for k := range set.removedHeaders {
-		delete(set.removedHeaders, k)
-	}
-	for _, v := range set.values {
-		releaseHeader(v)
-	}
-	set.values = set.values[:0]
-
+	set.Clear()
 	headerSetPool.Put(set)
 }
 

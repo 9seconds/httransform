@@ -51,6 +51,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 
 			client := httpsProxyClient
 			if !state.isConnect {
+				state.Request.SetRequestURIBytes(state.Request.URI().FullURI())
 				client = httpProxyClient
 			}
 

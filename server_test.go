@@ -123,8 +123,9 @@ func (suite *BaseServerTestSuite) SetupTest() {
 
 	suite.ln = ln
 	suite.opts = ServerOpts{
-		CertCA:  testServerCACert,
-		CertKey: testServerPrivateKey,
+		CertCA:      testServerCACert,
+		CertKey:     testServerPrivateKey,
+		TraceLayers: true,
 	}
 
 	proxyURL := &url.URL{

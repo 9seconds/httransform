@@ -35,6 +35,18 @@ var (
 			return &bytes.Buffer{}
 		},
 	}
+
+	dummyTracerPool = sync.Pool{
+		New: func() interface{} {
+			return &dummyTracer{}
+		},
+	}
+
+	logTracerPool = sync.Pool{
+		New: func() interface{} {
+			return &logTracer{}
+		},
+	}
 )
 
 func getHeader() *Header {
@@ -43,6 +55,10 @@ func getHeader() *Header {
 
 func getHeaderSet() *HeaderSet {
 	return headerSetPool.Get().(*HeaderSet)
+}
+
+func getLayerState() *LayerState {
+	return layerStatePool.Get().(*LayerState)
 }
 
 func releaseHeaderSet(set *HeaderSet) {
@@ -55,10 +71,6 @@ func releaseHeader(header *Header) {
 	header.Value = header.Value[:0]
 	header.ID = ""
 	headersPool.Put(header)
-}
-
-func getLayerState() *LayerState {
-	return layerStatePool.Get().(*LayerState)
 }
 
 func releaseLayerState(state *LayerState) {

@@ -77,6 +77,10 @@ type ServerOpts struct {
 	// cache per attempt. Big number takes more time but increases the
 	// throughput.
 	TLSCertCachePrune int
+
+	// TraceLayers sets if it is required to log information about time
+	// spend in layers.
+	TraceLayers bool
 }
 
 // GetConcurrency returns a number of concurrent connections for the

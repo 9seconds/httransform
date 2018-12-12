@@ -21,6 +21,7 @@ type fasthttpHeader interface {
 // Server presents a HTTP proxy service.
 type Server struct {
 	serverPool sync.Pool
+	tracerPool *sync.Pool
 	server     *fasthttp.Server
 	certs      ca.CA
 	layers     []Layer
@@ -114,10 +115,20 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 }
 
 func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) {
+	var err error
+
+	currentLayer := 0
 	reqID := ctx.ID()
 	methodBytes := ctx.Method()
 	method := string(methodBytes)
 	uri := string(ctx.RequestURI())
+
+	layerTracer := s.tracerPool.Get().(tracer)
+	defer func() {
+		layerTracer.dump(reqID, s.logger)
+		layerTracer.clear()
+		s.tracerPool.Put(layerTracer)
+	}()
 
 	newMethodMetricsValue(s.metrics, methodBytes)
 	defer dropMethodMetricsValue(s.metrics, methodBytes)
@@ -129,7 +140,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 		releaseHeaderSet(responseHeaders)
 	}()
 
-	if err := ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
+	if err = ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
 		s.logger.Debug("[%s] (%d) %s %s: malformed request headers: %s",
 			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
@@ -140,13 +151,11 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	defer releaseLayerState(state)
 	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect, user, password)
 
-	requestMethod := ctx.Request.Header.Method()
-	requestURI := ctx.Request.Header.RequestURI()
-	currentLayer := 0
-	var err error
-
 	for ; currentLayer < len(s.layers); currentLayer++ {
-		if err = s.layers[currentLayer].OnRequest(state); err != nil {
+		layerTracer.startOnRequest()
+		err = s.layers[currentLayer].OnRequest(state)
+		layerTracer.finishOnRequest(err)
+		if err != nil {
 			MakeSimpleResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
 		}
@@ -155,10 +164,12 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	if currentLayer == len(s.layers) {
 		currentLayer--
 		s.resetHeaders(&ctx.Request.Header, requestHeaders)
-		ctx.Request.Header.SetMethodBytes(requestMethod)
-		ctx.Request.Header.SetRequestURIBytes(requestURI)
+		ctx.Request.Header.SetMethodBytes(methodBytes)
+		ctx.Request.Header.SetRequestURI(uri)
 
+		layerTracer.startExecute()
 		s.executor(state)
+		layerTracer.finishExecute()
 	}
 	if err2 := ParseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
 		s.logger.Debug("[%s] (%d) %s %s: malformed response headers: %s",
@@ -168,8 +179,11 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	}
 
 	for ; currentLayer >= 0; currentLayer-- {
+		layerTracer.startOnResponse()
 		s.layers[currentLayer].OnResponse(state, err)
+		layerTracer.finishOnResponse()
 	}
+
 	responseCode := ctx.Response.Header.StatusCode()
 	s.resetHeaders(&ctx.Response.Header, responseHeaders)
 	ctx.Response.SetStatusCode(responseCode)
@@ -195,12 +209,18 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger, m
 		return nil, errors.Annotate(err, "Cannot create CA")
 	}
 
+	var tracerPool = &dummyTracerPool
+	if opts.TraceLayers {
+		tracerPool = &logTracerPool
+	}
+
 	srv := &Server{
-		certs:    certs,
-		layers:   lrs,
-		executor: executor,
-		logger:   logger,
-		metrics:  metrics,
+		certs:      certs,
+		executor:   executor,
+		layers:     lrs,
+		logger:     logger,
+		metrics:    metrics,
+		tracerPool: tracerPool,
 	}
 	srv.serverPool = sync.Pool{
 		New: func() interface{} {

@@ -84,20 +84,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	srv, err := httransform.NewServer(httransform.ServerOpts{
+	opts := ServerOpts{
 		CertCA:  caCert,
 		CertKey: caPrivateKey,
-	}, []httransform.Layer{
-		&httransform.ProxyAuthorizationBasicLayer{
-			User:     []byte("user"),
-			Password: []byte("password"),
-			Realm:    "test",
+		Layers: []Layer{
+			&ProxyAuthorizationBasicLayer{
+				User:     []byte("user"),
+				Password: []byte("password"),
+				Realm:    "test",
+			},
+			&AddRemoveHeaderLayer{
+				AbsentRequestHeaders: []string{"proxy-authorization"},
+			},
 		},
-		&httransform.AddRemoveHeaderLayer{
-			AbsentRequestHeaders: []string{"proxy-authorization"},
-		},
-	}, httransform.HTTPExecutor, &httransform.NoopLogger{}, &httransform.NoopMetrics{})
+	}
+	srv, err := NewServer(opts)
 	if err != nil {
 		panic(err)
 	}

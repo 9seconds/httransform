@@ -123,9 +123,10 @@ func (suite *BaseServerTestSuite) SetupTest() {
 
 	suite.ln = ln
 	suite.opts = ServerOpts{
-		CertCA:      testServerCACert,
-		CertKey:     testServerPrivateKey,
-		TraceLayers: true,
+		CertCA:   testServerCACert,
+		CertKey:  testServerPrivateKey,
+		Executor: testServerExecutor,
+		Metrics:  suite.metrics,
 	}
 
 	proxyURL := &url.URL{
@@ -153,8 +154,7 @@ type ServerTestSuite struct {
 func (suite *ServerTestSuite) SetupTest() {
 	suite.BaseServerTestSuite.SetupTest()
 
-	srv, err := NewServer(suite.opts, []Layer{}, testServerExecutor,
-		&NoopLogger{}, suite.metrics)
+	srv, err := NewServer(suite.opts)
 	if err != nil {
 		panic(err)
 	}
@@ -269,10 +269,10 @@ func (suite *ServerProxyChainTestSuite) SetupTest() {
 		Host:   suite.endListener.Addr().String(),
 	}
 	executor, err := MakeProxyChainExecutor(proxyURL)
-
 	suite.Nil(err)
+	suite.opts.Executor = executor
 
-	srv, err := NewServer(suite.opts, []Layer{}, executor, &NoopLogger{}, suite.metrics)
+	srv, err := NewServer(suite.opts)
 	suite.Nil(err)
 
 	go srv.Serve(suite.ln) // nolint: errcheck

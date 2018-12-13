@@ -35,18 +35,6 @@ var (
 			return &bytes.Buffer{}
 		},
 	}
-
-	dummyTracerPool = sync.Pool{
-		New: func() interface{} {
-			return &dummyTracer{}
-		},
-	}
-
-	logTracerPool = sync.Pool{
-		New: func() interface{} {
-			return &logTracer{}
-		},
-	}
 )
 
 func getHeader() *Header {

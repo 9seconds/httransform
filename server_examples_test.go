@@ -54,23 +54,22 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 	if err != nil {
 		panic(err)
 	}
-	srv, err := NewServer(ServerOpts{
+
+	opts := ServerOpts{
 		CertCA:  caCert,
 		CertKey: caPrivateKey,
-	}, []Layer{
-		&ProxyAuthorizationBasicLayer{
-			User:     []byte("user"),
-			Password: []byte("password"),
-			Realm:    "test",
+		Layers: []Layer{
+			&ProxyAuthorizationBasicLayer{
+				User:     []byte("user"),
+				Password: []byte("password"),
+				Realm:    "test",
+			},
+			&AddRemoveHeaderLayer{
+				AbsentRequestHeaders: []string{"proxy-authorization"},
+			},
 		},
-		&AddRemoveHeaderLayer{
-			AbsentRequestHeaders: []string{"proxy-authorization"},
-		},
-	},
-		HTTPExecutor,
-		&NoopLogger{},
-		&NoopMetrics{},
-	)
+	}
+	srv, err := NewServer(opts)
 	if err != nil {
 		panic(err)
 	}

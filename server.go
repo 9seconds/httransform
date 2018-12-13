@@ -21,7 +21,7 @@ type fasthttpHeader interface {
 // Server presents a HTTP proxy service.
 type Server struct {
 	serverPool sync.Pool
-	tracerPool *sync.Pool
+	tracerPool *TracerPool
 	server     *fasthttp.Server
 	certs      ca.CA
 	layers     []Layer
@@ -123,21 +123,13 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	method := string(methodBytes)
 	uri := string(ctx.RequestURI())
 
-	layerTracer := s.tracerPool.Get().(tracer)
-	defer func() {
-		layerTracer.dump(reqID, s.logger)
-		layerTracer.clear()
-		s.tracerPool.Put(layerTracer)
-	}()
-
 	newMethodMetricsValue(s.metrics, methodBytes)
-	defer dropMethodMetricsValue(s.metrics, methodBytes)
-
 	requestHeaders := getHeaderSet()
 	responseHeaders := getHeaderSet()
 	defer func() {
 		releaseHeaderSet(requestHeaders)
 		releaseHeaderSet(responseHeaders)
+		dropMethodMetricsValue(s.metrics, methodBytes)
 	}()
 
 	if err = ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
@@ -148,13 +140,18 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	}
 
 	state := getLayerState()
-	defer releaseLayerState(state)
 	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect, user, password)
+	layerTracer := s.tracerPool.acquire()
+	defer func() {
+		layerTracer.Dump(state, s.logger)
+		s.tracerPool.release(layerTracer)
+		releaseLayerState(state)
+	}()
 
 	for ; currentLayer < len(s.layers); currentLayer++ {
-		layerTracer.startOnRequest()
+		layerTracer.StartOnRequest()
 		err = s.layers[currentLayer].OnRequest(state)
-		layerTracer.finishOnRequest(err)
+		layerTracer.FinishOnRequest(err)
 		if err != nil {
 			MakeSimpleResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
 			break
@@ -167,9 +164,9 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 		ctx.Request.Header.SetMethodBytes(methodBytes)
 		ctx.Request.Header.SetRequestURI(uri)
 
-		layerTracer.startExecute()
+		layerTracer.StartExecute()
 		s.executor(state)
-		layerTracer.finishExecute()
+		layerTracer.FinishExecute()
 	}
 	if err2 := ParseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
 		s.logger.Debug("[%s] (%d) %s %s: malformed response headers: %s",
@@ -179,9 +176,9 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	}
 
 	for ; currentLayer >= 0; currentLayer-- {
-		layerTracer.startOnResponse()
+		layerTracer.StartOnResponse()
 		s.layers[currentLayer].OnResponse(state, err)
-		layerTracer.finishOnResponse()
+		layerTracer.FinishOnResponse()
 	}
 
 	responseCode := ctx.Response.Header.StatusCode()
@@ -198,7 +195,8 @@ func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
 }
 
 // NewServer creates new instance of the Server.
-func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger, metrics Metrics) (*Server, error) {
+func NewServer(opts ServerOpts) (*Server, error) {
+	metrics := opts.GetMetrics()
 	certs, err := ca.NewCA(opts.GetCertCA(),
 		opts.GetCertKey(),
 		metrics,
@@ -209,18 +207,13 @@ func NewServer(opts ServerOpts, lrs []Layer, executor Executor, logger Logger, m
 		return nil, errors.Annotate(err, "Cannot create CA")
 	}
 
-	var tracerPool = &dummyTracerPool
-	if opts.TraceLayers {
-		tracerPool = &logTracerPool
-	}
-
 	srv := &Server{
 		certs:      certs,
-		executor:   executor,
-		layers:     lrs,
-		logger:     logger,
+		executor:   opts.GetExecutor(),
+		layers:     opts.GetLayers(),
+		logger:     opts.GetLogger(),
 		metrics:    metrics,
-		tracerPool: tracerPool,
+		tracerPool: opts.GetTracerPool(),
 	}
 	srv.serverPool = sync.Pool{
 		New: func() interface{} {

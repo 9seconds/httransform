@@ -78,9 +78,25 @@ type ServerOpts struct {
 	// throughput.
 	TLSCertCachePrune int
 
-	// TraceLayers sets if it is required to log information about time
-	// spend in layers.
-	TraceLayers bool
+	// Tracer is an instance of tracer pool to use. By default pool of
+	// NoopTracers is going to be used.
+	TracerPool *TracerPool
+
+	// Layers presents a list of middleware layers used by proxy.
+	// Can be nil.
+	Layers []Layer
+
+	// Executor is an instance of the Executor used by proxy. Default is
+	// HTTPExecutor.
+	Executor Executor
+
+	// Logger is an instance of Logger used by proxy. Default is
+	// NoopLogger.
+	Logger Logger
+
+	// Metrics is an instance of metrics client used by proxy. Default is
+	// NoopMetrics.
+	Metrics Metrics
 }
 
 // GetConcurrency returns a number of concurrent connections for the
@@ -161,4 +177,41 @@ func (s *ServerOpts) GetTLSCertCachePrune() uint32 {
 		return DefaultTLSCertCachePrune
 	}
 	return uint32(s.TLSCertCachePrune)
+}
+
+// GetTracerPool returns a tracer pool to use.
+func (s *ServerOpts) GetTracerPool() *TracerPool {
+	if s.TracerPool == nil {
+		return defaultNoopTracerPool
+	}
+	return s.TracerPool
+}
+
+// GetExecutor returns executor to use.
+func (s *ServerOpts) GetExecutor() Executor {
+	if s.Executor == nil {
+		return HTTPExecutor
+	}
+	return s.Executor
+}
+
+// GetLayers returns a list of middleware layers to use.
+func (s *ServerOpts) GetLayers() []Layer {
+	return s.Layers
+}
+
+// GetLogger returns logger to use within proxy.
+func (s *ServerOpts) GetLogger() Logger {
+	if s.Logger == nil {
+		return &NoopLogger{}
+	}
+	return s.Logger
+}
+
+// GetMetrics returns metrics client to use within proxy.
+func (s *ServerOpts) GetMetrics() Metrics {
+	if s.Metrics == nil {
+		return &NoopMetrics{}
+	}
+	return s.Metrics
 }

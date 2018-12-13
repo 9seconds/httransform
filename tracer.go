@@ -150,6 +150,7 @@ func (l *LogTracer) FinishExecute() {
 	}
 
 	l.executeDuration = time.Since(l.startExecuteTime)
+	l.startExecuteTime = time.Time{}
 }
 
 // Clear drops internal state of the tracer before returning it back to

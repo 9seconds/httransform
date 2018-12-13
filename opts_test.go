@@ -75,6 +75,36 @@ func (suite *ServerOptsTestSuite) TestGetTLSCertCachePrune() {
 	suite.Equal(suite.opts.GetTLSCertCachePrune(), uint32(suite.opts.TLSCertCachePrune))
 }
 
+func (suite *ServerOptsTestSuite) TestGetTracerPool() {
+	suite.Equal(suite.opts.GetTracerPool(), defaultNoopTracerPool)
+	suite.opts.TracerPool = NewTracerPool(func() Tracer { return nil })
+	suite.Equal(suite.opts.GetTracerPool(), suite.opts.TracerPool)
+}
+
+func (suite *ServerOptsTestSuite) TestGetExecutor() {
+	suite.NotNil(suite.opts.GetExecutor())
+	suite.opts.Executor = func(_ *LayerState) {}
+	suite.NotNil(suite.opts.GetExecutor())
+}
+
+func (suite *ServerOptsTestSuite) TestGetLayers() {
+	suite.Len(suite.opts.GetLayers(), 0)
+	suite.opts.Layers = []Layer{nil}
+	suite.Len(suite.opts.GetLayers(), 1)
+}
+
+func (suite *ServerOptsTestSuite) TestGetLogger() {
+	suite.IsType(&NoopLogger{}, suite.opts.GetLogger())
+	suite.opts.Logger = &StdLogger{}
+	suite.IsType(&StdLogger{}, suite.opts.GetLogger())
+}
+
+func (suite *ServerOptsTestSuite) TestGetMetrics() {
+	suite.IsType(&NoopMetrics{}, suite.opts.GetMetrics())
+	suite.opts.Metrics = &MockMetrics{}
+	suite.IsType(&MockMetrics{}, suite.opts.GetMetrics())
+}
+
 func TestServerOpts(t *testing.T) {
 	suite.Run(t, &ServerOptsTestSuite{})
 }

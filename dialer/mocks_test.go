@@ -1,4 +1,4 @@
-package client
+package dialer
 
 import (
 	"net"
@@ -49,7 +49,7 @@ type MockedDialer struct {
 	mock.Mock
 }
 
-func (m *MockedDialer) Dial(addr string) (net.Conn, error) {
-	args := m.Called(addr)
+func (m *MockedDialer) Dial(addr string, timeout time.Duration) (net.Conn, error) {
+	args := m.Called(addr, timeout)
 	return args.Get(0).(net.Conn), args.Error(1)
 }

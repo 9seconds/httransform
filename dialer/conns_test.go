@@ -1,7 +1,6 @@
-package client
+package dialer
 
 import (
-	"crypto/tls"
 	"testing"
 	"time"
 
@@ -20,15 +19,14 @@ type ConnsTestSuite struct {
 func (suite *ConnsTestSuite) SetupTest() {
 	suite.addr = "myaddr:8080"
 	suite.dialer = &MockedDialer{}
-	suite.c, _ = newConns(suite.addr, true, 2,
-		&tls.Config{InsecureSkipVerify: true}, suite.dialer.Dial)
+	suite.c, _ = newConns(suite.addr, suite.dialer.Dial, time.Second, 2)
 	suite.c.use()
 	go suite.c.run()
 }
 
 func (suite *ConnsTestSuite) TestGet() {
 	conn := &MockedConn{}
-	suite.dialer.On("Dial", suite.addr).Return(conn, nil)
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, nil)
 
 	_, err := suite.c.get(time.Millisecond)
 	suite.Nil(err)
@@ -47,7 +45,7 @@ func (suite *ConnsTestSuite) TestGet() {
 
 func (suite *ConnsTestSuite) TestPut() {
 	conn := &MockedConn{}
-	suite.dialer.On("Dial", suite.addr).Return(conn, nil)
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, nil)
 
 	_, _ = suite.c.get(time.Millisecond)
 	gotConn, _ := suite.c.get(time.Millisecond)
@@ -62,7 +60,7 @@ func (suite *ConnsTestSuite) TestPut() {
 
 func (suite *ConnsTestSuite) TestClosed() {
 	conn := &MockedConn{}
-	suite.dialer.On("Dial", suite.addr).Return(conn, nil)
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, nil)
 
 	_, _ = suite.c.get(time.Millisecond)
 	_, _ = suite.c.get(time.Millisecond)
@@ -78,7 +76,7 @@ func (suite *ConnsTestSuite) TestClosed() {
 func (suite *ConnsTestSuite) TestGC() {
 	conn := &MockedConn{}
 	conn.On("Close").Return(nil)
-	suite.dialer.On("Dial", suite.addr).Return(conn, nil)
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, nil)
 
 	gotConn, _ := suite.c.get(time.Millisecond)
 	suite.c.put(gotConn)
@@ -92,7 +90,7 @@ func (suite *ConnsTestSuite) TestGC() {
 func (suite *ConnsTestSuite) TestStopped() {
 	conn := &MockedConn{}
 	conn.On("Close").Return(nil)
-	suite.dialer.On("Dial", suite.addr).Return(conn, nil)
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, nil)
 
 	_, _ = suite.c.get(time.Millisecond)
 	gotConn, _ := suite.c.get(time.Millisecond)
@@ -112,7 +110,7 @@ func (suite *ConnsTestSuite) TestStopped() {
 func (suite *ConnsTestSuite) TestGetError() {
 	conn := &MockedConn{}
 	conn.On("Close").Return(nil)
-	suite.dialer.On("Dial", suite.addr).Return(conn, errors.New("error"))
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, errors.New("error"))
 
 	_, err := suite.c.get(time.Millisecond)
 	suite.NotNil(err)
@@ -122,12 +120,10 @@ func (suite *ConnsTestSuite) TestGetError() {
 }
 
 func (suite *ConnsTestSuite) TestNegativeFreeSlot() {
-	_, err := newConns(suite.addr, true, 0,
-		&tls.Config{InsecureSkipVerify: true}, suite.dialer.Dial)
+	_, err := newConns(suite.addr, nil, time.Second, 0)
 	suite.NotNil(err)
 
-	_, err = newConns(suite.addr, true, -1,
-		&tls.Config{InsecureSkipVerify: true}, suite.dialer.Dial)
+	_, err = newConns(suite.addr, nil, time.Second, -1)
 	suite.NotNil(err)
 }
 

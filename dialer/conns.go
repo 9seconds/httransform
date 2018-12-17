@@ -1,12 +1,10 @@
-package client
+package dialer
 
 import (
-	"crypto/tls"
 	"net"
 	"time"
 
 	"github.com/juju/errors"
-	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -21,14 +19,13 @@ type getConnResponse struct {
 }
 
 type conns struct {
-	dialer       fasthttp.DialFunc
+	dialer       BaseDialer
 	lastUsed     time.Time
 	free         []net.Conn
+	dialTimeout  time.Duration
 	toCreate     int
 	gcCounter    int
 	addr         string
-	isTLS        bool
-	tlsConfig    *tls.Config
 	getChan      chan chan<- getConnResponse
 	releasedChan chan net.Conn
 	closedChan   chan struct{}
@@ -105,15 +102,12 @@ func (c *conns) run() {
 				continue
 			}
 
-			newConn, err := c.dialer(c.addr)
+			newConn, err := c.dialer(c.addr, c.dialTimeout)
 			if err != nil {
 				if newConn != nil {
 					newConn.Close()
 				}
 				request <- getConnResponse{err: err}
-			}
-			if c.isTLS {
-				newConn = tls.Client(newConn, c.tlsConfig)
 			}
 			request <- getConnResponse{conn: newConn}
 			c.toCreate--
@@ -148,20 +142,20 @@ func (c *conns) run() {
 	}
 }
 
-func newConns(addr string, isTLS bool, freeSlots int, tlsConfig *tls.Config, dialer fasthttp.DialFunc) (*conns, error) {
-	if freeSlots <= 0 {
+func newConns(addr string, dialer BaseDialer, dialTimeout time.Duration, limit int) (*conns, error) {
+	if limit <= 0 {
 		return nil, errors.New("FreeSlots should be >= 1")
 	}
 
 	return &conns{
-		dialer:       dialer,
 		addr:         addr,
-		isTLS:        isTLS,
+		closedChan:   make(chan struct{}),
+		dialer:       dialer,
+		dialTimeout:  dialTimeout,
+		done:         make(chan struct{}),
+		free:         make([]net.Conn, 0, limit),
 		getChan:      make(chan chan<- getConnResponse),
 		releasedChan: make(chan net.Conn),
-		closedChan:   make(chan struct{}),
-		done:         make(chan struct{}),
-		free:         make([]net.Conn, 0, freeSlots),
-		toCreate:     freeSlots,
+		toCreate:     limit,
 	}, nil
 }

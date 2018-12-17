@@ -22,6 +22,7 @@ func (suite *ConnsTestSuite) SetupTest() {
 	suite.dialer = &MockedDialer{}
 	suite.c, _ = newConns(suite.addr, true, 2,
 		&tls.Config{InsecureSkipVerify: true}, suite.dialer.Dial)
+	suite.c.use()
 	go suite.c.run()
 }
 

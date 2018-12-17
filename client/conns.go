@@ -22,7 +22,10 @@ type getConnResponse struct {
 
 type conns struct {
 	dialer       fasthttp.DialFunc
+	lastUsed     time.Time
 	free         []net.Conn
+	toCreate     int
+	gcCounter    int
 	addr         string
 	isTLS        bool
 	tlsConfig    *tls.Config
@@ -30,9 +33,6 @@ type conns struct {
 	releasedChan chan net.Conn
 	closedChan   chan struct{}
 	done         chan struct{}
-	toCreate     int
-	lastUsed     time.Time
-	gcCounter    int
 }
 
 func (c *conns) get(timeout time.Duration) (net.Conn, error) {
@@ -57,6 +57,10 @@ func (c *conns) put(conn net.Conn) {
 	case c.releasedChan <- conn:
 		return
 	}
+}
+
+func (c *conns) use() {
+	c.lastUsed = time.Now()
 }
 
 func (c *conns) notifyClosed() {
@@ -87,8 +91,6 @@ func (c *conns) run() {
 
 	getChan := c.getChan
 	for {
-		c.lastUsed = time.Now()
-
 		select {
 		case <-c.done:
 			for _, v := range c.free {
@@ -146,8 +148,7 @@ func (c *conns) run() {
 	}
 }
 
-func newConns(addr string, isTLS bool, freeSlots int, tlsConfig *tls.Config,
-	dialer fasthttp.DialFunc) (*conns, error) {
+func newConns(addr string, isTLS bool, freeSlots int, tlsConfig *tls.Config, dialer fasthttp.DialFunc) (*conns, error) {
 	if freeSlots <= 0 {
 		return nil, errors.New("FreeSlots should be >= 1")
 	}

@@ -29,6 +29,7 @@ type conns struct {
 	getChan      chan chan<- getConnResponse
 	releasedChan chan net.Conn
 	closedChan   chan struct{}
+	obsoleteChan chan<- string
 	done         chan struct{}
 }
 
@@ -43,6 +44,19 @@ func (c *conns) get(timeout time.Duration) (net.Conn, error) {
 	case c.getChan <- respChan:
 		response := <-respChan
 		return response.conn, response.err
+	}
+}
+
+func (c *conns) getResponseChan(timeout time.Duration) (<-chan getConnResponse, error) {
+	respChan := make(chan getConnResponse)
+
+	select {
+	case <-c.done:
+		return nil, errors.New("Connections are closing")
+	case <-time.After(timeout):
+		return nil, errors.New("Timed out")
+	case c.getChan <- respChan:
+		return respChan, nil
 	}
 }
 
@@ -138,15 +152,16 @@ func (c *conns) run() {
 				c.toCreate++
 				getChan = c.getChan
 			}
+
+			if c.isObsolete() {
+				c.obsoleteChan <- c.addr
+			}
 		}
 	}
 }
 
-func newConns(addr string, dialer BaseDialer, dialTimeout time.Duration, limit int) (*conns, error) {
-	if limit <= 0 {
-		return nil, errors.New("FreeSlots should be >= 1")
-	}
-
+func newConns(addr string, dialer BaseDialer, dialTimeout time.Duration,
+	limit int, obsoleteChan chan<- string) *conns {
 	return &conns{
 		addr:         addr,
 		closedChan:   make(chan struct{}),
@@ -156,6 +171,7 @@ func newConns(addr string, dialer BaseDialer, dialTimeout time.Duration, limit i
 		free:         make([]net.Conn, 0, limit),
 		getChan:      make(chan chan<- getConnResponse),
 		releasedChan: make(chan net.Conn),
+		obsoleteChan: obsoleteChan,
 		toCreate:     limit,
-	}, nil
+	}
 }

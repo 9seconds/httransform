@@ -11,15 +11,17 @@ import (
 type ConnsTestSuite struct {
 	suite.Suite
 
-	c      *conns
-	dialer *MockedDialer
-	addr   string
+	c            *conns
+	dialer       *MockedDialer
+	addr         string
+	obsoleteChan chan string
 }
 
 func (suite *ConnsTestSuite) SetupTest() {
+	suite.obsoleteChan = make(chan string)
 	suite.addr = "myaddr:8080"
 	suite.dialer = &MockedDialer{}
-	suite.c, _ = newConns(suite.addr, suite.dialer.Dial, time.Second, 2)
+	suite.c = newConns(suite.addr, suite.dialer.Dial, time.Second, 2, suite.obsoleteChan)
 	suite.c.use()
 	go suite.c.run()
 }
@@ -117,14 +119,6 @@ func (suite *ConnsTestSuite) TestGetError() {
 
 	conn.AssertExpectations(suite.T())
 	suite.dialer.AssertExpectations(suite.T())
-}
-
-func (suite *ConnsTestSuite) TestNegativeFreeSlot() {
-	_, err := newConns(suite.addr, nil, time.Second, 0)
-	suite.NotNil(err)
-
-	_, err = newConns(suite.addr, nil, time.Second, -1)
-	suite.NotNil(err)
 }
 
 func TestConns(t *testing.T) {

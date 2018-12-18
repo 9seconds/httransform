@@ -154,7 +154,12 @@ func (c *conns) run() {
 			}
 
 			if c.isObsolete() {
-				c.obsoleteChan <- c.addr
+				go func() {
+					select {
+					case <-c.done:
+					case c.obsoleteChan <- c.addr:
+					}
+				}()
 			}
 		}
 	}

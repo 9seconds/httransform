@@ -53,8 +53,13 @@ func (d *PooledDialer) run() {
 	for {
 		select {
 		case req := <-d.dialRequests:
-			connections := d.getConnections(req.addr)
-			channel, err := connections.getResponseChan(time.Second)
+			addresses, ok := d.addresses[req.addr]
+			if !ok {
+				addresses = newConns(req.addr, d.base, d.timeout, d.limit, d.obsoleteRequests)
+				d.addresses[req.addr] = addresses
+			}
+
+			channel, err := addresses.getResponseChan(time.Second)
 			if err != nil {
 				req.response <- getConnResponse{err: err}
 				continue
@@ -62,28 +67,22 @@ func (d *PooledDialer) run() {
 			req.response <- <-channel
 
 		case req := <-d.releaseRequests:
-			d.getConnections(req.addr).put(req.conn)
+			if addresses, ok := d.addresses[req.addr]; ok {
+				addresses.put(req.conn)
+			}
 
 		case req := <-d.closedRequests:
-			d.getConnections(req).notifyClosed()
+			if addresses, ok := d.addresses[req]; ok {
+				addresses.notifyClosed()
+			}
 
 		case req := <-d.obsoleteRequests:
-			connections := d.getConnections(req)
-			if connections.isObsolete() {
-				connections.stop()
+			if addresses, ok := d.addresses[req]; ok && addresses.isObsolete() {
+				addresses.stop()
 				delete(d.addresses, req)
 			}
 		}
 	}
-}
-
-func (d *PooledDialer) getConnections(addr string) *conns {
-	addresses, ok := d.addresses[addr]
-	if !ok {
-		addresses = newConns(addr, d.base, d.timeout, d.limit, d.obsoleteRequests)
-		d.addresses[addr] = addresses
-	}
-	return addresses
 }
 
 func NewPooledDialer(dialer BaseDialer, timeout time.Duration, limit int) (*PooledDialer, error) {

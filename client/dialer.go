@@ -1,4 +1,4 @@
-package dialer
+package client
 
 import (
 	"net"

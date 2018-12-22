@@ -113,38 +113,38 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 		return 0, io.EOF
 	}
 
-	if !c.readData {
-		size, err := c.readNextChunkSize()
-		if err != nil {
-			return 0, err
+	if c.readData {
+		n, err := c.countReader.Read(b)
+		if err == errCountReaderExhaust {
+			c.readData = false
+			err = c.consumeCRLF()
 		}
-
-		err = c.consumeCRLF()
-		if err != nil {
-			return 0, err
-		}
-
-		if size == 0 {
-			c.closed = true
-			if c.consumeCRLF() != nil {
-				c.conn.Close()
-				c.dialer.NotifyClosed(c.addr)
-			} else {
-				c.dialer.Release(c.conn, c.addr)
-			}
-			return 0, io.EOF
-		}
-		c.countReader.bytesLeft = size
-		c.readData = true
+		return n, err
 	}
 
-	n, err := c.countReader.Read(b)
-	if err == errCountReaderExhaust {
-		c.readData = false
-		err = c.consumeCRLF()
+	size, err := c.readNextChunkSize()
+	if err != nil {
+		return 0, err
 	}
 
-	return n, err
+	err = c.consumeCRLF()
+	if err != nil {
+		return 0, err
+	}
+
+	if size == 0 {
+		c.closed = true
+		if c.consumeCRLF() != nil {
+			c.conn.Close()
+			c.dialer.NotifyClosed(c.addr)
+		} else {
+			c.dialer.Release(c.conn, c.addr)
+		}
+		return 0, io.EOF
+	}
+
+	c.countReader.bytesLeft = size
+	c.readData = true
 }
 
 func (c *chunkedReader) Close() error {

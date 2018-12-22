@@ -32,12 +32,6 @@ var (
 	}()
 )
 
-const (
-	// https://golang.org/ref/spec#Numeric_types
-	maxInt64Value           = 9223372036854775807
-	chunkedReaderBufferSize = 16 * 1024
-)
-
 type countReader struct {
 	conn      io.Reader
 	bytesLeft int64
@@ -113,42 +107,44 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 		return 0, io.EOF
 	}
 
-	if c.readData {
-		n, err := c.countReader.Read(b)
-		if err == errCountReaderExhaust {
-			c.readData = false
-			err = c.consumeCRLF()
+	if !c.readData {
+		size, err := c.readNextChunkSize()
+		if err != nil {
+			return 0, err
 		}
-		return n, err
-	}
 
-	size, err := c.readNextChunkSize()
-	if err != nil {
-		return 0, err
-	}
-
-	err = c.consumeCRLF()
-	if err != nil {
-		return 0, err
-	}
-
-	if size == 0 {
-		c.closed = true
-		if c.consumeCRLF() != nil {
-			c.conn.Close()
-			c.dialer.NotifyClosed(c.addr)
-		} else {
-			c.dialer.Release(c.conn, c.addr)
+		err = c.consumeCRLF()
+		if err != nil {
+			return 0, err
 		}
-		return 0, io.EOF
+
+		if size == 0 {
+			c.closed = true
+			if c.consumeCRLF() != nil {
+				c.conn.Close()
+				c.dialer.NotifyClosed(c.addr)
+			} else {
+				c.dialer.Release(c.conn, c.addr)
+			}
+			poolBufferedReader.Put(c.bufferedReader)
+			return 0, io.EOF
+		}
+
+		c.countReader.bytesLeft = size
+		c.readData = true
 	}
 
-	c.countReader.bytesLeft = size
-	c.readData = true
+	n, err := c.countReader.Read(b)
+	if err == errCountReaderExhaust {
+		c.readData = false
+		err = c.consumeCRLF()
+	}
+	return n, err
 }
 
 func (c *chunkedReader) Close() error {
 	if !c.closed {
+		poolBufferedReader.Put(c.bufferedReader)
 		c.conn.Close()
 		c.dialer.NotifyClosed(c.addr)
 		c.closed = true
@@ -221,7 +217,8 @@ func newSimpleReader(addr string, conn net.Conn, dialer Dialer, contentLength in
 }
 
 func newChunkedReader(addr string, conn net.Conn, dialer Dialer) *chunkedReader {
-	bufferedReader := bufio.NewReaderSize(conn, chunkedReaderBufferSize)
+	bufferedReader := poolBufferedReader.Get().(*bufio.Reader)
+	bufferedReader.Reset(conn)
 
 	return &chunkedReader{
 		countReader:    countReader{conn: bufferedReader},

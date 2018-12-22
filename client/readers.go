@@ -119,14 +119,13 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 		}
 
 		if size == 0 {
-			c.closed = true
 			if c.consumeCRLF() != nil {
-				c.conn.Close()
-				c.dialer.NotifyClosed(c.addr)
+				c.Close()
 			} else {
 				c.dialer.Release(c.conn, c.addr)
+				c.closed = true
+				poolBufferedReader.Put(c.bufferedReader)
 			}
-			poolBufferedReader.Put(c.bufferedReader)
 			return 0, io.EOF
 		}
 

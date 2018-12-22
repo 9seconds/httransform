@@ -1,6 +1,7 @@
 package client
 
 import (
+	"io"
 	"net"
 	"time"
 
@@ -43,6 +44,16 @@ func (m *MockedConn) SetReadDeadline(t time.Time) error {
 
 func (m *MockedConn) SetWriteDeadline(t time.Time) error {
 	return m.Called(t).Error(0)
+}
+
+type MockedConnReader struct {
+	MockedConn
+
+	reader io.ReadCloser
+}
+
+func (m *MockedConnReader) Read(b []byte) (int, error) {
+	return m.reader.Read(b)
 }
 
 type MockedDialer struct {

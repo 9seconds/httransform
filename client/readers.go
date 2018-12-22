@@ -114,7 +114,7 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 	}
 
 	if !c.readData {
-		size, hexnumber, err := c.readNextChunkSize()
+		size, err := c.readNextChunkSize()
 		if err != nil {
 			return 0, err
 		}
@@ -136,8 +136,6 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 		}
 		c.countReader.bytesLeft = size
 		c.readData = true
-		copy(b, hexnumber)
-		b = b[len(hexnumber):]
 	}
 
 	n, err := c.countReader.Read(b)
@@ -159,29 +157,26 @@ func (c *chunkedReader) Close() error {
 	return nil
 }
 
-func (c *chunkedReader) readNextChunkSize() (int64, []byte, error) {
+func (c *chunkedReader) readNextChunkSize() (int64, error) {
 	var n int64
-	buffer := [maxHexIntChars]byte{}
-
 	for i := 0; ; i++ {
 		current, err := c.bufferedReader.ReadByte()
 		if err != nil {
-			return -1, nil, err
+			return -1, err
 		}
 
 		number := int64(hex2intTable[current])
 		if number == 16 {
 			if i == 0 {
-				return -1, nil, errNoNumber
+				return -1, errNoNumber
 			}
 			c.bufferedReader.UnreadByte()
-			return n, buffer[:i], nil
+			return n, nil
 		}
 		if i > maxHexIntChars {
-			return -1, nil, errTooLargeHexNum
+			return -1, errTooLargeHexNum
 		}
 
-		buffer[i] = current
 		n = (n << 4) | number
 	}
 }

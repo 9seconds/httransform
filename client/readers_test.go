@@ -120,7 +120,7 @@ func (suite *SimpleReaderTestSuite) TestReadByte() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 1)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 1, false)
 	arr := make([]byte, 10)
 
 	n, err := reader.Read(arr)
@@ -141,7 +141,7 @@ func (suite *SimpleReaderTestSuite) TestReadAll() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 10)
 
 	n, err := reader.Read(arr)
@@ -162,7 +162,7 @@ func (suite *SimpleReaderTestSuite) TestReadAllChunks() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 2)
 
 	n, err := reader.Read(arr)
@@ -194,7 +194,7 @@ func (suite *SimpleReaderTestSuite) TestReadClose() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 2)
 
 	n, err := reader.Read(arr)
@@ -221,7 +221,7 @@ func (suite *SimpleReaderTestSuite) TestReadCloseEOF() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 2)
 
 	n, err := reader.Read(arr)
@@ -244,7 +244,7 @@ func (suite *SimpleReaderTestSuite) TestDoubleClose() {
 	suite.dialer.On("NotifyClosed", "addr")
 	suite.conn.On("Close").Return(nil)
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	suite.Nil(reader.Close())
 	suite.Nil(reader.Close())
 
@@ -262,7 +262,7 @@ func (suite *SimpleReaderTestSuite) TestCloseAfterError() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 2)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 2)
@@ -289,7 +289,7 @@ func (suite *SimpleReaderTestSuite) TestCloseAfterEOF() {
 		suite.writer.Write([]byte{1, 2, 3, 4, 5})
 	}()
 
-	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5)
+	reader := newSimpleReader("addr", suite.conn, suite.dialer, 5, false)
 	arr := make([]byte, 2)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 2)
@@ -328,7 +328,7 @@ func (suite *ChunkedReaderTestSuite) TestReferenceExample() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 4)
@@ -358,7 +358,7 @@ func (suite *ChunkedReaderTestSuite) TestMDNExample() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 7)
@@ -388,7 +388,7 @@ func (suite *ChunkedReaderTestSuite) TestBigNumber() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 26)
@@ -409,7 +409,7 @@ func (suite *ChunkedReaderTestSuite) TestTooBigNumber() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 0)
@@ -430,7 +430,7 @@ func (suite *ChunkedReaderTestSuite) TestNoNumber() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 0)
@@ -451,7 +451,7 @@ func (suite *ChunkedReaderTestSuite) TestCorruptedNumber() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 0)
@@ -472,7 +472,7 @@ func (suite *ChunkedReaderTestSuite) TestCorruptedNumber2() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 0)
@@ -493,7 +493,7 @@ func (suite *ChunkedReaderTestSuite) TestCorruptedCRLF() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	n, err := reader.Read(arr)
 	suite.Equal(n, 5)
@@ -514,7 +514,7 @@ func (suite *ChunkedReaderTestSuite) TestSlowReader() {
 	}()
 	consumed := []byte{}
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 2)
 	var err error
 	var n int
@@ -535,7 +535,7 @@ func (suite *ChunkedReaderTestSuite) TestCloseUnexpected() {
 		suite.writer.Write([]byte(data))
 	}()
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	arr := make([]byte, 100)
 	reader.Read(arr)
 
@@ -558,7 +558,7 @@ func (suite *ChunkedReaderTestSuite) TestDoubleClose() {
 	suite.dialer.On("NotifyClosed", "addr")
 	suite.conn.On("Close").Return(nil)
 
-	reader := newChunkedReader("addr", suite.conn, suite.dialer)
+	reader := newChunkedReader("addr", suite.conn, suite.dialer, false)
 	suite.Nil(reader.Close())
 	suite.Nil(reader.Close())
 

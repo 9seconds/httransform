@@ -53,13 +53,16 @@ func (c *countReader) Read(b []byte) (int, error) {
 }
 
 type readerCloser struct {
-	dialer Dialer
-	addr   string
-	closed bool
+	dialer      Dialer
+	addr        string
+	closed      bool
+	alwaysClose bool
 }
 
 func (r *readerCloser) releaseConn(conn net.Conn) {
-	if !r.closed {
+	if r.alwaysClose {
+		r.closeConn(conn)
+	} else if !r.closed {
 		r.dialer.Release(conn, r.addr)
 		r.closed = true
 	}
@@ -224,20 +227,21 @@ func (c *chunkedReader) consumeCRLF() error {
 	return nil
 }
 
-func newSimpleReader(addr string, conn net.Conn, dialer Dialer, contentLength int64) *simpleReader {
+func newSimpleReader(addr string, conn net.Conn, dialer Dialer, contentLength int64, closeOnEOF bool) *simpleReader {
 	return &simpleReader{
 		countReader: countReader{
 			conn:      conn,
 			bytesLeft: contentLength,
 		},
 		readerCloser: readerCloser{
-			dialer: dialer,
-			addr:   addr,
+			dialer:      dialer,
+			addr:        addr,
+			alwaysClose: closeOnEOF,
 		},
 	}
 }
 
-func newChunkedReader(addr string, conn net.Conn, dialer Dialer) *chunkedReader {
+func newChunkedReader(addr string, conn net.Conn, dialer Dialer, closeOnEOF bool) *chunkedReader {
 	bufferedReader := poolBufferedReader.Get().(*bufio.Reader)
 	bufferedReader.Reset(conn)
 
@@ -246,8 +250,9 @@ func newChunkedReader(addr string, conn net.Conn, dialer Dialer) *chunkedReader 
 			conn: bufferedReader,
 		},
 		readerCloser: readerCloser{
-			dialer: dialer,
-			addr:   addr,
+			dialer:      dialer,
+			addr:        addr,
+			alwaysClose: closeOnEOF,
 		},
 		conn:           conn,
 		bufferedReader: bufferedReader,

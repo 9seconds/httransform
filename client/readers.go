@@ -110,35 +110,20 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 	}
 
 	if !c.readData {
-		size, err := c.readNextChunkSize()
-		if err != nil {
+		if err := c.prepareNextChunk(); err != nil {
+			c.Close()
 			return 0, err
 		}
-
-		err = c.consumeCRLF()
-		if err != nil {
-			return 0, err
-		}
-
-		if size == 0 {
-			if c.consumeCRLF() != nil {
-				c.Close()
-			} else {
-				c.dialer.Release(c.conn, c.addr)
-				c.closed = true
-				poolBufferedReader.Put(c.bufferedReader)
-			}
-			return 0, io.EOF
-		}
-
-		c.countReader.bytesLeft = size
 		c.readData = true
 	}
 
 	n, err := c.countReader.Read(b)
-	if err == errCountReaderExhaust {
+	if c.countReader.bytesLeft <= 0 {
 		c.readData = false
 		err = c.consumeCRLF()
+		if err != nil {
+			c.Close()
+		}
 	}
 	return n, err
 }
@@ -150,6 +135,31 @@ func (c *chunkedReader) Close() error {
 		c.dialer.NotifyClosed(c.addr)
 		c.closed = true
 	}
+
+	return nil
+}
+
+func (c *chunkedReader) prepareNextChunk() error {
+	size, err := c.readNextChunkSize()
+	if err != nil {
+		return err
+	}
+
+	if err = c.consumeCRLF(); err != nil {
+		return err
+	}
+
+	if size == 0 {
+		if c.consumeCRLF() != nil {
+			c.Close()
+		} else {
+			c.dialer.Release(c.conn, c.addr)
+			c.closed = true
+			poolBufferedReader.Put(c.bufferedReader)
+		}
+		return io.EOF
+	}
+	c.countReader.bytesLeft = size
 
 	return nil
 }

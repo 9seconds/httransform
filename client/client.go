@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"io"
 	"net"
 	"time"
 
@@ -77,6 +78,21 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 		c.dialer.Release(conn, addr)
 		return nil
 	}
+
+	var reader io.ReadCloser
+	if resp.Header.ContentLength() >= 0 {
+		reader = newSimpleReader(addr,
+			conn,
+			c.dialer,
+			int64(resp.Header.ContentLength()),
+			resp.Header.ConnectionClose())
+	} else {
+		reader = newChunkedReader(addr,
+			conn,
+			c.dialer,
+			resp.Header.ConnectionClose())
+	}
+	resp.SetBodyStream(reader, -1)
 
 	return nil
 }

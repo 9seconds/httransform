@@ -56,11 +56,28 @@ func (m *MockedConnReader) Read(b []byte) (int, error) {
 	return m.reader.Read(b)
 }
 
+type MockedBaseDialer struct {
+	mock.Mock
+}
+
+func (m *MockedBaseDialer) Dial(addr string, timeout time.Duration) (net.Conn, error) {
+	args := m.Called(addr, timeout)
+	return args.Get(0).(net.Conn), args.Error(1)
+}
+
 type MockedDialer struct {
 	mock.Mock
 }
 
-func (m *MockedDialer) Dial(addr string, timeout time.Duration) (net.Conn, error) {
-	args := m.Called(addr, timeout)
+func (m *MockedDialer) Dial(addr string) (net.Conn, error) {
+	args := m.Called(addr)
 	return args.Get(0).(net.Conn), args.Error(1)
+}
+
+func (m *MockedDialer) Release(conn net.Conn, addr string) {
+	m.Called(conn, addr)
+}
+
+func (m *MockedDialer) NotifyClosed(addr string) {
+	m.Called(addr)
 }

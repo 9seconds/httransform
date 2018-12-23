@@ -70,11 +70,13 @@ func (s *simpleReader) Read(b []byte) (int, error) {
 		return n, err
 	}
 
-	switch err {
-	case errCountReaderExhaust, io.EOF:
+	if err == errCountReaderExhaust {
+		err = io.EOF
+	}
+	if err == io.EOF {
 		s.dialer.Release(s.countReader.conn.(net.Conn), s.addr)
 		s.closed = true
-	default:
+	} else {
 		s.Close()
 	}
 
@@ -182,15 +184,13 @@ func (c *chunkedReader) consumeCRLF() error {
 		if err != nil {
 			return errors.Annotate(err, "Cannot consume CRLF")
 		}
-
-		switch current {
-		case ' ':
+		if current == ' ' {
 			continue
-		case '\r':
-			break
-		default:
-			return errors.Errorf("Expect '\r', got '%x'", current)
 		}
+		if current == '\r' {
+			break
+		}
+		return errors.Errorf("Expect '\r', got '%x'", current)
 	}
 
 	current, err := c.bufferedReader.ReadByte()

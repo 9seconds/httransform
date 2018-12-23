@@ -12,7 +12,7 @@ type ConnsTestSuite struct {
 	suite.Suite
 
 	c            *conns
-	dialer       *MockedDialer
+	dialer       *MockedBaseDialer
 	addr         string
 	obsoleteChan chan string
 }
@@ -20,7 +20,7 @@ type ConnsTestSuite struct {
 func (suite *ConnsTestSuite) SetupTest() {
 	suite.obsoleteChan = make(chan string)
 	suite.addr = "myaddr:8080"
-	suite.dialer = &MockedDialer{}
+	suite.dialer = &MockedBaseDialer{}
 	suite.c = newConns(suite.addr, suite.dialer.Dial, time.Second, 2, suite.obsoleteChan)
 	suite.c.use()
 	go suite.c.run()

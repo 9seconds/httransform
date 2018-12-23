@@ -71,9 +71,12 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 		c.dialer.NotifyClosed(addr)
 		return errors.Annotate(err, "Cannot set read deadline")
 	}
-	connReader := bufio.NewReader(conn)
-	resp.Header.Read(connReader)
 
+	connReader := poolBufferedReader.Get().(*bufio.Reader)
+	connReader.Reset(conn)
+	defer poolBufferedReader.Put(connReader)
+
+	resp.Header.Read(connReader)
 	if resp.SkipBody {
 		c.dialer.Release(conn, addr)
 		return nil

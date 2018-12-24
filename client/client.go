@@ -33,7 +33,7 @@ func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
 
 func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error {
 	uri := req.URI()
-	addr := string(uri.FullURI())
+	addr := string(uri.Host())
 	isHTTP := bytes.Equal(bytes.ToLower(uri.Scheme()), []byte("http"))
 
 	if _, _, err := net.SplitHostPort(addr); err != nil {
@@ -74,7 +74,6 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 
 	connReader := poolBufferedReader.Get().(*bufio.Reader)
 	connReader.Reset(conn)
-	defer poolBufferedReader.Put(connReader)
 
 	resp.Header.Read(connReader)
 	if resp.SkipBody {
@@ -86,16 +85,25 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if resp.Header.ContentLength() >= 0 {
 		reader = newSimpleReader(addr,
 			conn,
+			connReader,
 			c.dialer,
-			int64(resp.Header.ContentLength()),
-			resp.Header.ConnectionClose())
+			resp.Header.ConnectionClose(),
+			int64(resp.Header.ContentLength()))
 	} else {
 		reader = newChunkedReader(addr,
 			conn,
+			connReader,
 			c.dialer,
 			resp.Header.ConnectionClose())
 	}
 	resp.SetBodyStream(reader, -1)
 
 	return nil
+}
+
+func NewClient(dialer Dialer, tlsConfig *tls.Config) *Client {
+	return &Client{
+		dialer:    dialer,
+		tlsConfig: tlsConfig,
+	}
 }

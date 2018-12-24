@@ -49,7 +49,7 @@ func (m *MockedConn) SetWriteDeadline(t time.Time) error {
 type MockedConnReader struct {
 	MockedConn
 
-	reader io.ReadCloser
+	reader io.Reader
 }
 
 func (m *MockedConnReader) Read(b []byte) (int, error) {

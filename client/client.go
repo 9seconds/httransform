@@ -13,7 +13,6 @@ import (
 )
 
 const (
-
 	// DefaultHTTPTimeout is a default timeout for processing of a single
 	// HTTP request.
 	DefaultHTTPTimeout = 3 * time.Minute

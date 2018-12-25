@@ -41,42 +41,90 @@ type HTTPRequestExecutor interface {
 	DoTimeout(*fasthttp.Request, *fasthttp.Response, time.Duration) error
 }
 
+// MakeStreamingClosingHTTPClient returns HTTPRequestExecutor which
+// streams body response but closes connection after every request.
 func MakeStreamingClosingHTTPClient() HTTPRequestExecutor {
 	return makeStreamingClosingHTTPClient(client.FastHTTPBaseDialer)
 }
 
+// MakeStreamingClosingSOCKS5HTTPClient returns HTTPRequestExecutor
+// which streams body response but closes connection after every
+// request.
+//
+// This client uses given SOCKS5 proxy.
 func MakeStreamingClosingSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingClosingHTTPClient(makeSOCKS5BaseDialer(proxyURL))
 }
 
+// MakeStreamingClosingProxyHTTPClient returns HTTPRequestExecutor which
+// streams body response but closes connection after every request.
+//
+// This client uses given HTTP proxy. You should not use this client for
+// HTTPS requests.
 func MakeStreamingClosingProxyHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingClosingHTTPClient(makeProxyBaseDialer(proxyURL))
 }
 
+// MakeStreamingClosingCONNECTHTTPClient returns HTTPRequestExecutor
+// which streams body response but closes connection after every
+// request.
+//
+// This client uses given HTTPS proxy. You should not use this client
+// for HTTP requests.
 func MakeStreamingClosingCONNECTHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingClosingHTTPClient(makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer))
 }
 
+// MakeStreamingReuseHTTPClient returns HTTPRequestExecutor which
+// streams body response and maintains a pool of connections to the
+// hosts.
 func MakeStreamingReuseHTTPClient() HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(client.FastHTTPBaseDialer)
 }
 
+// MakeStreamingReuseSOCKS5HTTPClient returns HTTPRequestExecutor which
+// streams body response and maintains a pool of connections to the
+// hosts.
+//
+// This client uses given SOCKS5 proxy.
 func MakeStreamingReuseSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(makeSOCKS5BaseDialer(proxyURL))
 }
 
+// MakeStreamingReuseProxyHTTPClient returns HTTPRequestExecutor which
+// streams body response and maintains a pool of connections to the
+// hosts.
+//
+// This client uses given HTTP proxy. You should not use this client for
+// HTTPS requests.
 func MakeStreamingReuseProxyHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(makeProxyBaseDialer(proxyURL))
 }
 
+// MakeStreamingReuseCONNECTHTTPClient returns HTTPRequestExecutor which
+// streams body response and maintains a pool of connections to the
+// hosts.
+//
+// This client uses given HTTPS proxy. You should not use this client
+// for HTTP requests.
 func MakeStreamingReuseCONNECTHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer))
 }
 
+// MakeDefaultHTTPClient returns HTTPRequestExecutor which fetches
+// the whole body in memory.
+//
+// Please use this client if you need production-grade HTTP client.
 func MakeDefaultHTTPClient() HTTPRequestExecutor {
 	return makeDefaultHTTPClient(fasthttp.DialDualStack)
 }
 
+// MakeDefaultSOCKS5ProxyClient returns HTTPRequestExecutor which fetches
+// the whole body in memory.
+//
+// Please use this client if you need production-grade HTTP client.
+//
+// This client uses given SOCKS5 proxy.
 func MakeDefaultSOCKS5ProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeSOCKS5BaseDialer(proxyURL)
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
@@ -84,6 +132,13 @@ func MakeDefaultSOCKS5ProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	})
 }
 
+// MakeDefaultHTTPProxyClient returns HTTPRequestExecutor which fetches
+// the whole body in memory.
+//
+// Please use this client if you need production-grade HTTP client.
+//
+// This client uses given HTTP proxy. You should not use this client for
+// HTTPS requests.
 func MakeDefaultHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeProxyBaseDialer(proxyURL)
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
@@ -91,6 +146,13 @@ func MakeDefaultHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	})
 }
 
+// MakeDefaultCONNECTProxyClient returns HTTPRequestExecutor which
+// fetches the whole body in memory.
+//
+// Please use this client if you need production-grade HTTP client.
+//
+// This client uses given HTTPS proxy. You should not use this client
+// for HTTP requests.
 func MakeDefaultCONNECTProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer)
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {

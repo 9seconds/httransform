@@ -57,6 +57,7 @@ func (d *PooledDialer) run() {
 			if !ok {
 				addresses = newConns(req.addr, d.base, d.timeout, d.limit, d.obsoleteRequests)
 				d.addresses[req.addr] = addresses
+				go addresses.run()
 			}
 
 			channel, err := addresses.getResponseChan(time.Second)

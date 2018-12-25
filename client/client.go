@@ -75,7 +75,9 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	connReader := poolBufferedReader.Get().(*bufio.Reader)
 	connReader.Reset(conn)
 
-	resp.Header.Read(connReader)
+	if err = resp.Header.Read(connReader); err != nil {
+		return errors.Annotate(err, "Cannot read response header")
+	}
 	if resp.SkipBody {
 		c.dialer.Release(conn, addr)
 		return nil

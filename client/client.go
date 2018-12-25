@@ -13,22 +13,33 @@ import (
 )
 
 const (
-	DefaultHTTPTImeout = 3 * time.Minute
-	DefaultHTTPPort    = "80"
-	DefaultHTTPSPort   = "443"
+
+	// DefaultHTTPTimeout is a default timeout for processing of a single
+	// HTTP request.
+	DefaultHTTPTimeout = 3 * time.Minute
+
+	// DefaultHTTPPort is a default port for HTTP.
+	DefaultHTTPPort = "80"
+
+	// DefaultHTTPSPort is a default port for HTTPS.
+	DefaultHTTPSPort = "443"
 )
 
+// Client is the implementation of HTTP1 client which sets body as a
+// stream.
 type Client struct {
 	dialer    Dialer
 	tlsConfig *tls.Config
 }
 
+// DoTimeout does HTTP request with the given timeout.
 func (c *Client) DoTimeout(req *fasthttp.Request, resp *fasthttp.Response, timeout time.Duration) error {
 	return c.do(req, resp, timeout, timeout)
 }
 
+// Do does HTTP request with the default timeout.
 func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
-	return c.do(req, resp, DefaultHTTPTImeout, DefaultHTTPTImeout)
+	return c.do(req, resp, DefaultHTTPTimeout, DefaultHTTPTimeout)
 }
 
 func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error {

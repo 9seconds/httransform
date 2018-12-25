@@ -17,6 +17,8 @@ type dialRequest struct {
 	addr     string
 }
 
+// PooledDialer is a dialer which manages pools of connections to
+// different hosts.
 type PooledDialer struct {
 	base             BaseDialer
 	addresses        map[string]*conns
@@ -28,6 +30,7 @@ type PooledDialer struct {
 	obsoleteRequests chan string
 }
 
+// Dial establishes connection to the given host.
 func (d *PooledDialer) Dial(addr string) (net.Conn, error) {
 	response := make(chan getConnResponse)
 	d.dialRequests <- dialRequest{
@@ -38,6 +41,8 @@ func (d *PooledDialer) Dial(addr string) (net.Conn, error) {
 	return item.conn, item.err
 }
 
+// Release returns net.Conn back to the client. Second parameter is
+// hostname which was used for Dial.
 func (d *PooledDialer) Release(conn net.Conn, addr string) {
 	d.releaseRequests <- releaseRequest{
 		conn: conn,
@@ -45,6 +50,7 @@ func (d *PooledDialer) Release(conn net.Conn, addr string) {
 	}
 }
 
+// NotifyClosed tells Dialer that net.Conn for address is broken.
 func (d *PooledDialer) NotifyClosed(addr string) {
 	d.closedRequests <- addr
 }
@@ -86,6 +92,7 @@ func (d *PooledDialer) run() {
 	}
 }
 
+// NewPooledDialer creates new instance of PooledDialer.
 func NewPooledDialer(dialer BaseDialer, timeout time.Duration, limit int) (*PooledDialer, error) {
 	if timeout == time.Duration(0) {
 		timeout = DefaultDialTimeout

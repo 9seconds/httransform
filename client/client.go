@@ -42,10 +42,10 @@ func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
 }
 
 func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error {
+	originalURI := req.Header.RequestURI()
 	uri := req.URI()
 	addr := string(uri.Host())
 	isHTTP := bytes.Equal(bytes.ToLower(uri.Scheme()), []byte("http"))
-
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		if isHTTP {
 			addr = net.JoinHostPort(addr, DefaultHTTPPort)
@@ -53,6 +53,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 			addr = net.JoinHostPort(addr, DefaultHTTPSPort)
 		}
 	}
+	req.SetRequestURIBytes(originalURI)
 
 	conn, err := c.dialer.Dial(addr)
 	if err != nil {
@@ -88,27 +89,29 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = resp.Header.Read(connReader); err != nil {
 		return errors.Annotate(err, "Cannot read response header")
 	}
-	if resp.SkipBody {
+	if req.Header.IsHead() {
 		c.dialer.Release(conn, addr)
 		return nil
 	}
 
 	var reader io.ReadCloser
-	if resp.Header.ContentLength() >= 0 {
+	contentLength := resp.Header.ContentLength()
+	if contentLength >= 0 {
 		reader = newSimpleReader(addr,
 			conn,
 			connReader,
 			c.dialer,
 			resp.Header.ConnectionClose(),
-			int64(resp.Header.ContentLength()))
+			int64(contentLength))
+		resp.SetBodyStream(reader, contentLength)
 	} else {
 		reader = newChunkedReader(addr,
 			conn,
 			connReader,
 			c.dialer,
 			resp.Header.ConnectionClose())
+		resp.SetBodyStream(reader, -1)
 	}
-	resp.SetBodyStream(reader, -1)
 
 	return nil
 }

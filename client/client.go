@@ -113,6 +113,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	return nil
 }
 
+// NewClient creates a new instance of HTTP1 client.
 func NewClient(dialer Dialer, tlsConfig *tls.Config) *Client {
 	return &Client{
 		dialer:    dialer,

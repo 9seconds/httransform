@@ -11,6 +11,8 @@ import (
 	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/proxy"
+
+	"github.com/9seconds/httransform/client"
 )
 
 // Defaults for HTTP clients.
@@ -28,9 +30,9 @@ const (
 	DefaultHTTPTImeout = 3 * time.Minute
 )
 
-// HTTP is the default HTTPRequestExecutor intended to be used by the
-// user. Default executors use other client.
-var HTTP = MakeHTTPClient()
+var (
+	defaultTLSConfig = &tls.Config{InsecureSkipVerify: true} // nolint: gosec
+)
 
 // HTTPRequestExecutor is an interface to be used for ExecuteRequest and
 // ExecuteRequestTimeout functions.
@@ -39,46 +41,84 @@ type HTTPRequestExecutor interface {
 	DoTimeout(*fasthttp.Request, *fasthttp.Response, time.Duration) error
 }
 
-// MakeHTTPClient creates a new instance of HTTPRequestExecutor. This
-// executor knows nothing about proxies, simply executes given HTTP
-// request and writes to HTTP response.
-func MakeHTTPClient() HTTPRequestExecutor {
-	return makeHTTPClient()
+func MakeStreamingClosingHTTPClient() HTTPRequestExecutor {
+	return makeStreamingClosingHTTPClient(client.FastHTTPBaseDialer)
 }
 
-// MakeProxySOCKS5Client creates a new instance of HTTPRequestExecutor
-// which uses given SOCKS5 proxy from URL.
-func MakeProxySOCKS5Client(proxyURL *url.URL) (HTTPRequestExecutor, error) {
-	client := makeHTTPClient()
-	dialer, err := makeSOCKS5Dialer(proxyURL)
-	if err != nil {
-		return nil, errors.Annotate(err, "Cannot build SOCKS5 client")
+func MakeStreamingClosingSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingClosingHTTPClient(makeSOCKS5BaseDialer(proxyURL))
+}
+
+func MakeStreamingClosingProxyHTTPCLient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingClosingHTTPClient(makeProxyBaseDialer(proxyURL))
+}
+
+func MakeStreamingClosingCONNECTHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingClosingHTTPClient(makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer))
+}
+
+func MakeStreamingReuseHTTPClient() HTTPRequestExecutor {
+	return makeStreamingPooledHTTPClient(client.FastHTTPBaseDialer)
+}
+
+func MakeStreamingReuseSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingPooledHTTPClient(makeSOCKS5BaseDialer(proxyURL))
+}
+
+func MakeStreamingReuseProxyHTTPCLient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingPooledHTTPClient(makeProxyBaseDialer(proxyURL))
+}
+
+func MakeStreamingReuseCONNECTHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
+	return makeStreamingPooledHTTPClient(makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer))
+}
+
+func MakeDefaultHTTPClient() HTTPRequestExecutor {
+	return makeDefaultHTTPClient(fasthttp.DialDualStack)
+}
+
+func MakeDefaultSOCKS5ProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
+	base := makeSOCKS5BaseDialer(proxyURL)
+	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
+		return base(addr, ConnectDialTimeout)
+	})
+}
+
+func MakeDefaultHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
+	base := makeProxyBaseDialer(proxyURL)
+	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
+		return base(addr, ConnectDialTimeout)
+	})
+}
+
+func MakeDefaultCONNECTProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
+	base := makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer)
+	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
+		return base(addr, ConnectDialTimeout)
+	})
+}
+
+func makeStreamingClosingHTTPClient(dialer client.BaseDialer) HTTPRequestExecutor {
+	newDialer, _ := client.NewSimpleDialer(dialer, ConnectDialTimeout)
+	return client.NewClient(newDialer, defaultTLSConfig)
+}
+
+func makeStreamingPooledHTTPClient(dialer client.BaseDialer) HTTPRequestExecutor {
+	newDialer, _ := client.NewPooledDialer(dialer, ConnectDialTimeout, MaxConnsPerHost)
+	return client.NewClient(newDialer, defaultTLSConfig)
+}
+
+func makeDefaultHTTPClient(dialFunc fasthttp.DialFunc) *fasthttp.Client {
+	return &fasthttp.Client{
+		Dial:                          dialFunc,
+		DialDualStack:                 true,
+		DisableHeaderNamesNormalizing: true,
+		MaxConnsPerHost:               MaxConnsPerHost,
+		TLSConfig:                     defaultTLSConfig,
 	}
-
-	client.Dial = dialer
-
-	return client, nil
 }
 
-// MakeHTTPProxyClient creates a new instance of HTTPRequestExecutor
-// which can work with HTTP proxies. Please pay attention that you can
-// execute only HTTP requests using this executor, it does not support
-// request of HTTPS resources.
-func MakeHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
-	return makeHTTPHostClient(proxyURL.Host)
-}
-
-// MakeHTTPSProxyClient creates a new instance of HTTPRequestExecutor
-// which can work with HTTPS proxies (i.e execute CONNECT request
-// first). It does not work with plain HTTP requests.
-func MakeHTTPSProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
-	client := makeHTTPClient()
-	client.Dial = makeHTTPProxyDialer(proxyURL)
-
-	return client
-}
-
-func makeSOCKS5Dialer(proxyURL *url.URL) (fasthttp.DialFunc, error) {
+func makeSOCKS5BaseDialer(proxyURL *url.URL) client.BaseDialer {
 	var auth *proxy.Auth
 	username := proxyURL.User.Username()
 	password, ok := proxyURL.User.Password()
@@ -91,19 +131,25 @@ func makeSOCKS5Dialer(proxyURL *url.URL) (fasthttp.DialFunc, error) {
 
 	proxyDialer, err := proxy.SOCKS5("tcp", proxyURL.Host, auth, proxy.Direct)
 	if err != nil {
-		return nil, errors.Annotate(err, "Cannot build socks5 proxy dialer")
+		panic(err)
 	}
 
-	return func(addr string) (net.Conn, error) {
+	return func(addr string, _ time.Duration) (net.Conn, error) {
 		return proxyDialer.Dial("tcp", addr)
-	}, nil
+	}
 }
 
-func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
+func makeProxyBaseDialer(proxyURL *url.URL) client.BaseDialer {
+	return func(_ string, timeout time.Duration) (net.Conn, error) {
+		return client.FastHTTPBaseDialer(proxyURL.Host, timeout)
+	}
+}
+
+func makeCONNECTBaseDialer(proxyURL *url.URL, base client.BaseDialer) client.BaseDialer {
 	proxyAuthHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
-	return func(addr string) (net.Conn, error) {
-		conn, err := fasthttp.DialDualStackTimeout(proxyURL.Host, ConnectDialTimeout)
+	return func(addr string, timeout time.Duration) (net.Conn, error) {
+		conn, err := base(proxyURL.Host, timeout)
 		if err != nil {
 			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
 		}
@@ -147,24 +193,5 @@ func makeHTTPProxyDialer(proxyURL *url.URL) fasthttp.DialFunc {
 		}
 
 		return conn, nil
-	}
-}
-
-func makeHTTPClient() *fasthttp.Client {
-	return &fasthttp.Client{
-		DialDualStack:                 true,
-		DisableHeaderNamesNormalizing: true,
-		MaxConnsPerHost:               MaxConnsPerHost,
-		TLSConfig:                     &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
-	}
-}
-
-func makeHTTPHostClient(addr string) *fasthttp.HostClient {
-	return &fasthttp.HostClient{
-		Addr:                          addr,
-		DialDualStack:                 true,
-		DisableHeaderNamesNormalizing: true,
-		MaxConns:                      MaxConnsPerHost,
-		TLSConfig:                     &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 	}
 }

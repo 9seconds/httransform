@@ -9,7 +9,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var executorDefaultHTTPClient = MakeHTTPClient()
+var executorDefaultHTTPClient = MakeStreamingClosingHTTPClient()
 
 // Executor presents a type which converts HTTP request to HTTP
 // response. It is not necessary that executor is limited to HTTP. It
@@ -30,18 +30,15 @@ func HTTPExecutor(state *LayerState) {
 func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 	switch proxyURL.Scheme {
 	case "socks5":
-		client, err := MakeProxySOCKS5Client(proxyURL)
-		if err != nil {
-			return nil, err
-		}
+		client := MakeStreamingClosingSOCKS5HTTPClient(proxyURL)
 
 		return func(state *LayerState) {
 			ExecuteRequestTimeout(client, state.Request, state.Response, DefaultHTTPTImeout)
 		}, nil
 
 	case "http", "https", "":
-		httpProxyClient := MakeHTTPProxyClient(proxyURL)
-		httpsProxyClient := MakeHTTPSProxyClient(proxyURL)
+		httpProxyClient := MakeStreamingClosingProxyHTTPCLient(proxyURL)
+		httpsProxyClient := MakeStreamingClosingCONNECTHTTPClient(proxyURL)
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 
 		return func(state *LayerState) {

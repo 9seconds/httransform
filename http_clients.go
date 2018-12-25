@@ -49,7 +49,7 @@ func MakeStreamingClosingSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor
 	return makeStreamingClosingHTTPClient(makeSOCKS5BaseDialer(proxyURL))
 }
 
-func MakeStreamingClosingProxyHTTPCLient(proxyURL *url.URL) HTTPRequestExecutor {
+func MakeStreamingClosingProxyHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingClosingHTTPClient(makeProxyBaseDialer(proxyURL))
 }
 
@@ -65,7 +65,7 @@ func MakeStreamingReuseSOCKS5HTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(makeSOCKS5BaseDialer(proxyURL))
 }
 
-func MakeStreamingReuseProxyHTTPCLient(proxyURL *url.URL) HTTPRequestExecutor {
+func MakeStreamingReuseProxyHTTPClient(proxyURL *url.URL) HTTPRequestExecutor {
 	return makeStreamingPooledHTTPClient(makeProxyBaseDialer(proxyURL))
 }
 

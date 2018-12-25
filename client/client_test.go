@@ -33,7 +33,7 @@ func (b *BrokenHTTPConnection) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	bufrw.WriteString(b.resp)
+	bufrw.WriteString(b.resp) // nolint: errcheck
 	bufrw.Flush()
 	conn.Close()
 }
@@ -49,7 +49,7 @@ func (suite *ClientTestSuite) TearDownSuite() {
 
 func (suite *ClientTestSuite) TestStreamContent() {
 	dialer, _ := NewSimpleDialer(FastHTTPBaseDialer, time.Second)
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true})
+	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -64,7 +64,7 @@ func (suite *ClientTestSuite) TestPooledDialer() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
 	go dialer.run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true})
+	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -83,7 +83,7 @@ func (suite *ClientTestSuite) TestPooledDialerSameSocket() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
 	go dialer.run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true})
+	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -107,7 +107,7 @@ func (suite *ClientTestSuite) TestBrokenResponseHeader() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
 	go dialer.run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true})
+	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 

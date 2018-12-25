@@ -182,7 +182,9 @@ func (c *chunkedReader) readNextChunkSize() (int64, error) {
 			if i == 0 {
 				return -1, errNoNumber
 			}
-			c.baseReader.reader.UnreadByte()
+			if err = c.baseReader.reader.UnreadByte(); err != nil {
+				return -1, errors.Annotate(err, "Cannot unread byte")
+			}
 			return n, nil
 		}
 		if i > maxHexIntChars {

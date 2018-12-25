@@ -39,7 +39,7 @@ func (suite *CountReaderTestSuite) TestReadByte() {
 	suite.Equal(arr[:n], []byte{1})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.NotNil(err)
 }
 
@@ -67,7 +67,7 @@ func (suite *CountReaderTestSuite) TestReadSeveralTimes() {
 	suite.Equal(arr[:n], []byte{5})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.NotNil(err)
 }
 
@@ -86,7 +86,7 @@ func (suite *CountReaderTestSuite) TestReadAll() {
 	suite.Equal(arr[:n], []byte{1, 2, 3, 4, 5})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.NotNil(err)
 }
 
@@ -114,7 +114,7 @@ func (suite *SimpleReaderTestSuite) TestReadByte() {
 	suite.Equal(arr[:n], []byte{1})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.Equal(err, io.EOF)
 
 	suite.dialer.AssertExpectations(suite.T())
@@ -133,7 +133,7 @@ func (suite *SimpleReaderTestSuite) TestReadAll() {
 	suite.Equal(arr[:n], []byte{1, 2, 3, 4, 5})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.Equal(err, io.EOF)
 
 	suite.dialer.AssertExpectations(suite.T())
@@ -162,7 +162,7 @@ func (suite *SimpleReaderTestSuite) TestReadAllChunks() {
 	suite.Equal(arr[:n], []byte{5})
 	suite.Nil(err)
 
-	n, err = reader.Read(arr)
+	_, err = reader.Read(arr)
 	suite.Equal(err, io.EOF)
 
 	suite.dialer.AssertExpectations(suite.T())

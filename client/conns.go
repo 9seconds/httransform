@@ -33,7 +33,7 @@ type conns struct {
 	done         chan struct{}
 }
 
-func (c *conns) get(timeout time.Duration) (net.Conn, error) {
+func (c *conns) get(timeout time.Duration) (net.Conn, error) { // nolint: unparam
 	respChan := make(chan getConnResponse)
 
 	select {

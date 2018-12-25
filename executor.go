@@ -37,7 +37,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 		}, nil
 
 	case "http", "https", "":
-		httpProxyClient := MakeStreamingClosingProxyHTTPCLient(proxyURL)
+		httpProxyClient := MakeStreamingClosingProxyHTTPClient(proxyURL)
 		httpsProxyClient := MakeStreamingClosingCONNECTHTTPClient(proxyURL)
 		proxyAuthorizationHeaderValue := MakeProxyAuthorizationHeaderValue(proxyURL)
 

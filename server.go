@@ -189,6 +189,10 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 }
 
 func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
+	// Saving and resoring of Content-Length is a hack over fasthttp.
+	// Fasthttp stores some headers in structure for faster access or other
+	// purposes and sometimes we can have a strange bugs when resulting
+	// header is not the same as resp.Header.Header() content.
 	contentLength := headers.ContentLength()
 	headers.Reset()
 	headers.DisableNormalizing()

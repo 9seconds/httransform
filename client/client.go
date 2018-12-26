@@ -42,6 +42,14 @@ func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
 }
 
 func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error {
+	// Saving and restoring of RequestURI is yet another way how to bypass
+	// fasthttp which SUDDENLY thinks that it is quite smart to parse host
+	// and mangle requestURI content here.
+	//
+	// If you set full URI there and execute URI() (READ-ONLY!!!) then
+	// fasthttp will parse it in background.
+	//
+	// Godlike design.
 	originalURI := req.Header.RequestURI()
 	uri := req.URI()
 	addr := string(uri.Host())

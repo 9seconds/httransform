@@ -16,6 +16,8 @@ type fasthttpHeader interface {
 	Reset()
 	DisableNormalizing()
 	SetBytesKV([]byte, []byte)
+	ContentLength() int
+	SetContentLength(int)
 }
 
 // Server presents a HTTP proxy service.
@@ -187,11 +189,13 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 }
 
 func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
+	contentLength := headers.ContentLength()
 	headers.Reset()
 	headers.DisableNormalizing()
 	for _, v := range set.Items() {
 		headers.SetBytesKV(v.Key, v.Value)
 	}
+	headers.SetContentLength(contentLength)
 }
 
 // NewServer creates new instance of the Server.

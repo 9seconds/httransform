@@ -96,7 +96,7 @@ func (c *conns) stop() {
 	}
 }
 
-func (c *conns) run() {
+func (c *conns) run() { // nolint: gocyclo
 	ticker := time.NewTicker(connsGCTick)
 	defer ticker.Stop()
 

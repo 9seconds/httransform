@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-const chunkedReaderBufferSize = 16 * 1024
+const chunkedReaderBufferSize = 8 * 1024
 
 var (
 	poolBufferedReader = sync.Pool{

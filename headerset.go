@@ -67,6 +67,16 @@ func (hs *HeaderSet) SetString(key, value string) {
 
 // SetBytes is the version of SetString which works with bytes.
 func (hs *HeaderSet) SetBytes(key []byte, value []byte) {
+	if hs.index == nil {
+		hs.index = map[string]int{}
+	}
+	if hs.values == nil {
+		hs.values = []*Header{}
+	}
+	if hs.removedHeaders == nil {
+		hs.removedHeaders = map[string]struct{}{}
+	}
+
 	lowerKey := string(bytes.ToLower(key))
 
 	if position, ok := hs.index[lowerKey]; ok {

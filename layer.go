@@ -85,6 +85,9 @@ type LayerState struct {
 
 // Set sets new value to the context of layer state.
 func (l *LayerState) Set(key string, value interface{}) {
+	if l.ctx == nil {
+		l.ctx = map[string]interface{}{}
+	}
 	l.ctx[key] = value
 }
 
@@ -92,6 +95,9 @@ func (l *LayerState) Set(key string, value interface{}) {
 // instance has no such key, then last parameter is false. If it has -
 // true.
 func (l *LayerState) Get(key string) (interface{}, bool) {
+	if l.ctx == nil {
+		l.ctx = map[string]interface{}{}
+	}
 	item, ok := l.ctx[key]
 	return item, ok
 }

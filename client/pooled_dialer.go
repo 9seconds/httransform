@@ -55,7 +55,8 @@ func (d *PooledDialer) NotifyClosed(addr string) {
 	d.closedRequests <- addr
 }
 
-func (d *PooledDialer) run() {
+// Run runs background worker.
+func (d *PooledDialer) Run() {
 	for {
 		select {
 		case req := <-d.dialRequests:

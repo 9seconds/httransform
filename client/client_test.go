@@ -62,7 +62,7 @@ func (suite *ClientTestSuite) TestStreamContent() {
 
 func (suite *ClientTestSuite) TestPooledDialer() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
-	go dialer.run()
+	go dialer.Run()
 
 	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
@@ -81,7 +81,7 @@ func (suite *ClientTestSuite) TestPooledDialer() {
 
 func (suite *ClientTestSuite) TestPooledDialerSameSocket() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
-	go dialer.run()
+	go dialer.Run()
 
 	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}
@@ -105,7 +105,7 @@ func (suite *ClientTestSuite) TestBrokenResponseHeader() {
 	defer srv.Close()
 
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
-	go dialer.run()
+	go dialer.Run()
 
 	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
 	req := &fasthttp.Request{}

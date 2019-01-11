@@ -134,7 +134,13 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 		dropMethodMetricsValue(s.metrics, methodBytes)
 	}()
 
-	ctx.Request.Header.VisitAllInOrder(requestHeaders.SetBytes)
+	if err = ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
+		s.logger.Debug("[%s] (%d) %s %s: malformed request headers: %s",
+			ctx.RemoteAddr(), reqID, method, uri, err)
+		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
+		return
+	}
+
 	state := getLayerState()
 	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect, user, password)
 	layerTracer := s.tracerPool.acquire()

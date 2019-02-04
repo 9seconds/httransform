@@ -1,6 +1,7 @@
 package httransform
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -178,13 +179,9 @@ func (l *LogTracer) Dump(state *LayerState, logger Logger) {
 		responseDurations[i], responseDurations[j] = l.onResponseDurations[j], l.onResponseDurations[i]
 	}
 
-	logger.Debug("Layer trace",
-		"request-id", state.RequestID,
-		"on-request-durations", l.onRequestDurations,
-		"execute-duration", l.executeDuration,
-		"on-response-durations", responseDurations,
-		"on-request-error", l.onRequestError,
-	)
+	logFmt := fmt.Sprintf("Layer trace: request-id %#v, on-request-durations %#v, execute-duration %#v, on-response-durations %#v, on-request-error %#v",
+		state.RequestID, l.onRequestDurations, l.executeDuration, responseDurations, l.onRequestError)
+	logger.Debug(logFmt)
 }
 
 // TracerCreateFunc is a function which creates a new tracer. This

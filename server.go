@@ -59,7 +59,7 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 	if len(proxyAuthHeaderValue) > 0 {
 		user, password, err = ExtractAuthentication(proxyAuthHeaderValue)
 		if err != nil {
-			s.logger.Debug("[%s] (%d) %s %s: incorrect proxy-authorization header: %s",
+			s.logDebug("[%s] (%d) %s %s: incorrect proxy-authorization header: %s",
 				ctx.RemoteAddr(), reqID, method, uri, err)
 			user = nil
 			password = nil
@@ -72,7 +72,7 @@ func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
 
 		host, _, err := net.SplitHostPort(uri)
 		if err != nil {
-			s.logger.Debug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
+			s.logDebug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
 				ctx.RemoteAddr(), reqID, method, uri, err)
 			MakeSimpleResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
 			return
@@ -91,7 +91,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 
 		conf, err := s.certs.Get(host)
 		if err != nil {
-			s.logger.Warn("[%s] (%d): cennot generate certificate for the host %s: %s",
+			s.logWarn("[%s] (%d): cennot generate certificate for the host %s: %s",
 				conn.RemoteAddr(), reqID, host, err)
 			return
 		}
@@ -101,7 +101,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 		defer tlsConn.Close()
 
 		if err = tlsConn.Handshake(); err != nil {
-			s.logger.Warn("[%s] (%d): cennot finish TLS handshake: %s",
+			s.logWarn("[%s] (%d): cennot finish TLS handshake: %s",
 				conn.RemoteAddr(), reqID, err)
 			return
 		}
@@ -135,7 +135,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 	}()
 
 	if err = ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
-		s.logger.Debug("[%s] (%d) %s %s: malformed request headers: %s",
+		s.logDebug("[%s] (%d) %s %s: malformed request headers: %s",
 			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
 		return
@@ -171,7 +171,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 		layerTracer.FinishExecute()
 	}
 	if err2 := ParseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
-		s.logger.Debug("[%s] (%d) %s %s: malformed response headers: %s",
+		s.logDebug("[%s] (%d) %s %s: malformed response headers: %s",
 			ctx.RemoteAddr(), reqID, method, uri, err)
 		MakeSimpleResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
 		return
@@ -200,6 +200,14 @@ func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
 		headers.SetBytesKV(v.Key, v.Value)
 	}
 	headers.SetContentLength(contentLength)
+}
+
+func (s *Server) logWarn(msg string, args ...interface{}) {
+	s.logger.Warn(fmt.Sprintf(msg, args...))
+}
+
+func (s *Server) logDebug(msg string, args ...interface{}) {
+	s.logger.Debug(fmt.Sprintf(msg, args...))
 }
 
 // NewServer creates new instance of the Server.

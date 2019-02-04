@@ -39,7 +39,7 @@ func (b *BrokenHTTPConnection) ServeHTTP(w http.ResponseWriter, req *http.Reques
 }
 
 func (suite *ClientTestSuite) SetupSuite() {
-	handler := httpbin.NewHTTPBin().Handler()
+	handler := httpbin.New().Handler()
 	suite.srv = httptest.NewServer(handler)
 }
 

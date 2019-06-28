@@ -37,9 +37,9 @@ Just a small example to give you a feeling how it looks like:
 package main
 
 import (
-    "net"
+  "net"
 
-    "github.com/9seconds/httransform"
+  "github.com/9seconds/httransform"
 )
 
 // These are generates examples of self-signed certificates
@@ -82,21 +82,21 @@ func main() {
   if err != nil {
     panic(err)
   }
-  opts := ServerOpts{
+  opts := httransform.ServerOpts{
     CertCA:  caCert,
     CertKey: caPrivateKey,
-    Layers: []Layer{
-      &ProxyAuthorizationBasicLayer{
+    Layers: []httransform.Layer{
+      &httransform.ProxyAuthorizationBasicLayer{
         User:     []byte("user"),
         Password: []byte("password"),
         Realm:    "test",
       },
-      &AddRemoveHeaderLayer{
+      &httransform.AddRemoveHeaderLayer{
         AbsentRequestHeaders: []string{"proxy-authorization"},
       },
     },
   }
-  srv, err := NewServer(opts)
+  srv, err := httransform.NewServer(opts)
   if err != nil {
     panic(err)
   }

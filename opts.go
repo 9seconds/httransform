@@ -86,9 +86,9 @@ type ServerOpts struct {
 	// Can be nil.
 	Layers []Layer
 
-	// Executor is an instance of the Executor used by proxy. Default is
+	// Executor is a map of instances of the Executor used by proxy. Default is
 	// HTTPExecutor.
-	Executor Executor
+	Executors map[string]Executor
 
 	// Logger is an instance of Logger used by proxy. Default is
 	// NoopLogger.
@@ -187,12 +187,14 @@ func (s *ServerOpts) GetTracerPool() *TracerPool {
 	return s.TracerPool
 }
 
-// GetExecutor returns executor to use.
-func (s *ServerOpts) GetExecutor() Executor {
-	if s.Executor == nil {
-		return HTTPExecutor
+// GetExecutor returns a map of executors.
+func (s *ServerOpts) GetExecutors() map[string]Executor {
+	if s.Executors == nil {
+		s.Executors = map[string]Executor{
+			"default": HTTPExecutor,
+		}
 	}
-	return s.Executor
+	return s.Executors
 }
 
 // GetLayers returns a list of middleware layers to use.

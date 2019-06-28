@@ -82,9 +82,11 @@ func (suite *ServerOptsTestSuite) TestGetTracerPool() {
 }
 
 func (suite *ServerOptsTestSuite) TestGetExecutor() {
-	suite.NotNil(suite.opts.GetExecutor())
-	suite.opts.Executor = func(_ *LayerState) {}
-	suite.NotNil(suite.opts.GetExecutor())
+	suite.NotNil(suite.opts.GetExecutors())
+	suite.opts.Executors = map[string]Executor{
+		"default": func(_ *LayerState) {},
+	}
+	suite.NotNil(suite.opts.GetExecutors())
 }
 
 func (suite *ServerOptsTestSuite) TestGetLayers() {

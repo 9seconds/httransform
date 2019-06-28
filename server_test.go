@@ -48,9 +48,14 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 4J45NsSQjuuAAWs=
 -----END PRIVATE KEY-----`)
 
-func testServerExecutor(state *LayerState) {
+func testAlways404Executor(state *LayerState) {
 	state.Response.SetStatusCode(fasthttp.StatusNotFound)
 	state.Response.SetBodyString("Not found!")
+}
+
+func testAlways500Executor(state *LayerState) {
+	state.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+	state.Response.SetBodyString("Internal Server Error!")
 }
 
 type Handler struct {
@@ -107,10 +112,11 @@ func (m *MockMetrics) DropCertificate() { m.Called() }
 type BaseServerTestSuite struct {
 	suite.Suite
 
-	ln      net.Listener
-	client  *http.Client
-	opts    ServerOpts
-	metrics *MockMetrics
+	ln              net.Listener
+	client          *http.Client
+	always500Client *http.Client
+	opts            ServerOpts
+	metrics         *MockMetrics
 }
 
 func (suite *BaseServerTestSuite) SetupTest() {
@@ -122,11 +128,15 @@ func (suite *BaseServerTestSuite) SetupTest() {
 	}
 
 	suite.ln = ln
+
 	suite.opts = ServerOpts{
-		CertCA:   testServerCACert,
-		CertKey:  testServerPrivateKey,
-		Executor: testServerExecutor,
-		Metrics:  suite.metrics,
+		CertCA:  testServerCACert,
+		CertKey: testServerPrivateKey,
+		Executors: map[string]Executor{
+			"default":   testAlways404Executor,
+			"always500": testAlways500Executor,
+		},
+		Metrics: suite.metrics,
 	}
 
 	proxyURL := &url.URL{
@@ -136,6 +146,15 @@ func (suite *BaseServerTestSuite) SetupTest() {
 	suite.client = &http.Client{
 		Transport: &http.Transport{
 			Proxy:           http.ProxyURL(proxyURL),
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
+		},
+	}
+	suite.always500Client = &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+			ProxyConnectHeader: http.Header{
+				"X-Executor": []string{"always500"},
+			},
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
 		},
 	}
@@ -180,6 +199,28 @@ func (suite *ServerTestSuite) TestHTTPRequest() {
 	suite.Equal(body, []byte("Not found!"))
 }
 
+func (suite *ServerTestSuite) TestExecutorRoutedHTTPRequest() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("DropGet")
+
+	req, err := http.NewRequest("GET", "http://example.com", nil)
+	suite.Nil(err)
+
+	req.Header.Set("X-Executor", "always500")
+
+	resp, err := suite.client.Do(req)
+
+	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
+	suite.Nil(err)
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	suite.Nil(err)
+	suite.Equal(body, []byte("Internal Server Error!"))
+}
+
 func (suite *ServerTestSuite) TestHTTPSRequest() {
 	suite.metrics.On("NewConnection")
 	suite.metrics.On("DropConnection")
@@ -201,6 +242,29 @@ func (suite *ServerTestSuite) TestHTTPSRequest() {
 	suite.Equal(body, []byte("Not found!"))
 }
 
+func (suite *ServerTestSuite) TestExecutorRoutedHTTPSRequest() {
+	suite.metrics.On("NewConnection")
+	suite.metrics.On("DropConnection")
+	suite.metrics.On("NewGet")
+	suite.metrics.On("NewConnect")
+	suite.metrics.On("NewCertificate")
+	suite.metrics.On("DropGet")
+	suite.metrics.On("DropConnect")
+	suite.metrics.On("DropCertificate")
+
+	req, err := http.NewRequest("GET", "https://example.com", nil)
+	suite.Nil(err)
+
+	resp, err := suite.always500Client.Do(req)
+
+	suite.Equal(resp.StatusCode, http.StatusNotFound)
+	suite.Nil(err)
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	suite.Nil(err)
+	suite.Equal(body, []byte("Not found!"))
+}
 func (suite *ServerTestSuite) TestLayerNoError() {
 	suite.metrics.On("NewConnection")
 	suite.metrics.On("DropConnection")
@@ -270,7 +334,9 @@ func (suite *ServerProxyChainTestSuite) SetupTest() {
 	}
 	executor, err := MakeProxyChainExecutor(proxyURL)
 	suite.Nil(err)
-	suite.opts.Executor = executor
+	suite.opts.Executors = map[string]Executor{
+		"default": executor,
+	}
 
 	srv, err := NewServer(suite.opts)
 	suite.Nil(err)

@@ -27,7 +27,7 @@ type Server struct {
 	server     *fasthttp.Server
 	certs      ca.CA
 	layers     []Layer
-	executor   Executor
+	executors  map[string]Executor
 	logger     Logger
 	metrics    Metrics
 }
@@ -167,7 +167,12 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 		ctx.Request.Header.SetRequestURI(uri)
 
 		layerTracer.StartExecute()
-		s.executor(state)
+		executor := ctx.Request.Header.Peek("X-Executor")
+		if executor != nil {
+			s.executors[string(executor)](state)
+		} else {
+			s.executors["default"](state)
+		}
 		layerTracer.FinishExecute()
 	}
 	if err2 := ParseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
@@ -225,7 +230,7 @@ func NewServer(opts ServerOpts) (*Server, error) {
 
 	srv := &Server{
 		certs:      certs,
-		executor:   opts.GetExecutor(),
+		executors:  opts.GetExecutors(),
 		layers:     opts.GetLayers(),
 		logger:     opts.GetLogger(),
 		metrics:    metrics,

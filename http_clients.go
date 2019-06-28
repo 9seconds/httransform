@@ -25,9 +25,9 @@ const (
 	// host. Usually it is used only for proxy chains.
 	ConnectDialTimeout = 30 * time.Second
 
-	// DefaultHTTPTImeout is the timeout from starting of HTTP request to
+	// DefaultHTTPTimeout is the timeout from starting of HTTP request to
 	// getting a response.
-	DefaultHTTPTImeout = 3 * time.Minute
+	DefaultHTTPTimeout = 3 * time.Minute
 )
 
 var (

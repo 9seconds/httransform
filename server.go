@@ -91,7 +91,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 
 		conf, err := s.certs.Get(host)
 		if err != nil {
-			s.logWarn("[%s] (%d): cennot generate certificate for the host %s: %s",
+			s.logWarn("[%s] (%d): cannot generate certificate for the host %s: %s",
 				conn.RemoteAddr(), reqID, host, err)
 			return
 		}
@@ -101,7 +101,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 		defer tlsConn.Close()
 
 		if err = tlsConn.Handshake(); err != nil {
-			s.logWarn("[%s] (%d): cennot finish TLS handshake: %s",
+			s.logWarn("[%s] (%d): cannot finish TLS handshake: %s",
 				conn.RemoteAddr(), reqID, err)
 			return
 		}
@@ -189,7 +189,7 @@ func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, p
 }
 
 func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
-	// Saving and resoring of Content-Length is a hack over fasthttp.
+	// Saving and restoring of Content-Length is a hack over fasthttp.
 	// Fasthttp stores some headers in structure for faster access or other
 	// purposes and sometimes we can have a strange bugs when resulting
 	// header is not the same as resp.Header.Header() content.

@@ -1,5 +1,4 @@
-httransform
-===========
+# httransform
 
 [![Build Status](https://travis-ci.org/9seconds/httransform.svg?branch=master)](https://travis-ci.org/9seconds/httransform)
 [![CodeCov](https://codecov.io/gh/9seconds/httransform/branch/master/graph/badge.svg)](https://codecov.io/gh/9seconds/httransform)
@@ -18,7 +17,7 @@ Main features of this framework:
 2. Support of HTTPS (with CONNECT method) protocol. This library does MITM
    and provides a possibility to generate TLS certificates for the hosts
    on-the-fly.
-3. Keeps and maintans the order of header and their case (no normalization).
+3. Keeps and maintains the order of header and their case (no normalization).
 4. Support the concept of _layers_ or middlewares which process HTTP
    requests and responses
 5. Supports custom _executors_: a functions which converts HTTP request to
@@ -30,8 +29,7 @@ Please check [full
 documentation](https://godoc.org/github.com/9seconds/httransform) to get
 more details.
 
-Example
--------
+## Example
 
 Just a small example to give you a feeling how it looks like:
 
@@ -80,32 +78,32 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 -----END PRIVATE KEY-----`)
 
 func main() {
-	ln, err := net.Listen("tcp", "127.0.0.1:3128")
-	if err != nil {
-		panic(err)
-	}
-	opts := ServerOpts{
-		CertCA:  caCert,
-		CertKey: caPrivateKey,
-		Layers: []Layer{
-			&ProxyAuthorizationBasicLayer{
-				User:     []byte("user"),
-				Password: []byte("password"),
-				Realm:    "test",
-			},
-			&AddRemoveHeaderLayer{
-				AbsentRequestHeaders: []string{"proxy-authorization"},
-			},
-		},
-	}
-	srv, err := NewServer(opts)
-	if err != nil {
-		panic(err)
-	}
+  ln, err := net.Listen("tcp", "127.0.0.1:3128")
+  if err != nil {
+    panic(err)
+  }
+  opts := ServerOpts{
+    CertCA:  caCert,
+    CertKey: caPrivateKey,
+    Layers: []Layer{
+      &ProxyAuthorizationBasicLayer{
+        User:     []byte("user"),
+        Password: []byte("password"),
+        Realm:    "test",
+      },
+      &AddRemoveHeaderLayer{
+        AbsentRequestHeaders: []string{"proxy-authorization"},
+      },
+    },
+  }
+  srv, err := NewServer(opts)
+  if err != nil {
+    panic(err)
+  }
 
-	if err := srv.Serve(ln); err != nil {
-		panic(err)
-	}
+  if err := srv.Serve(ln); err != nil {
+    panic(err)
+  }
 }
 ```
 

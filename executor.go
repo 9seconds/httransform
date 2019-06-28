@@ -17,10 +17,10 @@ var executorDefaultHTTPClient = MakeStreamingClosingHTTPClient()
 type Executor func(*LayerState)
 
 // HTTPExecutor is the default executor and the simplies one you want
-// to use. It does takes HTTP request from the state and execute the
+// to use. It takes the HTTP request from the state and execute the
 // request, returning response after that.
 func HTTPExecutor(state *LayerState) {
-	ExecuteRequestTimeout(executorDefaultHTTPClient, state.Request, state.Response, DefaultHTTPTImeout)
+	ExecuteRequestTimeout(executorDefaultHTTPClient, state.Request, state.Response, DefaultHTTPTimeout)
 }
 
 // MakeProxyChainExecutor is the factory which produce executors
@@ -33,7 +33,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 		client := MakeStreamingClosingSOCKS5HTTPClient(proxyURL)
 
 		return func(state *LayerState) {
-			ExecuteRequestTimeout(client, state.Request, state.Response, DefaultHTTPTImeout)
+			ExecuteRequestTimeout(client, state.Request, state.Response, DefaultHTTPTimeout)
 		}, nil
 
 	case "http", "https", "":
@@ -52,7 +52,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 				client = httpProxyClient
 			}
 
-			ExecuteRequestTimeout(client, state.Request, state.Response, DefaultHTTPTImeout)
+			ExecuteRequestTimeout(client, state.Request, state.Response, DefaultHTTPTimeout)
 		}, nil
 	}
 

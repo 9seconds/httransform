@@ -9,31 +9,31 @@ httransform
 httransform is the library/framework to build your own HTTP
 proxies. It relies on high-performant and memory-efficient
 [fasthttp](https://github.com/valyala/fasthttp) library as HTTP base
-layer and can give you an ability to build a proxy where you control an
+layer and can give you the ability to build a proxy where you can control 
 every aspect.
 
 Main features of this framework:
 
 1. Support of HTTP (plain HTTP) proxy protocol.
 2. Support of HTTPS (with CONNECT method) protocol. This library does MITM
-   and provides a possibility to generate TLS certificates for the hosts
+   and provides the possibility to generate TLS certificates for the hosts
    on-the-fly.
-3. Keeps and maintans the order of header and their case (no normalization).
-4. Support the concept of _layers_ or middlewares which process HTTP
-   requests and responses
-5. Supports custom _executors_: a functions which converts HTTP request to
-   HTTP response. So, your proxy can fetch the data from other services,
-   which are not necessary HTTP. Executor simply converts HTTP request
+3. Keeps and maintains the order of headers and their case (no normalization).
+4. Supports the concept of _layers_ or middlewares which process HTTP
+   requests and responses.
+5. Supports custom _executors_: a function which converts HTTP requests to
+   HTTP responses. Allowing your proxy to fetch the data from other services,
+   which are not necessarily HTTP. The executor simply converts HTTP request
    structure to HTTP response.
 
-Please check [full
-documentation](https://godoc.org/github.com/9seconds/httransform) to get
+Please check the [full
+documentation](https://godoc.org/github.com/9seconds/httransform) for 
 more details.
 
 Example
 -------
 
-Just a small example to give you a feeling how it looks like:
+Just a small example to give you the feeling of how it all looks like:
 
 ```go
 package main
@@ -109,6 +109,6 @@ func main() {
 }
 ```
 
-This will create HTTP proxy for 127.0.0.1:3128. It also will require
-authentication (`user` and `password`) and remove `Proxy-Authorization`
-header before sending request further.
+This will create an HTTP proxy on `127.0.0.1:3128`. It will also require
+authentication (`user` and `password`) and will remove the `Proxy-Authorization`
+header before sending the request further.

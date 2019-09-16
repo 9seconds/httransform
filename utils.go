@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"net/url"
 
-	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 // MakeSimpleResponse is a shortcut function which sets given message
@@ -25,10 +25,10 @@ func MakeSimpleResponse(resp *fasthttp.Response, msg string, statusCode int) {
 func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	pos := bytes.IndexByte(text, ' ')
 	if pos < 0 {
-		return nil, nil, errors.New("Malformed Proxy-Authorization header")
+		return nil, nil, xerrors.New("Malformed Proxy-Authorization header")
 	}
 	if !bytes.Equal(text[:pos], []byte("Basic")) {
-		return nil, nil, errors.New("Incorrect authorization prefix")
+		return nil, nil, xerrors.New("Incorrect authorization prefix")
 	}
 
 	for pos < len(text) && (text[pos] == ' ' || text[pos] == '\t') {
@@ -39,12 +39,12 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	n, err := base64.StdEncoding.Decode(decoded, text[pos:])
 	decoded = decoded[:n]
 	if err != nil {
-		return nil, nil, errors.Annotate(err, "Incorrectly encoded authorization payload")
+		return nil, nil, xerrors.Errorf("incorrectly encoded authorization payload: %w", err)
 	}
 
 	pos = bytes.IndexByte(decoded, ':')
 	if pos < 0 {
-		return nil, nil, errors.New("Cannot find a user/password delimiter in decoded authorization string")
+		return nil, nil, xerrors.New("Cannot find a user/password delimiter in decoded authorization string")
 	}
 
 	return decoded[:pos], decoded[pos+1:], nil

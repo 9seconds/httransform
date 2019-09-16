@@ -11,7 +11,7 @@ import (
 
 // This is an example of server which runs on some local port, checks
 // authorization with user:password credentials.
-func ExampleServer() {
+func ExampleServer() { // nolint: funlen
 	// These 2 lines are example keys. If you want to generate your
 	// own CA certificate and private key, please run following command:
 	//
@@ -96,7 +96,11 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 
 	proxyURL.User = url.UserPassword("user", "password")
 	client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
-	resp, _ = client.Get("http://httpbin.org/status/200")
+	resp, err = client.Get("http://httpbin.org/status/200")
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
 	fmt.Println(resp.Status)
 	// Output:
 	// 407 Proxy Authentication Required

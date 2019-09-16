@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 type NoopTracerTestSuite struct {
@@ -18,7 +18,7 @@ func (suite *NoopTracerTestSuite) TestDummy() {
 	tr.StartOnRequest()
 	tr.StartOnResponse()
 	tr.StartExecute()
-	tr.FinishOnRequest(errors.New("Error"))
+	tr.FinishOnRequest(xerrors.New("Error"))
 	tr.FinishOnResponse()
 	tr.FinishExecute()
 	tr.Clear()

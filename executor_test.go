@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 type MockHTTPRequestExecutor struct {
@@ -56,7 +56,7 @@ func (suite *ExecuteRequestTestSuite) TestExecuteRequestOK() {
 }
 
 func (suite *ExecuteRequestTestSuite) TestExecuteRequestErr() {
-	suite.executor.On("Do", suite.request, suite.response).Return(errors.New("Some error"))
+	suite.executor.On("Do", suite.request, suite.response).Return(xerrors.New("Some error"))
 	ExecuteRequest(suite.executor, suite.request, suite.response)
 
 	suite.executor.AssertExpectations(suite.T())
@@ -72,7 +72,7 @@ func (suite *ExecuteRequestTestSuite) TestExecuteRequestTimeoutOK() {
 }
 
 func (suite *ExecuteRequestTestSuite) TestExecuteRequestTimeoutErr() {
-	suite.executor.On("DoTimeout", suite.request, suite.response, time.Minute).Return(errors.New("Some error"))
+	suite.executor.On("DoTimeout", suite.request, suite.response, time.Minute).Return(xerrors.New("Some error"))
 	ExecuteRequestTimeout(suite.executor, suite.request, suite.response, time.Minute)
 
 	suite.executor.AssertExpectations(suite.T())

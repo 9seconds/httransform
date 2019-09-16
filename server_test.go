@@ -9,10 +9,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 var testServerCACert = []byte(`-----BEGIN CERTIFICATE-----
@@ -232,7 +232,7 @@ func (suite *ServerTestSuite) TestLayerError() {
 	suite.metrics.On("NewGet")
 	suite.metrics.On("DropGet")
 
-	err := errors.New("Some error")
+	err := xerrors.New("Some error")
 	mocked := &MockLayer{}
 	mocked.On("OnRequest", mock.Anything).Return(err)
 	mocked.On("OnResponse", mock.Anything, err).Return("value")
@@ -241,6 +241,7 @@ func (suite *ServerTestSuite) TestLayerError() {
 
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 
 	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
 
@@ -304,11 +305,13 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusProxyAuthRequired)
 
 	suite.status = http.StatusNotFound
 	resp, err = suite.client.Get("http://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
 }
 
@@ -327,11 +330,13 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("https://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusBadGateway)
 
 	suite.status = http.StatusOK
 	resp, err = suite.client.Get("https://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
 }
 
@@ -376,11 +381,13 @@ func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("https://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusBadGateway)
 
 	suite.status = http.StatusOK
 	resp, err = suite.client.Get("https://example.com")
 	suite.Nil(err)
+	defer resp.Body.Close()
 	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
 }
 

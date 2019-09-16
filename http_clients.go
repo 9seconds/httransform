@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
 	"golang.org/x/net/proxy"
+	"golang.org/x/xerrors"
 
 	"github.com/9seconds/httransform/client"
 )
@@ -213,7 +213,7 @@ func makeCONNECTBaseDialer(proxyURL *url.URL, base client.BaseDialer) client.Bas
 	return func(addr string, timeout time.Duration) (net.Conn, error) {
 		conn, err := base(proxyURL.Host, timeout)
 		if err != nil {
-			return nil, errors.Annotatef(err, "Cannot dial to proxy %s", proxyURL.Host)
+			return nil, xerrors.Errorf("cannot dial to proxy %s: %w", proxyURL.Host, err)
 		}
 		if _, _, err = net.SplitHostPort(addr); err != nil {
 			addr = net.JoinHostPort(addr, "443")
@@ -237,7 +237,7 @@ func makeCONNECTBaseDialer(proxyURL *url.URL, base client.BaseDialer) client.Bas
 		connectRequest.Write([]byte("\r\n"))
 
 		if _, err := conn.Write(connectRequest.Bytes()); err != nil {
-			return nil, errors.Annotate(err, "Cannot send CONNECT request")
+			return nil, xerrors.Errorf("cannot send CONNECT request: %w", err)
 		}
 
 		res := fasthttp.AcquireResponse()
@@ -246,12 +246,12 @@ func makeCONNECTBaseDialer(proxyURL *url.URL, base client.BaseDialer) client.Bas
 		res.SkipBody = true
 		if err := res.Read(bufio.NewReader(conn)); err != nil {
 			conn.Close()
-			return nil, errors.Annotate(err, "Cannot read from proxy after CONNECT request")
+			return nil, xerrors.Errorf("cannot read from proxy after CONNECT request: %w", err)
 		}
 
 		if res.Header.StatusCode() != 200 {
 			conn.Close()
-			return nil, errors.Errorf("Proxy responded %d on CONNECT request", res.Header.StatusCode())
+			return nil, xerrors.Errorf("Proxy responded %d on CONNECT request", res.Header.StatusCode())
 		}
 
 		return conn, nil

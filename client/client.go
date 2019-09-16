@@ -41,7 +41,7 @@ func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
 	return c.do(req, resp, DefaultHTTPTimeout, DefaultHTTPTimeout)
 }
 
-func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error {
+func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error { // nolint: funlen
 	// Saving and restoring of RequestURI is yet another way how to bypass
 	// fasthttp which SUDDENLY thinks that it is quite smart to parse host
 	// and mangle requestURI content here.

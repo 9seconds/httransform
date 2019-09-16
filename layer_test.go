@@ -3,9 +3,9 @@ package httransform
 import (
 	"testing"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 type BaseLayerStateTestSuite struct {
@@ -151,7 +151,7 @@ func (suite *AddRemoveHeaderLayerTestSuite) TestOnResponseError() {
 	suite.state.ResponseHeaders.SetString("Proxy-Authorization", "basic")
 	suite.state.ResponseHeaders.SetString("Authorization", "Basic OG==")
 
-	suite.layer.OnResponse(suite.state, errors.New("123"))
+	suite.layer.OnResponse(suite.state, xerrors.New("123"))
 	suite.Len(suite.state.ResponseHeaders.Items(), 4)
 
 	value, ok := suite.state.ResponseHeaders.GetString("user-agent")
@@ -203,7 +203,7 @@ func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnRequestMatch() {
 }
 
 func (suite *ProxyAuthorizationBasicLayerTestSuite) TestOnResponseAnotherError() {
-	suite.layer.OnResponse(suite.state, errors.New("Another error"))
+	suite.layer.OnResponse(suite.state, xerrors.New("Another error"))
 
 	suite.Equal(suite.state.Response.StatusCode(), fasthttp.StatusOK)
 	_, ok := suite.state.ResponseHeaders.GetString("proxy-authenticate")

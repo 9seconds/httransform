@@ -6,8 +6,8 @@ import (
 	"net"
 	"sync"
 
-	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 
 	"github.com/9seconds/httransform/ca"
 )
@@ -116,7 +116,7 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 	}
 }
 
-func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) {
+func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) { // nolint: funlen
 	var err error
 
 	currentLayer := 0
@@ -220,7 +220,7 @@ func NewServer(opts ServerOpts) (*Server, error) {
 		opts.GetTLSCertCachePrune(),
 		opts.GetOrganizationName())
 	if err != nil {
-		return nil, errors.Annotate(err, "Cannot create CA")
+		return nil, xerrors.Errorf("cannot create CA: %w", err)
 	}
 
 	srv := &Server{

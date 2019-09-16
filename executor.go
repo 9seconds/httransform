@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 var executorDefaultHTTPClient = MakeStreamingClosingHTTPClient()
@@ -56,7 +56,7 @@ func MakeProxyChainExecutor(proxyURL *url.URL) (Executor, error) {
 		}, nil
 	}
 
-	return nil, errors.Errorf("Unknown proxy URL scheme %s", proxyURL.Scheme)
+	return nil, xerrors.Errorf("Unknown proxy URL scheme %s", proxyURL.Scheme)
 }
 
 // ExecuteRequest is a basic method on executing requests. On error, it

@@ -1,6 +1,6 @@
 ROOT_DIR   := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-GOLANGCI_LINT_VERSION := v1.15.0
+GOLANGCI_LINT_VERSION := v1.18.0
 
 MOD_ON  := env GO111MODULE=on
 MOD_OFF := env GO111MODULE=auto

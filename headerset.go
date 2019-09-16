@@ -7,7 +7,7 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/juju/errors"
+	"golang.org/x/xerrors"
 )
 
 // Header is a structure to present both key and value of the header.
@@ -187,7 +187,7 @@ func ParseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 
 		colPosition := bytes.IndexByte(line, ':')
 		if colPosition < 0 {
-			return errors.Errorf("Malformed header %s", string(line))
+			return xerrors.Errorf("Malformed header %s", string(line))
 		}
 
 		endKey := colPosition

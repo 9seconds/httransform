@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/juju/errors"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -38,9 +38,9 @@ func (c *conns) get(timeout time.Duration) (net.Conn, error) { // nolint: unpara
 
 	select {
 	case <-c.done:
-		return nil, errors.New("Connections are closing")
+		return nil, xerrors.New("connections are closing")
 	case <-time.After(timeout):
-		return nil, errors.New("Timed out")
+		return nil, xerrors.New("timed out")
 	case c.getChan <- respChan:
 		response := <-respChan
 		return response.conn, response.err
@@ -52,9 +52,9 @@ func (c *conns) getResponseChan(timeout time.Duration) (<-chan getConnResponse, 
 
 	select {
 	case <-c.done:
-		return nil, errors.New("Connections are closing")
+		return nil, xerrors.New("connections are closing")
 	case <-time.After(timeout):
-		return nil, errors.New("Timed out")
+		return nil, xerrors.New("timed out")
 	case c.getChan <- respChan:
 		return respChan, nil
 	}

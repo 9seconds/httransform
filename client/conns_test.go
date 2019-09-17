@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/xerrors"
 )
 
 type ConnsTestSuite struct {
@@ -112,7 +112,7 @@ func (suite *ConnsTestSuite) TestStopped() {
 func (suite *ConnsTestSuite) TestGetError() {
 	conn := &MockedConn{}
 	conn.On("Close").Return(nil)
-	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, errors.New("error"))
+	suite.dialer.On("Dial", suite.addr, time.Second).Return(conn, xerrors.New("error"))
 
 	_, err := suite.c.get(time.Millisecond)
 	suite.NotNil(err)

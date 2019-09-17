@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/juju/errors"
+	"golang.org/x/xerrors"
 )
 
 type releaseRequest struct {
@@ -101,7 +101,7 @@ func NewPooledDialer(dialer BaseDialer, timeout time.Duration, limit int) (*Pool
 	if limit == 0 {
 		limit = DefaultLimit
 	} else if limit < 0 {
-		return nil, errors.New("Limit should be >= 0")
+		return nil, xerrors.New("limit should be >= 0")
 	}
 
 	return &PooledDialer{

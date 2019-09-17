@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/karlseguin/ccache"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -74,8 +74,8 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 		defer signResponsePool.Put(response)
 
 		if response.err != nil {
-			return TLSConfig{}, errors.Annotatef(response.err,
-				"Cannot create TLS certificate for host %s", host)
+			return TLSConfig{}, xerrors.Errorf("cannot create TLS certificate for host %s: %w",
+				host, response.err)
 		}
 
 		item = response.item
@@ -159,7 +159,7 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	derBytes, err := x509.CreateCertificate(randGen, &template, c.ca.Leaf,
 		&certpriv.PublicKey, c.ca.PrivateKey)
 	if err != nil {
-		return tls.Certificate{}, errors.Annotate(err, "Cannot generate TLS certificate")
+		return tls.Certificate{}, xerrors.Errorf("cannot generate TLS certificate: %w", err)
 	}
 
 	return tls.Certificate{
@@ -183,10 +183,10 @@ func NewCA(certCA, certKey []byte, metrics CertificateMetrics,
 	cacheMaxSize int64, cacheItemsToPrune uint32, orgNames ...string) (CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {
-		return CA{}, errors.Annotate(err, "Invalid certificates")
+		return CA{}, xerrors.Errorf("invalid certificates: %w", err)
 	}
 	if ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0]); err != nil {
-		return CA{}, errors.Annotate(err, "Invalid certificates")
+		return CA{}, xerrors.Errorf("invalid certificates: %w", err)
 	}
 
 	ccacheConf := ccache.Configure()

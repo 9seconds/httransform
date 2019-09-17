@@ -8,8 +8,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -65,7 +65,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 
 	conn, err := c.dialer.Dial(addr)
 	if err != nil {
-		return errors.Annotate(err, "Cannot dial to addr")
+		return xerrors.Errorf("cannot dial to addr: %w", err)
 	}
 	if !isHTTP {
 		conn = tls.Client(conn, c.tlsConfig)
@@ -74,12 +74,12 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
-		return errors.Annotate(err, "Cannot set write deadline")
+		return xerrors.Errorf("cannot set write deadline: %w", err)
 	}
 	if _, err = req.WriteTo(conn); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
-		return errors.Annotate(err, "Cannot send request")
+		return xerrors.Errorf("cannot send a request: %w", err)
 	}
 
 	resp.Reset()
@@ -88,14 +88,14 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
-		return errors.Annotate(err, "Cannot set read deadline")
+		return xerrors.Errorf("cannot set read deadline: %w", err)
 	}
 
 	connReader := poolBufferedReader.Get().(*bufio.Reader)
 	connReader.Reset(conn)
 
 	if err = resp.Header.Read(connReader); err != nil {
-		return errors.Annotate(err, "Cannot read response header")
+		return xerrors.Errorf("cannot read response header: %w", err)
 	}
 	if req.Header.IsHead() {
 		c.dialer.Release(conn, addr)

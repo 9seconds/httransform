@@ -5,13 +5,13 @@ import (
 	"io"
 	"net"
 
-	"github.com/juju/errors"
+	"golang.org/x/xerrors"
 )
 
 var (
-	errCountReaderExhaust = errors.New("Cannot read more")
-	errTooLargeHexNum     = errors.New("Too large hex number")
-	errNoNumber           = errors.New("Cannot find a number")
+	errCountReaderExhaust = xerrors.New("cannot read more")
+	errTooLargeHexNum     = xerrors.New("too large hex number")
+	errNoNumber           = xerrors.New("cannot find a number")
 
 	hex2intTable = func() [256]byte {
 		var b [256]byte
@@ -183,7 +183,7 @@ func (c *chunkedReader) readNextChunkSize() (int64, error) {
 				return -1, errNoNumber
 			}
 			if err = c.baseReader.reader.UnreadByte(); err != nil {
-				return -1, errors.Annotate(err, "Cannot unread byte")
+				return -1, xerrors.Errorf("cannot unread byte: %w", err)
 			}
 			return n, nil
 		}
@@ -199,7 +199,7 @@ func (c *chunkedReader) consumeCRLF() error {
 	for {
 		current, err := c.baseReader.reader.ReadByte()
 		if err != nil {
-			return errors.Annotate(err, "Cannot consume CRLF")
+			return xerrors.Errorf("cannot consume CRLF: %w", err)
 		}
 		if current == ' ' {
 			continue
@@ -207,15 +207,15 @@ func (c *chunkedReader) consumeCRLF() error {
 		if current == '\r' {
 			break
 		}
-		return errors.Errorf("Expect '\r', got '%x'", current)
+		return xerrors.Errorf("Expect '\r', got '%x'", current)
 	}
 
 	current, err := c.baseReader.reader.ReadByte()
 	if err != nil {
-		return errors.Annotate(err, "Cannot consume CRLF")
+		return xerrors.Errorf("cannot consume CRLF: %w", err)
 	}
 	if current != '\n' {
-		return errors.Errorf("Expect '\n', got '%x'", current)
+		return xerrors.Errorf("Expect '\n', got '%x'", current)
 	}
 
 	return nil

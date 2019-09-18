@@ -53,7 +53,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	originalURI := req.Header.RequestURI()
 	uri := req.URI()
 	addr := string(uri.Host())
-	isHTTP := bytes.Equal(bytes.ToLower(uri.Scheme()), []byte("http"))
+	isHTTP := bytes.EqualFold(uri.Scheme(), []byte("http"))
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		if isHTTP {
 			addr = net.JoinHostPort(addr, DefaultHTTPPort)

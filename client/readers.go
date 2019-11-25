@@ -126,13 +126,16 @@ func (c *chunkedReader) Read(b []byte) (int, error) {
 			c.Close()
 			return 0, err
 		}
+
 		c.readData = true
 	}
 
 	n, err := c.baseReader.Read(b)
+
 	if c.baseReader.bytesLeft <= 0 {
 		c.readData = false
 		err = c.consumeCRLF()
+
 		if err != nil {
 			c.Close()
 		}
@@ -162,8 +165,10 @@ func (c *chunkedReader) prepareNextChunk() error {
 		} else {
 			c.releaseConn()
 		}
+
 		return io.EOF
 	}
+
 	c.baseReader.bytesLeft = size
 
 	return nil
@@ -171,6 +176,7 @@ func (c *chunkedReader) prepareNextChunk() error {
 
 func (c *chunkedReader) readNextChunkSize() (int64, error) {
 	var n int64
+
 	for i := 0; ; i++ {
 		current, err := c.baseReader.reader.ReadByte()
 		if err != nil {
@@ -182,11 +188,14 @@ func (c *chunkedReader) readNextChunkSize() (int64, error) {
 			if i == 0 {
 				return -1, errNoNumber
 			}
+
 			if err = c.baseReader.reader.UnreadByte(); err != nil {
 				return -1, xerrors.Errorf("cannot unread byte: %w", err)
 			}
+
 			return n, nil
 		}
+
 		if i > maxHexIntChars {
 			return -1, errTooLargeHexNum
 		}
@@ -201,12 +210,15 @@ func (c *chunkedReader) consumeCRLF() error {
 		if err != nil {
 			return xerrors.Errorf("cannot consume CRLF: %w", err)
 		}
+
 		if current == ' ' {
 			continue
 		}
+
 		if current == '\r' {
 			break
 		}
+
 		return xerrors.Errorf("Expect '\r', got '%x'", current)
 	}
 
@@ -214,6 +226,7 @@ func (c *chunkedReader) consumeCRLF() error {
 	if err != nil {
 		return xerrors.Errorf("cannot consume CRLF: %w", err)
 	}
+
 	if current != '\n' {
 		return xerrors.Errorf("Expect '\n', got '%x'", current)
 	}

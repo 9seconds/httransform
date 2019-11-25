@@ -27,6 +27,7 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	if pos < 0 {
 		return nil, nil, xerrors.New("Malformed Proxy-Authorization header")
 	}
+
 	if !bytes.Equal(text[:pos], []byte("Basic")) {
 		return nil, nil, xerrors.New("Incorrect authorization prefix")
 	}
@@ -38,6 +39,7 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(text[pos:])))
 	n, err := base64.StdEncoding.Decode(decoded, text[pos:])
 	decoded = decoded[:n]
+
 	if err != nil {
 		return nil, nil, xerrors.Errorf("incorrectly encoded authorization payload: %w", err)
 	}
@@ -58,6 +60,7 @@ func ExtractAuthentication(text []byte) ([]byte, []byte, error) {
 func MakeProxyAuthorizationHeaderValue(proxyURL *url.URL) []byte {
 	username := proxyURL.User.Username()
 	password, ok := proxyURL.User.Password()
+
 	if ok || username != "" {
 		line := username + ":" + password
 		return []byte("Basic " + base64.StdEncoding.EncodeToString([]byte(line)))

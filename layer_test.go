@@ -17,6 +17,7 @@ type BaseLayerStateTestSuite struct {
 func (suite *BaseLayerStateTestSuite) SetupTest() {
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
+
 	defer fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(resp)
 

@@ -37,7 +37,9 @@ func (d *PooledDialer) Dial(addr string) (net.Conn, error) {
 		addr:     addr,
 		response: response,
 	}
+
 	item := <-response
+
 	return item.conn, item.err
 }
 
@@ -64,6 +66,7 @@ func (d *PooledDialer) Run() {
 			if !ok {
 				addresses = newConns(req.addr, d.base, d.timeout, d.limit, d.obsoleteRequests)
 				d.addresses[req.addr] = addresses
+
 				go addresses.run()
 			}
 
@@ -98,6 +101,7 @@ func NewPooledDialer(dialer BaseDialer, timeout time.Duration, limit int) (*Pool
 	if timeout == time.Duration(0) {
 		timeout = DefaultDialTimeout
 	}
+
 	if limit == 0 {
 		limit = DefaultLimit
 	} else if limit < 0 {

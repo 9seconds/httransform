@@ -65,5 +65,6 @@ func releaseLayerState(state *LayerState) {
 	for k := range state.ctx {
 		delete(state.ctx, k)
 	}
+
 	layerStatePool.Put(state)
 }

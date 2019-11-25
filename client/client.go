@@ -54,6 +54,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	uri := req.URI()
 	addr := string(uri.Host())
 	isHTTP := bytes.EqualFold(uri.Scheme(), []byte("http"))
+
 	if _, _, err := net.SplitHostPort(addr); err != nil {
 		if isHTTP {
 			addr = net.JoinHostPort(addr, DefaultHTTPPort)
@@ -61,12 +62,14 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 			addr = net.JoinHostPort(addr, DefaultHTTPSPort)
 		}
 	}
+
 	req.SetRequestURIBytes(originalURI)
 
 	conn, err := c.dialer.Dial(addr)
 	if err != nil {
 		return xerrors.Errorf("cannot dial to addr: %w", err)
 	}
+
 	if !isHTTP {
 		conn = tls.Client(conn, c.tlsConfig)
 	}
@@ -74,11 +77,14 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
+
 		return xerrors.Errorf("cannot set write deadline: %w", err)
 	}
+
 	if _, err = req.WriteTo(conn); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
+
 		return xerrors.Errorf("cannot send a request: %w", err)
 	}
 
@@ -88,6 +94,7 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
 		conn.Close()
 		c.dialer.NotifyClosed(addr)
+
 		return xerrors.Errorf("cannot set read deadline: %w", err)
 	}
 
@@ -97,13 +104,16 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	if err = resp.Header.Read(connReader); err != nil {
 		return xerrors.Errorf("cannot read response header: %w", err)
 	}
+
 	if req.Header.IsHead() {
 		c.dialer.Release(conn, addr)
 		return nil
 	}
 
 	var reader io.ReadCloser
+
 	contentLength := resp.Header.ContentLength()
+
 	if contentLength >= 0 {
 		reader = newSimpleReader(addr,
 			conn,

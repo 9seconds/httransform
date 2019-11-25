@@ -101,18 +101,21 @@ func (c *conns) run() { // nolint: gocyclo, funlen
 	defer ticker.Stop()
 
 	getChan := c.getChan
+
 	for {
 		select {
 		case <-c.done:
 			for _, v := range c.free {
 				v.Close()
 			}
-			return
 
+			return
 		case request := <-getChan:
 			if len(c.free) > 0 {
 				request <- getConnResponse{conn: c.free[len(c.free)-1]}
+
 				c.free = c.free[:len(c.free)-1]
+
 				continue
 			}
 
@@ -129,15 +132,12 @@ func (c *conns) run() { // nolint: gocyclo, funlen
 			if c.toCreate == 0 {
 				getChan = nil
 			}
-
 		case conn := <-c.releasedChan:
 			c.free = append(c.free, conn)
 			getChan = c.getChan
-
 		case <-c.closedChan:
 			c.toCreate++
 			getChan = c.getChan
-
 		case <-ticker.C:
 			if len(c.free) == 0 {
 				c.gcCounter = 0
@@ -145,6 +145,7 @@ func (c *conns) run() { // nolint: gocyclo, funlen
 			}
 
 			c.gcCounter++
+
 			if c.gcCounter == connsGCAfter {
 				c.gcCounter = 0
 				c.free[len(c.free)-1].Close()

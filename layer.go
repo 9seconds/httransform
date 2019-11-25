@@ -88,6 +88,7 @@ func (l *LayerState) Set(key string, value interface{}) {
 	if l.ctx == nil {
 		l.ctx = map[string]interface{}{}
 	}
+
 	l.ctx[key] = value
 }
 
@@ -98,7 +99,9 @@ func (l *LayerState) Get(key string) (interface{}, bool) {
 	if l.ctx == nil {
 		l.ctx = map[string]interface{}{}
 	}
+
 	item, ok := l.ctx[key]
+
 	return item, ok
 }
 
@@ -174,9 +177,11 @@ func (a *AddRemoveHeaderLayer) apply(set *HeaderSet, frozen, defaults map[string
 			set.SetString(key, value)
 		}
 	}
+
 	for key, value := range frozen {
 		set.SetString(key, value)
 	}
+
 	for _, key := range absent {
 		set.DeleteString(key)
 	}
@@ -205,6 +210,7 @@ type ProxyAuthorizationBasicLayer struct {
 func (p *ProxyAuthorizationBasicLayer) OnRequest(state *LayerState) error {
 	userFault := subtle.ConstantTimeCompare(state.ProxyUser, p.User) != 1
 	passwordFault := subtle.ConstantTimeCompare(state.ProxyPassword, p.Password) != 1
+
 	if userFault || passwordFault {
 		return ErrProxyAuthorization
 	}
@@ -230,5 +236,6 @@ func (p *ProxyAuthorizationBasicLayer) MakeProxyAuthRequiredResponse(state *Laye
 	} else {
 		authString = "Basic"
 	}
+
 	state.ResponseHeaders.SetString("Proxy-Authenticate", authString)
 }

@@ -158,6 +158,7 @@ func (suite *ServerTestSuite) SetupTest() {
 	if err != nil {
 		panic(err)
 	}
+
 	suite.srv = srv
 
 	go srv.Serve(suite.ln) // nolint: errcheck
@@ -173,6 +174,7 @@ func (suite *ServerTestSuite) TestHTTPRequest() {
 
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
 	suite.Nil(err)
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -194,6 +196,7 @@ func (suite *ServerTestSuite) TestHTTPSRequest() {
 
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
 	suite.Nil(err)
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -217,6 +220,7 @@ func (suite *ServerTestSuite) TestLayerNoError() {
 
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
 	suite.Nil(err)
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -241,6 +245,7 @@ func (suite *ServerTestSuite) TestLayerError() {
 
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
 
 	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
@@ -260,9 +265,11 @@ func (suite *ServerProxyChainTestSuite) SetupTest() {
 	suite.BaseServerTestSuite.SetupTest()
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
+
 	if err != nil {
 		panic(err)
 	}
+
 	suite.endListener = ln
 
 	proxyURL := &url.URL{
@@ -305,13 +312,17 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("http://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusProxyAuthRequired)
 
 	suite.status = http.StatusNotFound
 	resp, err = suite.client.Get("http://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusNotFound)
 }
 
@@ -330,13 +341,17 @@ func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("https://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusBadGateway)
 
 	suite.status = http.StatusOK
 	resp, err = suite.client.Get("https://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
 }
 
@@ -354,11 +369,13 @@ func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer os.Remove(certFile.Name())
 
 	if _, err = certFile.Write(testServerCACert); err != nil {
 		panic(err)
 	}
+
 	if err = certFile.Sync(); err != nil {
 		panic(err)
 	}
@@ -367,11 +384,13 @@ func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer os.Remove(certKey.Name())
 
 	if _, err = certKey.Write(testServerPrivateKey); err != nil {
 		panic(err)
 	}
+
 	if err = certKey.Sync(); err != nil {
 		panic(err)
 	}
@@ -381,13 +400,17 @@ func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
 	suite.status = http.StatusProxyAuthRequired
 	resp, err := suite.client.Get("https://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusBadGateway)
 
 	suite.status = http.StatusOK
 	resp, err = suite.client.Get("https://example.com")
 	suite.Nil(err)
+
 	defer resp.Body.Close()
+
 	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
 }
 

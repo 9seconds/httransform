@@ -105,6 +105,7 @@ func (s *ServerOpts) GetConcurrency() int {
 	if s.Concurrency == 0 {
 		return DefaultConcurrency
 	}
+
 	return s.Concurrency
 }
 
@@ -114,6 +115,7 @@ func (s *ServerOpts) GetReadBufferSize() int {
 	if s.ReadBufferSize == 0 {
 		return DefaultReadBufferSize
 	}
+
 	return s.ReadBufferSize
 }
 
@@ -123,6 +125,7 @@ func (s *ServerOpts) GetWriteBufferSize() int {
 	if s.WriteBufferSize == 0 {
 		return DefaultWriteBufferSize
 	}
+
 	return s.WriteBufferSize
 }
 
@@ -132,6 +135,7 @@ func (s *ServerOpts) GetReadTimeout() time.Duration {
 	if s.ReadTimeout == 0 {
 		return DefaultReadTimeout
 	}
+
 	return s.ReadTimeout
 }
 
@@ -140,6 +144,7 @@ func (s *ServerOpts) GetWriteTimeout() time.Duration {
 	if s.WriteTimeout == 0 {
 		return DefaultWriteTimeout
 	}
+
 	return s.WriteTimeout
 }
 
@@ -167,6 +172,7 @@ func (s *ServerOpts) GetTLSCertCacheSize() int64 {
 	if s.TLSCertCacheSize == 0 {
 		return DefaultTLSCertCacheSize
 	}
+
 	return int64(s.TLSCertCacheSize)
 }
 
@@ -176,6 +182,7 @@ func (s *ServerOpts) GetTLSCertCachePrune() uint32 {
 	if s.TLSCertCachePrune == 0 {
 		return DefaultTLSCertCachePrune
 	}
+
 	return uint32(s.TLSCertCachePrune)
 }
 
@@ -184,6 +191,7 @@ func (s *ServerOpts) GetTracerPool() *TracerPool {
 	if s.TracerPool == nil {
 		return defaultNoopTracerPool
 	}
+
 	return s.TracerPool
 }
 
@@ -192,6 +200,7 @@ func (s *ServerOpts) GetExecutor() Executor {
 	if s.Executor == nil {
 		return HTTPExecutor
 	}
+
 	return s.Executor
 }
 
@@ -205,6 +214,7 @@ func (s *ServerOpts) GetLogger() Logger {
 	if s.Logger == nil {
 		return &NoopLogger{}
 	}
+
 	return s.Logger
 }
 
@@ -213,5 +223,6 @@ func (s *ServerOpts) GetMetrics() Metrics {
 	if s.Metrics == nil {
 		return &NoopMetrics{}
 	}
+
 	return s.Metrics
 }

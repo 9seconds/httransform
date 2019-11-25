@@ -127,6 +127,7 @@ func MakeDefaultHTTPClient() HTTPRequestExecutor {
 // This client uses given SOCKS5 proxy.
 func MakeDefaultSOCKS5ProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeSOCKS5BaseDialer(proxyURL)
+
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
 		return base(addr, ConnectDialTimeout)
 	})
@@ -141,6 +142,7 @@ func MakeDefaultSOCKS5ProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 // HTTPS requests.
 func MakeDefaultHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeProxyBaseDialer(proxyURL)
+
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
 		return base(addr, ConnectDialTimeout)
 	})
@@ -155,6 +157,7 @@ func MakeDefaultHTTPProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 // for HTTP requests.
 func MakeDefaultCONNECTProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 	base := makeCONNECTBaseDialer(proxyURL, client.FastHTTPBaseDialer)
+
 	return makeDefaultHTTPClient(func(addr string) (net.Conn, error) {
 		return base(addr, ConnectDialTimeout)
 	})
@@ -182,8 +185,10 @@ func makeDefaultHTTPClient(dialFunc fasthttp.DialFunc) *fasthttp.Client {
 
 func makeSOCKS5BaseDialer(proxyURL *url.URL) client.BaseDialer {
 	var auth *proxy.Auth
+
 	username := proxyURL.User.Username()
 	password, ok := proxyURL.User.Password()
+
 	if ok || username != "" {
 		auth = &proxy.Auth{
 			User:     username,

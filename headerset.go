@@ -70,9 +70,11 @@ func (hs *HeaderSet) SetBytes(key []byte, value []byte) {
 	if hs.index == nil {
 		hs.index = map[string]int{}
 	}
+
 	if hs.values == nil {
 		hs.values = []*Header{}
 	}
+
 	if hs.removedHeaders == nil {
 		hs.removedHeaders = map[string]struct{}{}
 	}
@@ -130,6 +132,7 @@ func (hs *HeaderSet) GetBytes(key []byte) ([]byte, bool) {
 	if _, ok := hs.removedHeaders[string(key)]; ok {
 		return nil, false
 	}
+
 	if pos, ok := hs.index[string(key)]; ok {
 		return hs.values[pos].Value, true
 	}
@@ -140,11 +143,13 @@ func (hs *HeaderSet) GetBytes(key []byte) ([]byte, bool) {
 // Items returns a list of headers from header set in the correct order.
 func (hs *HeaderSet) Items() []*Header {
 	headers := make([]*Header, 0, len(hs.values))
+
 	for _, v := range hs.values {
 		if _, ok := hs.removedHeaders[v.ID]; !ok {
 			headers = append(headers, v)
 		}
 	}
+
 	return headers
 }
 
@@ -152,10 +157,12 @@ func (hs *HeaderSet) Items() []*Header {
 // *HeaderSet implements fmt.Stringer interface.
 func (hs *HeaderSet) String() string {
 	builder := strings.Builder{}
+
 	for _, v := range hs.Items() {
 		builder.WriteString(v.String())
 		builder.WriteString("\n")
 	}
+
 	return builder.String()
 }
 
@@ -164,12 +171,15 @@ func (hs *HeaderSet) Clear() {
 	for k := range hs.index {
 		delete(hs.index, k)
 	}
+
 	for k := range hs.removedHeaders {
 		delete(hs.removedHeaders, k)
 	}
+
 	for _, v := range hs.values {
 		releaseHeader(v)
 	}
+
 	hs.values = hs.values[:0]
 }
 
@@ -196,6 +206,7 @@ func ParseHeaders(hset *HeaderSet, rawHeaders []byte) error {
 		}
 
 		colPosition++
+
 		for colPosition < len(line) && (line[colPosition] == ' ' || line[colPosition] == '\t') {
 			colPosition++
 		}

@@ -161,7 +161,9 @@ func (suite *LogTracerTestSuite) TestDump() {
 	state := getLayerState()
 	req := fasthttp.AcquireRequest()
 	resp := fasthttp.AcquireResponse()
+
 	defer fasthttp.ReleaseRequest(req)
+
 	defer fasthttp.ReleaseResponse(resp)
 
 	ctx := &fasthttp.RequestCtx{

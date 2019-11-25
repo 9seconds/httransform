@@ -27,6 +27,7 @@ type CountReaderTestSuite struct {
 
 func (suite *CountReaderTestSuite) TestReadByte() {
 	suite.writer.Write([]byte{1, 2, 3, 4, 5})
+
 	reader := baseReader{
 		reader:    bufio.NewReader(suite.writer),
 		conn:      suite.conn,
@@ -45,6 +46,7 @@ func (suite *CountReaderTestSuite) TestReadByte() {
 
 func (suite *CountReaderTestSuite) TestReadSeveralTimes() {
 	suite.writer.Write([]byte{1, 2, 3, 4, 5})
+
 	reader := baseReader{
 		reader:    bufio.NewReader(suite.writer),
 		conn:      suite.conn,
@@ -374,12 +376,16 @@ func (suite *ChunkedReaderTestSuite) TestSlowReader() {
 
 	reader := newChunkedReader("addr", suite.conn, wr, suite.dialer, false)
 	arr := make([]byte, 2)
+
 	var err error
+
 	var n int
+
 	for err == nil {
 		n, err = reader.Read(arr)
 		consumed = append(consumed, arr[:n]...)
 	}
+
 	suite.Equal(consumed, []byte("MozillaDeveloperNetwork"))
 	suite.Equal(err, io.EOF)
 }

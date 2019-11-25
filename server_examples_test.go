@@ -70,6 +70,7 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 		},
 	}
 	srv, err := NewServer(opts)
+
 	if err != nil {
 		panic(err)
 	}
@@ -92,15 +93,19 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 	if _, err := io.Copy(ioutil.Discard, resp.Body); err != nil {
 		panic(err)
 	}
+
 	resp.Body.Close()
 
 	proxyURL.User = url.UserPassword("user", "password")
 	client.Transport = &http.Transport{Proxy: http.ProxyURL(proxyURL)}
 	resp, err = client.Get("http://httpbin.org/status/200")
+
 	if err != nil {
 		panic(err)
 	}
+
 	defer resp.Body.Close()
+
 	fmt.Println(resp.Status)
 	// Output:
 	// 407 Proxy Authentication Required

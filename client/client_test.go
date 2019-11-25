@@ -28,11 +28,13 @@ func (b *BrokenHTTPConnection) ServeHTTP(w http.ResponseWriter, req *http.Reques
 		http.Error(w, "webserver doesn't support hijacking", http.StatusInternalServerError)
 		return
 	}
+
 	conn, bufrw, err := hj.Hijack()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	bufrw.WriteString(b.resp) // nolint: errcheck
 	bufrw.Flush()
 	conn.Close()
@@ -88,8 +90,10 @@ func (suite *ClientTestSuite) TestPooledDialerSameSocket() {
 	resp := &fasthttp.Response{}
 
 	req.SetRequestURI(suite.srv.URL + "/ip")
+
 	err := client.Do(req, resp)
 	suite.Nil(err)
+
 	body := resp.Body()
 
 	req.SetRequestURI(suite.srv.URL + "/ip")
@@ -102,9 +106,11 @@ func (suite *ClientTestSuite) TestBrokenResponseHeader() {
 	srv := httptest.NewServer(&BrokenHTTPConnection{
 		resp: "HTTP/1.1",
 	})
+
 	defer srv.Close()
 
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
+
 	go dialer.Run()
 
 	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec

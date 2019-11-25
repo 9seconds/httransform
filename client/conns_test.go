@@ -23,6 +23,7 @@ func (suite *ConnsTestSuite) SetupTest() {
 	suite.dialer = &MockedBaseDialer{}
 	suite.c = newConns(suite.addr, suite.dialer.Dial, time.Second, 2, suite.obsoleteChan)
 	suite.c.use()
+
 	go suite.c.run()
 }
 

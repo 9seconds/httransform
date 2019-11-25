@@ -67,6 +67,7 @@ func (suite *CATestSuite) SetupTest() {
 	if err != nil {
 		panic(err)
 	}
+
 	suite.ca = &ca
 }
 

@@ -71,6 +71,7 @@ func (c *CA) Get(host string) (TLSConfig, error) {
 		newRequest.host = host
 		c.getWorkerChan(host) <- newRequest
 		response := <-newRequest.response
+
 		defer signResponsePool.Put(response)
 
 		if response.err != nil {
@@ -90,6 +91,7 @@ func (c *CA) Close() error {
 	for _, ch := range c.requestChans {
 		close(ch)
 	}
+
 	c.wg.Wait()
 	c.cache.Stop()
 
@@ -106,6 +108,7 @@ func (c *CA) worker(requests chan *signRequest, wg *sync.WaitGroup) {
 		if item := c.cache.TrackingGet(req.host); item != ccache.NilTracked {
 			resp.item = item
 			req.response <- resp
+
 			continue
 		}
 
@@ -113,8 +116,10 @@ func (c *CA) worker(requests chan *signRequest, wg *sync.WaitGroup) {
 		if err != nil {
 			resp.err = err
 			req.response <- resp
+
 			continue
 		}
+
 		c.metrics.NewCertificate()
 
 		conf := &tls.Config{InsecureSkipVerify: true} // nolint: gosec
@@ -139,12 +144,14 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 
 	hash := hmac.New(sha1.New, c.secret)
 	hash.Write([]byte(host)) // nolint: errcheck
+
 	if ip := net.ParseIP(host); ip != nil {
 		template.IPAddresses = append(template.IPAddresses, ip)
 	} else {
 		template.DNSNames = append(template.DNSNames, host)
 		template.Subject.CommonName = host
 	}
+
 	hashed := hash.Sum(nil)
 	template.SerialNumber.SetBytes(hashed)
 	hash.Write(c.secret) // nolint: errcheck
@@ -156,6 +163,7 @@ func (c *CA) sign(host string) (tls.Certificate, error) {
 	if err != nil {
 		panic(err)
 	}
+
 	derBytes, err := x509.CreateCertificate(randGen, &template, c.ca.Leaf,
 		&certpriv.PublicKey, c.ca.PrivateKey)
 	if err != nil {
@@ -185,6 +193,7 @@ func NewCA(certCA, certKey []byte, metrics CertificateMetrics,
 	if err != nil {
 		return CA{}, xerrors.Errorf("invalid certificates: %w", err)
 	}
+
 	if ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0]); err != nil {
 		return CA{}, xerrors.Errorf("invalid certificates: %w", err)
 	}
@@ -203,10 +212,12 @@ func NewCA(certCA, certKey []byte, metrics CertificateMetrics,
 		requestChans: make([]chan *signRequest, 0, certWorkerCount),
 		wg:           &sync.WaitGroup{},
 	}
+
 	for i := 0; i < int(certWorkerCount); i++ {
 		newChan := make(chan *signRequest)
 		obj.requestChans = append(obj.requestChans, newChan)
 		obj.wg.Add(1)
+
 		go obj.worker(newChan, obj.wg)
 	}
 

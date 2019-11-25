@@ -98,6 +98,7 @@ func (l *LogTracer) StartOnRequest() {
 	if !l.startOnRequestTime.IsZero() {
 		panic("Start on request already set")
 	}
+
 	l.startOnRequestTime = time.Now()
 }
 
@@ -107,6 +108,7 @@ func (l *LogTracer) StartOnResponse() {
 	if !l.startOnResponseTime.IsZero() {
 		panic("Start on response already set")
 	}
+
 	l.startOnResponseTime = time.Now()
 }
 
@@ -115,6 +117,7 @@ func (l *LogTracer) StartExecute() {
 	if !l.startExecuteTime.IsZero() {
 		panic("Start on execution already set")
 	}
+
 	l.startExecuteTime = time.Now()
 }
 
@@ -123,6 +126,7 @@ func (l *LogTracer) FinishOnRequest(err error) {
 	if l.onRequestError != nil {
 		panic("OnRequest error already set")
 	}
+
 	l.onRequestError = err
 
 	if l.startOnRequestTime.IsZero() {
@@ -166,6 +170,7 @@ func (l *LogTracer) Clear() {
 	if len(l.onResponseDurations) > 0 {
 		l.onResponseDurations = l.onResponseDurations[:0]
 	}
+
 	if len(l.onRequestDurations) > 0 {
 		l.onRequestDurations = l.onRequestDurations[:0]
 	}

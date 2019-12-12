@@ -1,7 +1,6 @@
 package client
 
 import (
-	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +50,7 @@ func (suite *ClientTestSuite) TearDownSuite() {
 
 func (suite *ClientTestSuite) TestStreamContent() {
 	dialer, _ := NewSimpleDialer(FastHTTPBaseDialer, time.Second)
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
+	client := NewClient(dialer) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -66,7 +65,7 @@ func (suite *ClientTestSuite) TestPooledDialer() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
 	go dialer.Run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
+	client := NewClient(dialer) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -85,7 +84,7 @@ func (suite *ClientTestSuite) TestPooledDialerSameSocket() {
 	dialer, _ := NewPooledDialer(FastHTTPBaseDialer, time.Second, 5)
 	go dialer.Run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
+	client := NewClient(dialer) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 
@@ -113,7 +112,7 @@ func (suite *ClientTestSuite) TestBrokenResponseHeader() {
 
 	go dialer.Run()
 
-	client := NewClient(dialer, &tls.Config{InsecureSkipVerify: true}) // nolint: gosec
+	client := NewClient(dialer) // nolint: gosec
 	req := &fasthttp.Request{}
 	resp := &fasthttp.Response{}
 

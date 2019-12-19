@@ -3,7 +3,6 @@ package httransform
 import (
 	"bufio"
 	"bytes"
-	"crypto/tls"
 	"net"
 	"net/url"
 	"time"
@@ -28,10 +27,6 @@ const (
 	// DefaultHTTPTImeout is the timeout from starting of HTTP request to
 	// getting a response.
 	DefaultHTTPTImeout = 3 * time.Minute
-)
-
-var (
-	defaultTLSConfig = &tls.Config{InsecureSkipVerify: true} // nolint: gosec
 )
 
 // HTTPRequestExecutor is an interface to be used for ExecuteRequest and
@@ -165,12 +160,12 @@ func MakeDefaultCONNECTProxyClient(proxyURL *url.URL) HTTPRequestExecutor {
 
 func makeStreamingClosingHTTPClient(dialer client.BaseDialer) HTTPRequestExecutor {
 	newDialer, _ := client.NewSimpleDialer(dialer, ConnectDialTimeout)
-	return client.NewClient(newDialer, defaultTLSConfig)
+	return client.NewClient(newDialer)
 }
 
 func makeStreamingPooledHTTPClient(dialer client.BaseDialer) HTTPRequestExecutor {
 	newDialer, _ := client.NewPooledDialer(dialer, ConnectDialTimeout, MaxConnsPerHost)
-	return client.NewClient(newDialer, defaultTLSConfig)
+	return client.NewClient(newDialer)
 }
 
 func makeDefaultHTTPClient(dialFunc fasthttp.DialFunc) *fasthttp.Client {
@@ -179,7 +174,6 @@ func makeDefaultHTTPClient(dialFunc fasthttp.DialFunc) *fasthttp.Client {
 		DialDualStack:                 true,
 		DisableHeaderNamesNormalizing: true,
 		MaxConnsPerHost:               MaxConnsPerHost,
-		TLSConfig:                     defaultTLSConfig,
 	}
 }
 

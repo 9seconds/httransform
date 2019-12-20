@@ -1,6 +1,10 @@
 module github.com/9seconds/httransform
 
 require (
+	github.com/allegro/bigcache v1.2.1
+	github.com/cespare/xxhash v1.1.0
+	github.com/dgraph-io/ristretto v0.0.1
+	github.com/hashicorp/golang-lru v0.5.3
 	github.com/karlseguin/ccache v2.0.3+incompatible
 	github.com/karlseguin/expect v1.0.1 // indirect
 	github.com/klauspost/compress v1.9.2 // indirect

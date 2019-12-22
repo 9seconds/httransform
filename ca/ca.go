@@ -43,7 +43,8 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 	}
 
 	hashFunc := fnv.New32a()
-	hashFunc.Write([]byte(host))
+	hashFunc.Write([]byte(host)) // nolint: errcheck
+
 	num := int(hashFunc.Sum32() % uint32(len(c.workers)))
 
 	return c.workers[num].get(host)

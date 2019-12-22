@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"hash/fnv"
 	"runtime"
 	"sync"
 
-	"github.com/cespare/xxhash"
 	lru "github.com/hashicorp/golang-lru"
 	"golang.org/x/xerrors"
 )
@@ -42,7 +42,9 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 		return item.(*tls.Config), nil
 	}
 
-	num := int(xxhash.Sum64([]byte(host)) % uint64(len(c.workers)))
+	hashFunc := fnv.New32a()
+	hashFunc.Write([]byte(host))
+	num := int(hashFunc.Sum32() % uint32(len(c.workers)))
 
 	return c.workers[num].get(host)
 }

@@ -64,9 +64,9 @@ func (suite *ServerOptsTestSuite) TestGetOrganizationName() {
 }
 
 func (suite *ServerOptsTestSuite) TestGetTLSCertCacheSize() {
-	suite.Equal(suite.opts.GetTLSCertCacheSize(), int(DefaultTLSCertCacheSize))
+	suite.Equal(suite.opts.GetTLSCertCacheSize(), DefaultTLSCertCacheSize)
 	suite.opts.TLSCertCacheSize = DefaultTLSCertCacheSize + 1
-	suite.Equal(suite.opts.GetTLSCertCacheSize(), int(suite.opts.TLSCertCacheSize))
+	suite.Equal(suite.opts.GetTLSCertCacheSize(), suite.opts.TLSCertCacheSize)
 }
 
 func (suite *ServerOptsTestSuite) TestGetTracerPool() {

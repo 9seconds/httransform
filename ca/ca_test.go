@@ -1,7 +1,6 @@
 package ca
 
 import (
-	"crypto/x509"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -63,57 +62,31 @@ type CATestSuite struct {
 func (suite *CATestSuite) SetupTest() {
 	suite.mock = &MockCertificateMetrics{}
 
-	ca, err := NewCA(testCaCACert, testCaPrivateKey, suite.mock, 1000, 100)
+	ca, err := NewCA(testCaCACert, testCaPrivateKey, suite.mock, -1, []string{"name"})
 	if err != nil {
 		panic(err)
 	}
 
-	suite.ca = &ca
-}
-
-func (suite *CATestSuite) TearDownTest() {
-	suite.ca.Close()
+	suite.ca = ca
 }
 
 func (suite *CATestSuite) TestDoubleGet() {
-	suite.mock.On("NewCertificate")
+	suite.mock.On("NewCertificate").Once()
+	suite.mock.On("DropCertificate").Maybe()
 
 	conf1, err := suite.ca.Get("hostname")
-	suite.Nil(err)
+	suite.NoError(err)
 
 	conf2, err := suite.ca.Get("hostname")
-	suite.Nil(err)
+	suite.NoError(err)
 
-	suite.Equal(conf1.Get().Certificates[0].PrivateKey, conf2.Get().Certificates[0].PrivateKey)
-	suite.Equal(conf1.Get().Certificates[0].Certificate[0], conf2.Get().Certificates[0].Certificate[0])
-
-	suite.mock.AssertExpectations(suite.T())
+	suite.Equal(conf1.Certificates[0].PrivateKey, conf2.Certificates[0].PrivateKey)
+	suite.Equal(conf1.Certificates[0].Certificate[0], conf2.Certificates[0].Certificate[0])
 }
 
-func (suite *CATestSuite) TestSigner() {
-	suite.mock.On("NewCertificate")
-
-	conf, err := suite.ca.Get("hostname")
-	suite.Nil(err)
-
-	cert := conf.Get().Certificates[0]
-	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-	suite.Nil(err)
-
-	pool := x509.NewCertPool()
-	pool.AddCert(suite.ca.ca.Leaf)
-
-	suite.Nil(cert.Leaf.VerifyHostname("hostname"))
-	suite.NotNil(cert.Leaf.VerifyHostname("hostname2"))
-	suite.Nil(cert.Leaf.CheckSignatureFrom(suite.ca.ca.Leaf))
-
-	_, err = cert.Leaf.Verify(x509.VerifyOptions{
-		DNSName: "hostname",
-		Roots:   pool,
-	})
-	suite.Nil(err)
-
+func (suite *CATestSuite) TearDownTest() {
 	suite.mock.AssertExpectations(suite.T())
+	suite.ca.Close()
 }
 
 func TestCA(t *testing.T) {

@@ -25,7 +25,7 @@ type Server struct {
 	serverPool sync.Pool
 	tracerPool *TracerPool
 	server     *fasthttp.Server
-	certs      ca.CA
+	certs      *ca.CA
 	layers     []Layer
 	executor   Executor
 	logger     Logger
@@ -99,9 +99,8 @@ func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []b
 				conn.RemoteAddr(), reqID, host, err)
 			return
 		}
-		defer conf.Release()
 
-		tlsConn := tls.Server(conn, conf.Get())
+		tlsConn := tls.Server(conn, conf)
 		defer tlsConn.Close()
 
 		if err = tlsConn.Handshake(); err != nil {
@@ -233,8 +232,7 @@ func NewServer(opts ServerOpts) (*Server, error) {
 		opts.GetCertKey(),
 		metrics,
 		opts.GetTLSCertCacheSize(),
-		opts.GetTLSCertCachePrune(),
-		opts.GetOrganizationName())
+		[]string{opts.GetOrganizationName()})
 
 	if err != nil {
 		return nil, xerrors.Errorf("cannot create CA: %w", err)

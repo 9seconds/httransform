@@ -31,11 +31,6 @@ const (
 	// DefaultTLSCertCacheSize is the number of items we store in LRU cache
 	// of generated TLS certificates before starting to prune obsoletes.
 	DefaultTLSCertCacheSize = 10000
-
-	// DefaultTLSCertCachePrune is the number of items we prune from LRU
-	// cache per attempt. Big number takes more time but increases the
-	// throughput.
-	DefaultTLSCertCachePrune = 500
 )
 
 // ServerOpts is the datastructure to configure Server instance. The
@@ -72,11 +67,6 @@ type ServerOpts struct {
 	// TLSCertCacheSize is the number of items we store in LRU cache
 	// of generated TLS certificates before starting to prune obsoletes.
 	TLSCertCacheSize int
-
-	// TLSCertCachePrune is the number of items we prune from LRU
-	// cache per attempt. Big number takes more time but increases the
-	// throughput.
-	TLSCertCachePrune int
 
 	// Tracer is an instance of tracer pool to use. By default pool of
 	// NoopTracers is going to be used.
@@ -168,22 +158,12 @@ func (s *ServerOpts) GetOrganizationName() string {
 
 // GetTLSCertCacheSize returns the number of items to store in LRU cache
 // of generated TLS certificates before starting to prune obsoletes.
-func (s *ServerOpts) GetTLSCertCacheSize() int64 {
+func (s *ServerOpts) GetTLSCertCacheSize() int {
 	if s.TLSCertCacheSize == 0 {
 		return DefaultTLSCertCacheSize
 	}
 
-	return int64(s.TLSCertCacheSize)
-}
-
-// GetTLSCertCachePrune returns the number of items to prune from LRU
-// cache per attempt.
-func (s *ServerOpts) GetTLSCertCachePrune() uint32 {
-	if s.TLSCertCachePrune == 0 {
-		return DefaultTLSCertCachePrune
-	}
-
-	return uint32(s.TLSCertCachePrune)
+	return s.TLSCertCacheSize
 }
 
 // GetTracerPool returns a tracer pool to use.

@@ -9,25 +9,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"math/big"
 	"net"
 	"sync"
-	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 )
-
-var (
-	bigBangTime = time.Unix(0, 0)
-
-	DefaultTLSConfig = &tls.Config{
-		InsecureSkipVerify: true, // nolint: gosec
-	}
-)
-
-// RSAKeyLength defines a length of the key to generate
-const RSAKeyLength = 2048
 
 type workerRequest struct {
 	host     string
@@ -40,7 +27,7 @@ type worker struct {
 	orgNames []string
 	secret   []byte
 	ctx      context.Context
-	metrics  CertificateMetrics
+	metrics  CertificateMetricsInterface
 
 	channelRequests chan workerRequest
 }
@@ -76,7 +63,7 @@ func (w *worker) get(host string) (*tls.Config, error) {
 	case w.channelRequests <- req:
 		return <-response, nil
 	case <-w.ctx.Done():
-		return nil, errors.New("context is closed")
+		return nil, ErrCAContextClosed
 	}
 }
 
@@ -125,9 +112,4 @@ func (w *worker) makeConfig(host string) *tls.Config {
 	w.metrics.NewCertificate()
 
 	return config
-}
-
-func timeNotAfter() time.Time {
-	now := time.Now()
-	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 }

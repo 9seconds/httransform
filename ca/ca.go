@@ -9,19 +9,7 @@ import (
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
-	"golang.org/x/xerrors"
 )
-
-// CertificateMetrics is a subset of the main Metrics interface which
-// provides callbacks for certificates.
-type CertificateMetrics interface {
-	NewCertificate()
-	DropCertificate()
-}
-
-// DefaultMaxSize defines a default value for TLS certificates to store
-// in LRU cache.
-const DefaultMaxSize = 1024
 
 // CA is a datastructure which presents TLS CA (certificate authority).
 // The main purpose of this type is to generate TLS certificates
@@ -58,14 +46,18 @@ func (c *CA) Close() {
 	c.cache.Purge()
 }
 
-func NewCA(certCA, certKey []byte, metrics CertificateMetrics, maxSize int, orgNames []string) (*CA, error) {
+func NewCA(ctx context.Context,
+	certCA, certKey []byte,
+	metrics CertificateMetricsInterface,
+	maxSize int,
+	orgNames []string) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {
-		return nil, xerrors.Errorf("invalid certificates: %w", err)
+		return nil, ErrCAInvalidCertificates.Wrap("cannot load", err)
 	}
 
 	if ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0]); err != nil {
-		return nil, xerrors.Errorf("invalid certificates: %w", err)
+		return nil, ErrCAInvalidCertificates.Wrap("cannot parse", err)
 	}
 
 	if maxSize <= 0 {
@@ -76,10 +68,10 @@ func NewCA(certCA, certKey []byte, metrics CertificateMetrics, maxSize int, orgN
 		metrics.DropCertificate()
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("cannot make a new cache: %w", err)
+		return nil, ErrCA.Wrap("cannot make a new cache", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	obj := &CA{
 		cache:   cache,
 		workers: make([]worker, runtime.NumCPU()),

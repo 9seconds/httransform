@@ -41,12 +41,12 @@ func (u *basicAuthUserInfo) OK(user, password []byte) bool {
 	return userNum+passNum == 2
 }
 
-type BasicAuth struct {
+type basicAuth struct {
 	cache ttlru.Cache
 	infos []basicAuthUserInfo
 }
 
-func (b *BasicAuth) Auth(text string) (interface{}, error) {
+func (b *basicAuth) Auth(text string) (interface{}, error) {
 	if item, ok := b.cache.Get(text); ok {
 		reply := item.(*basicAuthResult)
 		return reply.reply, reply.err
@@ -58,7 +58,7 @@ func (b *BasicAuth) Auth(text string) (interface{}, error) {
 	return resp.reply, resp.err
 }
 
-func (b *BasicAuth) doAuth(text string) basicAuthResult {
+func (b *basicAuth) doAuth(text string) basicAuthResult {
 	pos := strings.IndexByte(text, ' ')
 	if pos < 0 {
 		return basicAuthResult{
@@ -116,7 +116,7 @@ func NewBasicAuth(userPasswords map[string]string) Auth {
 		idx++
 	}
 
-	return &BasicAuth{
+	return &basicAuth{
 		cache: ttlru.New(basicAuthCacheSizeMultiplier*len(userPasswords),
 			ttlru.WithTTL(basicAuthCacheFor)),
 		infos: userInfos,

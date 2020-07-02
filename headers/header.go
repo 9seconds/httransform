@@ -3,7 +3,8 @@ package headers
 import "fmt"
 
 type Header struct {
-	ID    string
+	id string
+
 	Name  string
 	Value string
 }
@@ -13,7 +14,7 @@ func (h *Header) String() string {
 }
 
 func (h *Header) Reset() {
-	h.ID = ""
+	h.id = ""
 	h.Name = ""
 	h.Value = ""
 }

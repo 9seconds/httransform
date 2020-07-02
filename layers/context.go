@@ -22,8 +22,6 @@ type LayerContext struct {
 	LocalAddr  net.Addr
 	RemoteAddr net.Addr
 
-	Tunneled bool
-
 	data map[string]interface{}
 	ctx  context.Context
 }
@@ -32,16 +30,18 @@ func (l *LayerContext) Reset() {
 	headers.ReleaseSet(l.RequestHeaders)
 	headers.ReleaseSet(l.ResponseHeaders)
 
-	l.Request = nil
 	l.RequestHeaders = nil
-	l.Response = nil
 	l.ResponseHeaders = nil
-	l.Tunneled = false
-	l.ctx = nil
+	l.Request = nil
+	l.Response = nil
+	l.LocalAddr = nil
+	l.RemoteAddr = nil
 
 	for k := range l.data {
 		delete(l.data, k)
 	}
+
+	l.ctx = nil
 }
 
 func (l *LayerContext) Deadline() (time.Time, bool) {
@@ -60,53 +60,52 @@ func (l *LayerContext) Value(key interface{}) interface{} {
 	return l.ctx.Value(key)
 }
 
-func (l *LayerContext) SetData(key string, value interface{}) {
+func (l *LayerContext) Set(key string, value interface{}) {
 	l.data[key] = value
 }
 
-func (l *LayerContext) GetData(key string) (interface{}, bool) {
+func (l *LayerContext) Get(key string) (interface{}, bool) {
 	value, ok := l.data[key]
 
 	return value, ok
 }
 
-func (l *LayerContext) DeleteData(key string) {
+func (l *LayerContext) Delete(key string) {
 	delete(l.data, key)
 }
 
-func (l *LayerContext) SyncResponse() {
-	code := l.Response.StatusCode()
-
-	l.syncHeaders(&l.Response.Header, l.ResponseHeaders)
-	l.Response.SetStatusCode(code)
-}
-
-func (l *LayerContext) SyncRequest() {
-	l.syncHeaders(&l.Request.Header, l.RequestHeaders)
-}
-
-func (l *LayerContext) ConsumeRequest(req *fasthttp.Request) {
-	l.Request = req
-
+func (l *LayerContext) ConsumeRequest(request *fasthttp.Request) {
 	l.RequestHeaders.Reset()
-	req.Header.VisitAllInOrder(l.RequestHeaders.SetBytes)
+	request.Header.VisitAllInOrder(func(key, value []byte) {
+		l.RequestHeaders.Add(string(key), string(value))
+	})
 }
 
-func (l *LayerContext) ConsumeResponse(resp *fasthttp.Response) {
-	l.Response = resp
-
+func (l *LayerContext) ConsumeResponse(response *fasthttp.Response) {
 	l.ResponseHeaders.Reset()
-	resp.Header.VisitAll(l.ResponseHeaders.SetBytes)
+	response.Header.VisitAll(func(key, value []byte) {
+		l.ResponseHeaders.Add(string(key), string(value))
+	})
 }
 
-func (l *LayerContext) syncHeaders(fh fasthttpHeader, set *headers.Set) {
-	contentLength := fh.ContentLength()
+func (l *LayerContext) SyncToRequest() {
+	syncHeaders(&l.Request.Header, l.RequestHeaders)
+}
 
+func (l *LayerContext) SyncToResponse() {
+	statusCode := l.Response.StatusCode()
+
+	syncHeaders(&l.Response.Header, l.ResponseHeaders)
+	l.Response.SetStatusCode(statusCode)
+}
+
+func syncHeaders(fh fasthttpHeader, set *headers.Set) {
+	contentLength := fh.ContentLength()
 	fh.Reset()
 	fh.DisableNormalizing()
 
-	for _, v := range set.Items() {
-		fh.SetBytesKV([]byte(v.Name), []byte(v.Value))
+	for _, v := range set.All() {
+		fh.Add(v.Name, v.Value)
 	}
 
 	fh.SetContentLength(contentLength)

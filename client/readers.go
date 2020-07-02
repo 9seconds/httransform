@@ -44,7 +44,7 @@ type baseReader struct {
 
 func (b *baseReader) Read(p []byte) (int, error) {
 	if b.bytesLeft <= 0 {
-		return 0, errCountReaderExhaust
+		return 0, io.EOF
 	}
 
 	if int64(len(p)) > b.bytesLeft {

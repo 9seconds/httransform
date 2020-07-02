@@ -11,32 +11,33 @@ import (
 var (
 	poolLayerContext = sync.Pool{
 		New: func() interface{} {
-			return &LayerContext{
-				data: map[string]interface{}{},
-			}
+			return &LayerContext{}
 		},
 	}
 )
 
 func AcquireLayerContext(ctx *fasthttp.RequestCtx) *LayerContext {
-	lc := poolLayerContext.Get().(*LayerContext)
+	layerContext := poolLayerContext.Get().(*LayerContext)
 
-	lc.Tunneled = ctx.IsConnect()
-	lc.RequestHeaders = headers.AcquireSet()
-	lc.ResponseHeaders = headers.AcquireSet()
-	lc.ctx = ctx
-	lc.RequestID = ctx.ID()
-	lc.Request = &ctx.Request
-	lc.Response = &ctx.Response
-	lc.LocalAddr = ctx.LocalAddr()
-	lc.RemoteAddr = ctx.RemoteAddr()
+	layerContext.RequestID = ctx.ID()
 
-	return lc
+	layerContext.RequestHeaders = headers.AcquireSet()
+	layerContext.ResponseHeaders = headers.AcquireSet()
+	layerContext.ConsumeRequest(&ctx.Request)
+
+	layerContext.Request = &ctx.Request
+	layerContext.Response = &ctx.Response
+
+	layerContext.LocalAddr = ctx.Conn().LocalAddr()
+	layerContext.RemoteAddr = ctx.Conn().RemoteAddr()
+
+	layerContext.data = map[string]interface{}{}
+	layerContext.ctx = ctx
+
+	return layerContext
 }
 
-func ReleaseLayerContext(lc *LayerContext) {
-	if lc != nil {
-		lc.Reset()
-		poolLayerContext.Put(lc)
-	}
+func ReleaseLayerContext(layerContext *LayerContext) {
+	layerContext.Reset()
+	poolLayerContext.Put(layerContext)
 }

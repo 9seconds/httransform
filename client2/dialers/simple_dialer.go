@@ -6,7 +6,6 @@ import (
 	"time"
 
 	reuseport "github.com/libp2p/go-reuseport"
-	"github.com/rs/dnscache"
 )
 
 const SimpleDialerTimeout = 30 * time.Second
@@ -38,11 +37,8 @@ func NewSimpleDialer(ctx context.Context, timeout time.Duration) Dialer {
 			},
 			ctx:    ctx,
 			cancel: cancel,
-			dns:    dnscache.Resolver{},
 		},
 	}
-
-	go rv.run()
 
 	return rv
 }

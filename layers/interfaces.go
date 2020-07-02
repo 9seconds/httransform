@@ -8,7 +8,7 @@ type Layer interface {
 type fasthttpHeader interface {
 	Reset()
 	DisableNormalizing()
-	SetBytesKV([]byte, []byte)
+	Add(string, string)
 	ContentLength() int
 	SetContentLength(int)
 }

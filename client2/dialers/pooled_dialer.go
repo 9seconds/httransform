@@ -6,7 +6,6 @@ import (
 	"time"
 
 	reuseport "github.com/libp2p/go-reuseport"
-	"github.com/rs/dnscache"
 )
 
 const (
@@ -54,8 +53,6 @@ func (p *pooledDialer) Dial(ctx context.Context, addr string) (Conn, error) {
 }
 
 func (p *pooledDialer) run(gcEvery, staleAfter time.Duration) {
-	go p.baseDialer.run()
-
 	ticker := time.NewTicker(gcEvery)
 	defer ticker.Stop()
 
@@ -100,7 +97,6 @@ func NewPooledDialer(ctx context.Context, timeout time.Duration) Dialer {
 			},
 			ctx:    ctx,
 			cancel: cancel,
-			dns:    dnscache.Resolver{},
 		},
 		pools:               make(map[string]*connectionPool),
 		channelDialRequests: make(chan pooledDialerDialRequest),

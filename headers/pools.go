@@ -1,6 +1,9 @@
 package headers
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 var (
 	poolHeader = sync.Pool{
@@ -10,33 +13,30 @@ var (
 	}
 	poolSet = sync.Pool{
 		New: func() interface{} {
-			return &Set{
-				index:          map[string]int{},
-				data:           []*Header{},
-				removedHeaders: map[string]struct{}{},
-			}
+			return &Set{}
 		},
 	}
 )
 
-func AcquireHeader() *Header {
-	return poolHeader.Get().(*Header)
-}
+func AcquireHeader(name, value string) *Header {
+	header := poolHeader.Get().(*Header)
+	header.id = strings.ToLower(name)
+	header.Name = name
+	header.Value = value
 
-func ReleaseHeader(header *Header) {
-	if header != nil {
-		header.Reset()
-		poolHeader.Put(header)
-	}
+	return header
 }
 
 func AcquireSet() *Set {
 	return poolSet.Get().(*Set)
 }
 
-func ReleaseSet(set *Set) {
-	if set != nil {
-		set.Reset()
-		poolSet.Put(set)
-	}
+func ReleaseHeader(header *Header) {
+	header.Reset()
+	poolHeader.Put(header)
+}
+
+func ReleaseSet(s *Set) {
+	s.Reset()
+	poolSet.Put(s)
 }

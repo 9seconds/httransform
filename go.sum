@@ -1,9 +1,13 @@
 github.com/9seconds/httransform v1.0.0 h1:eAbWX7EdnnaatJTs6gibGgC9AQRVZzjHBbVX+7lG94M=
 github.com/9seconds/httransform v1.0.0/go.mod h1:vGoDN53wNN6tRZ/DF5tZKawXHIE/2VmGDAk6jvizr3A=
+github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80 h1:MYtRksFczbePu+wjV05CPXfAThmxUQrNsgGU9YenlEg=
+github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80/go.mod h1:4DJwTEmxq0ys4ACxg+tLgOVbHhCgmNvlUOGGy13inVg=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e h1:1r7pUrabqp18hOBcwBwiTsbnFeTZHV9eER/QT5JVZxY=
+github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e/go.mod h1:cIg4eruTrX1D+g88fzRXU5OdNfaM+9IcxsU14FzY7Hc=
 github.com/hashicorp/golang-lru v0.5.3 h1:YPkqC67at8FYaadspW/6uE0COsBxS2656RLEr8Bppgk=
 github.com/hashicorp/golang-lru v0.5.3/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uGBxy+E8yxSoD4=
 github.com/klauspost/compress v1.8.2 h1:Bx0qjetmNjdFXASH02NSAREKpiaDwkO1DRZ3dV2KCcs=
@@ -46,3 +50,5 @@ golang.org/x/sys v0.0.0-20190228124157-a34e9553db1e/go.mod h1:STP8DvDyc/dI5b8T5h
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+zvelo.io/ttlru v1.0.9 h1:M/xLk0CjtxR27r0VEVNKkyLnLx446j3sacaVSHDYTDw=
+zvelo.io/ttlru v1.0.9/go.mod h1:wrcCylCKdCPx7HlN70P872PBl7JRFeiQfDzsx7t9Sps=

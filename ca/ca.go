@@ -5,22 +5,25 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"hash/fnv"
+	"io"
 	"runtime"
 	"sync"
+	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/PumpkinSeed/errors"
+	"zvelo.io/ttlru"
 )
 
-// CA is a datastructure which presents TLS CA (certificate authority).
-// The main purpose of this type is to generate TLS certificates
-// on-the-fly, using given CA certificate and private key.
-//
-// CA generates certificates concurrently but in thread-safe way. The
-// number of concurrently generated certificates is equal to the number
-// of CPUs.
+const (
+caDefaultMaxSize = 1024
+caCertificateTTL = 24 * time.Hour
+)
+
+var ErrCAInvalidCertificates = errors.New("invalid ca certificate")
+
 type CA struct {
-	cache   *lru.Cache
 	cancel  context.CancelFunc
+	cache   ttlru.Cache
 	workers []worker
 	wg      sync.WaitGroup
 }
@@ -31,51 +34,37 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 	}
 
 	hashFunc := fnv.New32a()
-	hashFunc.Write([]byte(host)) // nolint: errcheck
+	io.WriteString(hashFunc, host)
 
 	num := int(hashFunc.Sum32() % uint32(len(c.workers)))
 
 	return c.workers[num].get(host)
 }
 
-// Close stops CA instance. This includes all signing workers and LRU
-// cache.
 func (c *CA) Close() {
 	c.cancel()
 	c.wg.Wait()
-	c.cache.Purge()
 }
 
-func NewCA(ctx context.Context,
-	certCA, certKey []byte,
-	metrics CertificateMetricsInterface,
-	maxSize int,
-	orgNames []string) (*CA, error) {
+func NewCA(ctx context.Context, certCA, certKey []byte, maxSize int, orgName string) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, certKey)
 	if err != nil {
-		return nil, ErrCAInvalidCertificates.Wrap("cannot load", err)
+		return nil, errors.Wrap(err, ErrCAInvalidCertificates)
 	}
 
 	if ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0]); err != nil {
-		return nil, ErrCAInvalidCertificates.Wrap("cannot parse", err)
+		return nil, errors.Wrap(err, ErrCAInvalidCertificates)
 	}
 
 	if maxSize <= 0 {
-		maxSize = DefaultMaxSize
-	}
-
-	cache, err := lru.NewWithEvict(maxSize, func(_, _ interface{}) {
-		metrics.DropCertificate()
-	})
-	if err != nil {
-		return nil, ErrCA.Wrap("cannot make a new cache", err)
+		maxSize = caDefaultMaxSize
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	obj := &CA{
-		cache:   cache,
-		workers: make([]worker, runtime.NumCPU()),
 		cancel:  cancel,
+		cache:   ttlru.New(maxSize, ttlru.WithTTL(caCertificateTTL)),
+		workers: make([]worker, runtime.NumCPU()),
 	}
 
 	obj.wg.Add(len(obj.workers))
@@ -83,11 +72,9 @@ func NewCA(ctx context.Context,
 	for i := range obj.workers {
 		obj.workers[i] = worker{
 			ca:              ca,
-			cache:           cache,
-			orgNames:        orgNames,
-			secret:          certKey,
+			cache:           obj.cache,
+			orgName:         orgName,
 			ctx:             ctx,
-			metrics:         metrics,
 			channelRequests: make(chan workerRequest),
 		}
 		go obj.workers[i].run(&obj.wg)

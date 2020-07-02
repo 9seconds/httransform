@@ -1,9 +1,7 @@
 package ca
 
 import (
-	"context"
-	"crypto/hmac"
-	"crypto/md5" // nolint: gosec
+	"context" // nolint: gosec
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -12,22 +10,32 @@ import (
 	"math/big"
 	"net"
 	"sync"
+	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/PumpkinSeed/errors"
+	"zvelo.io/ttlru"
 )
 
-type workerRequest struct {
-	host     string
-	response chan<- *tls.Config
-}
+const (
+	workerCertificateTTL = caCertificateTTL * 30
+	workerRSAKeyLength   = 2048
+)
+
+var (
+	ErrContextClosed = errors.New("context is closed")
+
+	workerBigBangMoment    = time.Unix(0, 0)
+	workerDefaultTLSConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+)
 
 type worker struct {
-	ca       tls.Certificate
-	cache    *lru.Cache
-	orgNames []string
-	secret   []byte
-	ctx      context.Context
-	metrics  CertificateMetricsInterface
+	orgName string
+	ca      tls.Certificate
+	cache   ttlru.Cache
+	secret  []byte
+	ctx     context.Context
 
 	channelRequests chan workerRequest
 }
@@ -42,8 +50,8 @@ func (w *worker) run(wg *sync.WaitGroup) {
 		case req := <-w.channelRequests:
 			item, ok := w.cache.Get(req.host)
 			if !ok {
-				item = w.makeConfig(req.host)
-				w.cache.Add(req.host, item)
+				item = w.createConfig(req.host)
+				w.cache.Set(req.host, item)
 			}
 
 			req.response <- item.(*tls.Config)
@@ -63,17 +71,17 @@ func (w *worker) get(host string) (*tls.Config, error) {
 	case w.channelRequests <- req:
 		return <-response, nil
 	case <-w.ctx.Done():
-		return nil, ErrCAContextClosed
+		return nil, ErrContextClosed
 	}
 }
 
-func (w *worker) makeConfig(host string) *tls.Config {
+func (w *worker) createConfig(host string) *tls.Config {
 	template := x509.Certificate{
 		SerialNumber:          &big.Int{},
 		Issuer:                w.ca.Leaf.Subject,
-		Subject:               pkix.Name{Organization: w.orgNames},
-		NotBefore:             bigBangTime,
-		NotAfter:              timeNotAfter(),
+		Subject:               pkix.Name{Organization: []string{w.orgName}},
+		NotBefore:             workerBigBangMoment,
+		NotAfter:              time.Now().Add(workerCertificateTTL),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -86,12 +94,11 @@ func (w *worker) makeConfig(host string) *tls.Config {
 		template.Subject.CommonName = host
 	}
 
-	hash := hmac.New(md5.New, w.secret)
-	hash.Write([]byte(host)) // nolint: errcheck
+	randomness := make([]byte, 0, 16)
+	rand.Read(randomness)
+	template.SerialNumber.SetBytes(randomness)
 
-	template.SerialNumber.SetBytes(hash.Sum(nil))
-
-	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)
+	certPriv, err := rsa.GenerateKey(rand.Reader, workerRSAKeyLength)
 	if err != nil {
 		panic(err)
 	}
@@ -106,10 +113,8 @@ func (w *worker) makeConfig(host string) *tls.Config {
 		Certificate: [][]byte{derBytes, w.ca.Certificate[0]},
 		PrivateKey:  certPriv,
 	}
-	config := DefaultTLSConfig.Clone()
+	config := workerDefaultTLSConfig.Clone()
 	config.Certificates = append(config.Certificates, certificate)
-
-	w.metrics.NewCertificate()
 
 	return config
 }

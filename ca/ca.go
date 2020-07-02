@@ -15,8 +15,8 @@ import (
 )
 
 const (
-caDefaultMaxSize = 1024
-caCertificateTTL = 24 * time.Hour
+	caDefaultMaxSize = 1024
+	caCertificateTTL = 24 * time.Hour
 )
 
 var ErrCAInvalidCertificates = errors.New("invalid ca certificate")

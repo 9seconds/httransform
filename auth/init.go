@@ -6,8 +6,11 @@ import (
 	"github.com/9seconds/httransform/v2/layers"
 )
 
-var ErrAuth = errors.New("cannot authenticate")
+var (
+	ErrAuth   = errors.New("cannot authenticate")
+	ErrNoAuth = errors.New("no authentiation is set")
+)
 
 type Auth interface {
-	Auth(*layers.LayerContext) (bool, interface{}, error)
+	Auth(*layers.LayerContext) (interface{}, error)
 }

@@ -47,22 +47,22 @@ type basicAuth struct {
 	infos []basicAuthUserInfo
 }
 
-func (b *basicAuth) Auth(ctx *layers.LayerContext) (bool, interface{}, error) {
+func (b *basicAuth) Auth(ctx *layers.LayerContext) (interface{}, error) {
 	header := ctx.RequestHeaders.Get("proxy-authorization")
 
 	if header == nil {
-		return false, nil, nil
+		return nil, ErrNoAuth
 	}
 
 	if item, ok := b.cache.Get(header.Value); ok {
 		reply := item.(*basicAuthResult)
-		return true, reply.reply, reply.err
+		return reply.reply, reply.err
 	}
 
 	resp := b.doAuth(header.Value)
 	b.cache.Set(header.Value, &resp)
 
-	return true, resp.reply, resp.err
+	return resp.reply, resp.err
 }
 
 func (b *basicAuth) doAuth(text string) basicAuthResult {

@@ -33,7 +33,19 @@ func (s *Set) Delete(name string) {
 	s.headers = newHeaders
 }
 
-func (s *Set) Get(name string) []*Header {
+func (s *Set) Get(name string) *Header {
+	headerID := strings.ToLower(name)
+
+	for i := len(s.headers) - 1; i >= 0; i-- {
+		if s.headers[i].id == headerID {
+			return s.headers[i]
+		}
+	}
+
+	return nil
+}
+
+func (s *Set) GetAll(name string) []*Header {
 	headerID := strings.ToLower(name)
 	headers := make([]*Header, 0, len(s.headers))
 

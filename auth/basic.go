@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/9seconds/httransform/v2/layers"
 	"github.com/PumpkinSeed/errors"
 	"zvelo.io/ttlru"
 )
@@ -46,16 +47,22 @@ type basicAuth struct {
 	infos []basicAuthUserInfo
 }
 
-func (b *basicAuth) Auth(text string) (interface{}, error) {
-	if item, ok := b.cache.Get(text); ok {
-		reply := item.(*basicAuthResult)
-		return reply.reply, reply.err
+func (b *basicAuth) Auth(ctx *layers.LayerContext) (bool, interface{}, error) {
+	header := ctx.RequestHeaders.Get("proxy-authorization")
+
+	if header == nil {
+		return false, nil, nil
 	}
 
-	resp := b.doAuth(text)
-	b.cache.Set(text, &resp)
+	if item, ok := b.cache.Get(header.Value); ok {
+		reply := item.(*basicAuthResult)
+		return true, reply.reply, reply.err
+	}
 
-	return resp.reply, resp.err
+	resp := b.doAuth(header.Value)
+	b.cache.Set(header.Value, &resp)
+
+	return true, resp.reply, resp.err
 }
 
 func (b *basicAuth) doAuth(text string) basicAuthResult {

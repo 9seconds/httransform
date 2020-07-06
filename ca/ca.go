@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	caDefaultMaxSize = 1024
-	caCertificateTTL = 24 * time.Hour
+	DefaultMaxSize = 1024
+	CertificateTTL = 24 * time.Hour
 )
 
 var ErrCAInvalidCertificates = errors.New("invalid ca certificate")
@@ -57,13 +57,13 @@ func NewCA(ctx context.Context, certCA, certKey []byte, maxSize int, orgName str
 	}
 
 	if maxSize <= 0 {
-		maxSize = caDefaultMaxSize
+		maxSize = DefaultMaxSize
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	obj := &CA{
 		cancel:  cancel,
-		cache:   ttlru.New(maxSize, ttlru.WithTTL(caCertificateTTL)),
+		cache:   ttlru.New(maxSize, ttlru.WithTTL(CertificateTTL)),
 		workers: make([]worker, runtime.NumCPU()),
 	}
 

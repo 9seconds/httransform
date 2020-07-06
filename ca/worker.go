@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	workerCertificateTTL = caCertificateTTL * 30
-	workerRSAKeyLength   = 2048
+	WorkerCertificateTTL = CertificateTTL * 30
+	RSAKeyLength         = 2048
 )
 
 var (
@@ -81,7 +81,7 @@ func (w *worker) createConfig(host string) *tls.Config {
 		Issuer:                w.ca.Leaf.Subject,
 		Subject:               pkix.Name{Organization: []string{w.orgName}},
 		NotBefore:             workerBigBangMoment,
-		NotAfter:              time.Now().Add(workerCertificateTTL),
+		NotAfter:              time.Now().Add(WorkerCertificateTTL),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -98,7 +98,7 @@ func (w *worker) createConfig(host string) *tls.Config {
 	rand.Read(randomness)
 	template.SerialNumber.SetBytes(randomness)
 
-	certPriv, err := rsa.GenerateKey(rand.Reader, workerRSAKeyLength)
+	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)
 	if err != nil {
 		panic(err)
 	}

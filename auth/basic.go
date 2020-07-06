@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	basicAuthCacheFor            = time.Hour
-	basicAuthCacheSizeMultiplier = 2
+	AuthCacheFor            = time.Hour
+	AuthCacheSizeMultiplier = 2
 )
 
 var (
@@ -124,8 +124,8 @@ func NewBasicAuth(userPasswords map[string]string) Auth {
 	}
 
 	return &basicAuth{
-		cache: ttlru.New(basicAuthCacheSizeMultiplier*len(userPasswords),
-			ttlru.WithTTL(basicAuthCacheFor)),
+		cache: ttlru.New(AuthCacheSizeMultiplier*len(userPasswords),
+			ttlru.WithTTL(AuthCacheFor)),
 		infos: userInfos,
 	}
 }

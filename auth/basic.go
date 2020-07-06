@@ -5,24 +5,11 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"strings"
-	"time"
 
-	"github.com/9seconds/httransform/v2/layers"
 	"github.com/PumpkinSeed/errors"
 	"zvelo.io/ttlru"
-)
 
-const (
-	AuthCacheFor            = time.Hour
-	AuthCacheSizeMultiplier = 2
-)
-
-var (
-	ErrBasicAuthMalformed = errors.Wrap(errors.New("malformed header"), ErrAuth)
-	ErrBasicAuthScheme    = errors.Wrap(errors.New("incorrect scheme"), ErrAuth)
-	ErrBasicAuthPayload   = errors.Wrap(errors.New("incorrect payload"), ErrAuth)
-	ErrBasicAuthDelimiter = errors.Wrap(errors.New("incorrect delimiter"), ErrAuth)
-	ErrBasicAuthNoUser    = errors.Wrap(errors.New("no such user"), ErrAuth)
+	"github.com/9seconds/httransform/v2/layers"
 )
 
 type basicAuthResult struct {

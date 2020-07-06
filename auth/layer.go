@@ -9,8 +9,6 @@ import (
 	"github.com/9seconds/httransform/v2/layers"
 )
 
-var ErrLayerCannotAuth = errors.New("cannot authenticate")
-
 type Layer struct {
 	Authenticator Auth
 	Require       bool

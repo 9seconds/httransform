@@ -99,6 +99,13 @@ func (l *LayerContext) SyncToResponse() {
 	l.Response.SetStatusCode(statusCode)
 }
 
+func (l *LayerContext) SetSimpleResponse(statusCode int, message string) {
+	l.Response.Reset()
+	l.Response.SetBodyString(message)
+	l.Response.SetStatusCode(statusCode)
+	l.Response.Header.SetContentType("text/plain")
+}
+
 func syncHeaders(fh fasthttpHeader, set *headers.Set) {
 	contentLength := fh.ContentLength()
 	fh.Reset()

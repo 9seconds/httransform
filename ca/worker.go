@@ -12,18 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/PumpkinSeed/errors"
 	"zvelo.io/ttlru"
 )
 
-const (
-	WorkerCertificateTTL = CertificateTTL * 30
-	RSAKeyLength         = 2048
-)
-
 var (
-	ErrContextClosed = errors.New("context is closed")
-
 	workerBigBangMoment    = time.Unix(0, 0)
 	workerDefaultTLSConfig = &tls.Config{
 		InsecureSkipVerify: true,

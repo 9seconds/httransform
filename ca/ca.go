@@ -8,18 +8,10 @@ import (
 	"io"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/PumpkinSeed/errors"
 	"zvelo.io/ttlru"
 )
-
-const (
-	DefaultMaxSize = 1024
-	CertificateTTL = 24 * time.Hour
-)
-
-var ErrCAInvalidCertificates = errors.New("invalid ca certificate")
 
 type CA struct {
 	cancel  context.CancelFunc

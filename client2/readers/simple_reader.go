@@ -19,3 +19,14 @@ func (s *simpleReader) Read(b []byte) (int, error) {
 
 	return n, err
 }
+
+func NewSimpleDialer(conn dialers.Conn, forceClose bool, length int64) Reader {
+	return &simpleReader{
+		baseReader: baseReader{
+			conn: conn,
+			reader: bufio.NewReader(conn),
+			forceClose: forceClose,
+			bytesLeft: length
+		},
+	}
+}

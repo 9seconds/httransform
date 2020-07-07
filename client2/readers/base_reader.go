@@ -2,17 +2,19 @@ package readers
 
 import (
 	"bufio"
+	"io"
 	"sync"
 
 	"github.com/9seconds/httransform/v2/client2/dialers"
 )
 
 type baseReader struct {
-	reader    *bufio.Reader
-	conn      dialers.Conn
-	closeOnce sync.Once
-	closed    bool
-	bytesLeft int64
+	reader     *bufio.Reader
+	conn       dialers.Conn
+	closeOnce  sync.Once
+	forceClose bool
+	closed     bool
+	bytesLeft  int64
 }
 
 func (b *baseReader) Read(p []byte) (int, error) {
@@ -40,8 +42,12 @@ func (b *baseReader) Close() error {
 }
 
 func (b *baseReader) Release() {
-	b.closeOnce.Do(func() {
-		b.closed = true
-		b.conn.Release()
-	})
+	if b.forceClose {
+		b.Close()
+	} else {
+		b.closeOnce.Do(func() {
+			b.closed = true
+			b.conn.Release()
+		})
+	}
 }

@@ -3,48 +3,38 @@ package client
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
-	"io"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/PumpkinSeed/errors"
 	"github.com/valyala/fasthttp"
-	"golang.org/x/xerrors"
+
+	"github.com/9seconds/httransform/v2/client/dialers"
+	"github.com/9seconds/httransform/v2/client/readers"
 )
 
-const (
-	// DefaultHTTPTimeout is a default timeout for processing of a single
-	// HTTP request.
-	DefaultHTTPTimeout = 3 * time.Minute
-
-	// DefaultHTTPPort is a default port for HTTP.
-	DefaultHTTPPort = "80"
-
-	// DefaultHTTPSPort is a default port for HTTPS.
-	DefaultHTTPSPort = "443"
-)
-
-// Client is the implementation of HTTP1 client which sets body as a
-// stream.
 type Client struct {
-	dialer           Dialer
-	tlsConfigMap     map[string]*tls.Config
-	tlsConfigMapLock sync.Mutex
+	dialer          dialers.Dialer
+	tlsConfigs      map[string]*tls.Config
+	tlsConfigsMutex sync.Mutex
 }
 
-// DoTimeout does HTTP request with the given timeout.
-func (c *Client) DoTimeout(req *fasthttp.Request, resp *fasthttp.Response, timeout time.Duration) error {
-	return c.do(req, resp, timeout, timeout)
+func (c *Client) DoTimeout(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response, timeout time.Duration) error {
+	if timeout == 0 {
+		timeout = DefaultHTTPTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	return c.Do(ctx, request, response)
 }
 
-// Do does HTTP request with the default timeout.
-func (c *Client) Do(req *fasthttp.Request, resp *fasthttp.Response) error {
-	return c.do(req, resp, DefaultHTTPTimeout, DefaultHTTPTimeout)
-}
-
-func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout, writeTimeout time.Duration) error { // nolint: funlen
+func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response) error {
 	// Saving and restoring of RequestURI is yet another way how to bypass
 	// fasthttp which SUDDENLY thinks that it is quite smart to parse host
 	// and mangle requestURI content here.
@@ -53,8 +43,8 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 	// fasthttp will parse it in background.
 	//
 	// Godlike design.
-	originalURI := req.Header.RequestURI()
-	uri := req.URI()
+	originalURI := request.Header.RequestURI()
+	uri := request.URI()
 	addr := string(uri.Host())
 	isHTTP := bytes.EqualFold(uri.Scheme(), []byte("http"))
 
@@ -66,125 +56,95 @@ func (c *Client) do(req *fasthttp.Request, resp *fasthttp.Response, readTimeout,
 		}
 	}
 
-	req.SetRequestURIBytes(originalURI)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	conn, err := c.dialer.Dial(addr)
+	request.SetRequestURIBytes(originalURI)
+
+	conn, err := c.dialer.Dial(ctx, addr)
 	if err != nil {
-		return xerrors.Errorf("cannot dial to addr: %w", err)
+		return errors.Wrap(err, ErrClient)
 	}
 
-	if !isHTTP {
-		conn = tls.Client(conn, c.cachedTLSConfig(addr))
+	if isHTTP {
+		conn = dialers.NewTLSConn(conn, c.getTLSConfig(addr))
 	}
 
-	if err = conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+	go func() {
+		<-ctx.Done()
 		conn.Close()
-		c.dialer.NotifyClosed(addr)
+	}()
 
-		return xerrors.Errorf("cannot set write deadline: %w", err)
+	if _, err := request.WriteTo(conn); err != nil {
+		return errors.Wrap(err, ErrClient)
 	}
 
-	if _, err = req.WriteTo(conn); err != nil {
-		conn.Close()
-		c.dialer.NotifyClosed(addr)
+	response.Reset()
+	response.Header.DisableNormalizing()
 
-		return xerrors.Errorf("cannot send a request: %w", err)
+	connReader := bufio.NewReader(conn)
+	if err := response.Header.Read(connReader); err != nil {
+		return errors.Wrap(err, ErrClient)
 	}
 
-	resp.Reset()
-	resp.Header.DisableNormalizing()
-
-	if err = conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-		conn.Close()
-		c.dialer.NotifyClosed(addr)
-
-		return xerrors.Errorf("cannot set read deadline: %w", err)
-	}
-
-	connReader := poolBufferedReader.Get().(*bufio.Reader)
-	connReader.Reset(conn)
-
-	if err = resp.Header.Read(connReader); err != nil {
-		return xerrors.Errorf("cannot read response header: %w", err)
-	}
-
-	if req.Header.IsHead() {
-		c.dialer.Release(conn, addr)
+	if request.Header.IsHead() {
+		conn.Release()
 		return nil
 	}
 
-	var reader io.ReadCloser
-
-	contentLength := resp.Header.ContentLength()
-
+	contentLength := response.Header.ContentLength()
 	if contentLength >= 0 {
-		reader = newSimpleReader(addr,
-			conn,
+		reader := readers.NewSimpleReader(conn,
 			connReader,
-			c.dialer,
-			resp.Header.ConnectionClose(),
+			response.Header.ConnectionClose(),
 			int64(contentLength))
-		resp.SetBodyStream(reader, contentLength)
-	} else {
-		reader = newChunkedReader(addr,
-			conn,
-			connReader,
-			c.dialer,
-			resp.Header.ConnectionClose())
-		resp.SetBodyStream(reader, -1)
+		response.SetBodyStream(reader, contentLength)
+		return nil
 	}
+
+	reader := readers.NewChunkedReader(conn,
+		connReader,
+		response.Header.ConnectionClose())
+	response.SetBodyStream(reader, -1)
 
 	return nil
 }
 
-func (c *Client) cachedTLSConfig(addr string) *tls.Config {
-	c.tlsConfigMapLock.Lock()
-
-	cfg := c.tlsConfigMap[addr]
-	if cfg == nil {
-		cfg = newClientTLSConfig(addr)
-		c.tlsConfigMap[addr] = cfg
-	}
-	c.tlsConfigMapLock.Unlock()
-
-	return cfg
-}
-
-func newClientTLSConfig(addr string) *tls.Config {
-	c := &tls.Config{}
-	if c.ClientSessionCache == nil {
-		c.ClientSessionCache = tls.NewLRUClientSessionCache(0)
+func (c *Client) getTLSConfig(addr string) *tls.Config {
+	if conf, ok := c.tlsConfigs[addr]; ok {
+		return conf
 	}
 
-	if len(c.ServerName) == 0 {
-		serverName := tlsServerName(addr)
-		if serverName == "*" {
-			c.InsecureSkipVerify = true
+	c.tlsConfigsMutex.Lock()
+	defer c.tlsConfigsMutex.Unlock()
+
+	if conf, ok := c.tlsConfigs[addr]; ok {
+		return conf
+	}
+
+	serverName := addr
+
+	if strings.Contains(addr, ":") {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			serverName = "*"
 		} else {
-			c.ServerName = serverName
+			serverName = host
 		}
 	}
 
-	return c
+	conf := &tls.Config{
+		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+		ServerName:         serverName,
+	}
+	c.tlsConfigs[addr] = conf
+
+	return conf
 }
 
-func tlsServerName(addr string) string {
-	if !strings.Contains(addr, ":") {
-		return addr
-	}
-
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "*"
-	}
-
-	return host
-}
-
-// NewClient creates a new instance of HTTP1 client.
-func NewClient(dialer Dialer) *Client {
+func NewClient(dialer dialers.Dialer) *Client {
 	return &Client{
-		dialer:       dialer,
-		tlsConfigMap: make(map[string]*tls.Config),
+		dialer:     dialer,
+		tlsConfigs: map[string]*tls.Config{},
 	}
 }

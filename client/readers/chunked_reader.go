@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/9seconds/httransform/v2/client3/dialers"
 	"github.com/PumpkinSeed/errors"
+
+	"github.com/9seconds/httransform/v2/client/dialers"
 )
 
 var chunkedReaderHex2IntTable = func() [256]byte {

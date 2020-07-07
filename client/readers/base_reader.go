@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/9seconds/httransform/v2/client3/dialers"
+	"github.com/9seconds/httransform/v2/client/dialers"
 )
 
 type baseReader struct {

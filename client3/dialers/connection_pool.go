@@ -6,27 +6,22 @@ import (
 	"time"
 )
 
-const (
-	connectionPoolGCEvery    = time.Second
-	connectionPoolStaleAfter = 30 * time.Second
-)
-
 type connectionPool struct {
 	list                 connectionList
 	dialer               Dialer
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	lastRequestAt        time.Time
-	channelRequests      chan pooledDialerDialRequest
-	channelReturn        chan *pooledConn
+	channelGetRequests   chan pooledDialerGetRequest
+	channelConnReturns   chan *pooledConn
 	channelLastRequestAt chan chan<- time.Time
 }
 
-func (c *connectionPool) process(req pooledDialerDialRequest) {
+func (c *connectionPool) process(req pooledDialerGetRequest) {
 	select {
 	case <-c.ctx.Done():
-		req.response <- pooledDialerResponse{err: ErrPooledDialerCanceled}
-	case c.channelRequests <- req:
+		req.response <- pooledDialerGetResponse{err: ErrContextClosed}
+	case c.channelGetRequests <- req:
 	}
 }
 
@@ -34,7 +29,7 @@ func (c *connectionPool) release(conn *pooledConn) bool {
 	select {
 	case <-c.ctx.Done():
 		return false
-	case c.channelReturn <- conn:
+	case c.channelConnReturns <- conn:
 		return true
 	}
 }
@@ -61,28 +56,25 @@ func (c *connectionPool) run(gcEvery, staleAfter time.Duration) {
 				v.Close()
 			}
 
-			c.list.conns = []*pooledConn{}
+			c.list = connectionList{}
 
 			return
-		case conn := <-c.channelReturn:
+		case conn := <-c.channelConnReturns:
 			conn.once = sync.Once{}
 			conn.timestamp = time.Now()
 			c.list.put(conn)
-		case req := <-c.channelRequests:
+		case req := <-c.channelGetRequests:
 			c.lastRequestAt = time.Now()
-
 			if conn := c.list.get(); conn != nil {
-				req.response <- pooledDialerResponse{conn: conn}
-				close(req.response)
-
-				continue
+				req.response <- pooledDialerGetResponse{conn: conn}
+			} else {
+				conn, err := c.dialer.Dial(req.ctx, req.addr)
+				req.response <- pooledDialerGetResponse{
+					conn: &pooledConn{Conn: conn, pool: c},
+					err:  err,
+				}
 			}
 
-			conn, err := c.dialer.Dial(req.ctx, req.addr)
-			req.response <- pooledDialerResponse{
-				conn: &pooledConn{Conn: conn, pool: c},
-				err:  err,
-			}
 			close(req.response)
 		case <-ticker.C:
 			if conn := c.list.get(); conn != nil {
@@ -110,12 +102,12 @@ func newConnectionPool(ctx context.Context, dialer Dialer) *connectionPool {
 		dialer:               dialer,
 		ctx:                  ctx,
 		cancel:               cancel,
-		channelRequests:      make(chan pooledDialerDialRequest),
-		channelReturn:        make(chan *pooledConn),
+		channelGetRequests:   make(chan pooledDialerGetRequest),
+		channelConnReturns:   make(chan *pooledConn),
 		channelLastRequestAt: make(chan chan<- time.Time),
 	}
 
-	go rv.run(connectionPoolGCEvery, connectionPoolStaleAfter)
+	go rv.run(ConnectionPoolGCEvery, ConnectionPoolStaleAfter)
 
 	return rv
 }

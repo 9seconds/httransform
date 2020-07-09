@@ -16,10 +16,11 @@ var (
 	}
 )
 
-func AcquireLayerContext(ctx *fasthttp.RequestCtx) *LayerContext {
+func AcquireLayerContext(ctx *fasthttp.RequestCtx, isConnectMethod bool) *LayerContext {
 	layerContext := poolLayerContext.Get().(*LayerContext)
 
 	layerContext.RequestID = ctx.ID()
+	layerContext.IsConnectMethod = isConnectMethod
 
 	layerContext.RequestHeaders = headers.AcquireSet()
 	layerContext.ResponseHeaders = headers.AcquireSet()

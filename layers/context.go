@@ -11,7 +11,8 @@ import (
 )
 
 type LayerContext struct {
-	RequestID uint64
+	RequestID       uint64
+	IsConnectMethod bool
 
 	RequestHeaders  *headers.Set
 	ResponseHeaders *headers.Set

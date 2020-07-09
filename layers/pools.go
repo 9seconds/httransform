@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"net"
+	"strconv"
 	"sync"
 
 	"github.com/valyala/fasthttp"
@@ -16,24 +18,12 @@ var (
 	}
 )
 
-func AcquireLayerContext(ctx *fasthttp.RequestCtx, isConnectMethod bool) *LayerContext {
+func AcquireLayerContext() *LayerContext {
 	layerContext := poolLayerContext.Get().(*LayerContext)
-
-	layerContext.RequestID = ctx.ID()
-	layerContext.IsConnectMethod = isConnectMethod
 
 	layerContext.RequestHeaders = headers.AcquireSet()
 	layerContext.ResponseHeaders = headers.AcquireSet()
-	layerContext.ConsumeRequest(&ctx.Request)
-
-	layerContext.Request = &ctx.Request
-	layerContext.Response = &ctx.Response
-
-	layerContext.LocalAddr = ctx.Conn().LocalAddr()
-	layerContext.RemoteAddr = ctx.Conn().RemoteAddr()
-
 	layerContext.data = map[string]interface{}{}
-	layerContext.ctx = ctx
 
 	return layerContext
 }
@@ -41,4 +31,38 @@ func AcquireLayerContext(ctx *fasthttp.RequestCtx, isConnectMethod bool) *LayerC
 func ReleaseLayerContext(layerContext *LayerContext) {
 	layerContext.Reset()
 	poolLayerContext.Put(layerContext)
+}
+
+func InitLayerContext(fasthttpCtx *fasthttp.RequestCtx, layerCtx *LayerContext) error {
+	host, portStr, err := net.SplitHostPort(string(fasthttpCtx.Request.URI().Host()))
+	if err != nil {
+		return err
+	}
+
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return err
+	}
+
+	layerCtx.RequestID = fasthttpCtx.ID()
+	layerCtx.ConnectHost = host
+	layerCtx.ConnectPort = port
+
+	layerCtx.Request = &fasthttpCtx.Request
+
+	layerCtx.RequestHeaders.Reset()
+	layerCtx.Request.Header.VisitAllInOrder(func(key, value []byte) {
+		layerCtx.RequestHeaders.Add(string(key), string(value))
+	})
+
+	layerCtx.Response = &fasthttpCtx.Response
+
+	layerCtx.ResponseHeaders.Reset()
+
+	layerCtx.LocalAddr = fasthttpCtx.Conn().LocalAddr()
+	layerCtx.RemoteAddr = fasthttpCtx.Conn().RemoteAddr()
+
+	layerCtx.ctx = fasthttpCtx
+
+	return nil
 }

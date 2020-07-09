@@ -11,8 +11,10 @@ import (
 )
 
 type LayerContext struct {
-	RequestID       uint64
-	IsConnectMethod bool
+	RequestID uint64
+
+	ConnectHost string
+	ConnectPort int
 
 	RequestHeaders  *headers.Set
 	ResponseHeaders *headers.Set
@@ -31,6 +33,8 @@ func (l *LayerContext) Reset() {
 	headers.ReleaseSet(l.RequestHeaders)
 	headers.ReleaseSet(l.ResponseHeaders)
 
+	l.ConnectHost = ""
+	l.ConnectPort = 0
 	l.RequestHeaders = nil
 	l.ResponseHeaders = nil
 	l.Request = nil

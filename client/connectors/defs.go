@@ -7,11 +7,7 @@ import (
 )
 
 const (
-	DNSRefreshEvery = time.Minute
-
-	SimpleConnectorTimeout = 30 * time.Second
-
-	PooledConnectorTimeout    = 30 * time.Second
+	DNSRefreshEvery           = time.Minute
 	PooledConnectorGCEvery    = time.Second
 	PooledConnectorStaleAfter = time.Minute
 

@@ -2,10 +2,7 @@ package connectors
 
 import (
 	"context"
-	"net"
 	"time"
-
-	"github.com/libp2p/go-reuseport"
 )
 
 type pooledConnectorGetRequest struct {
@@ -75,18 +72,11 @@ func (p *pooledConnector) run(gcEvery, staleAfter time.Duration) {
 	}
 }
 
-func NewPooledConnector(ctx context.Context, timeout time.Duration) Connector {
-	if timeout == 0 {
-		timeout = PooledConnectorTimeout
-	}
-
+func NewPooledConnector(ctx context.Context, dialer Dialer) Connector {
 	ctx, cancel := context.WithCancel(ctx)
 	rv := &pooledConnector{
 		baseConnector: baseConnector{
-			dialer: net.Dialer{
-				Timeout: timeout,
-				Control: reuseport.Control,
-			},
+			dialer: dialer,
 			ctx:    ctx,
 			cancel: cancel,
 		},

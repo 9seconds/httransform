@@ -9,13 +9,13 @@ import (
 )
 
 type baseConnector struct {
-	dialer net.Dialer
+	dialer Dialer
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func (b *baseConnector) connect(ctx context.Context, addr string) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, b.dialer.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, b.dialer.Timeout())
 	defer cancel()
 
 	go func() {
@@ -47,7 +47,7 @@ func (b *baseConnector) connect(ctx context.Context, addr string) (net.Conn, err
 	var conn net.Conn
 
 	for _, ip := range ips {
-		conn, err = b.dialer.DialContext(ctx, "tcp", net.JoinHostPort(ip, port))
+		conn, err = b.dialer.Dial(ctx, "tcp", net.JoinHostPort(ip, port))
 
 		if err == nil {
 			return conn, nil

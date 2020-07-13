@@ -1,12 +1,6 @@
 package connectors
 
-import (
-	"context"
-	"net"
-	"time"
-
-	"github.com/libp2p/go-reuseport"
-)
+import "context"
 
 type simpleConnector struct {
 	baseConnector
@@ -23,19 +17,12 @@ func (s *simpleConnector) Connect(ctx context.Context, addr string) (Conn, error
 	}, nil
 }
 
-func NewSimpleConnector(ctx context.Context, timeout time.Duration) Connector {
-	if timeout == 0 {
-		timeout = SimpleConnectorTimeout
-	}
-
+func NewSimpleConnector(ctx context.Context, dialer Dialer) Connector {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &simpleConnector{
 		baseConnector: baseConnector{
-			dialer: net.Dialer{
-				Timeout: timeout,
-				Control: reuseport.Control,
-			},
+			dialer: dialer,
 			ctx:    ctx,
 			cancel: cancel,
 		},

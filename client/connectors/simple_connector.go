@@ -19,7 +19,7 @@ func (s *simpleConnector) Connect(ctx context.Context, addr string) (Conn, error
 	}
 
 	return &simpleConn{
-		TCPConn: *conn.(*net.TCPConn),
+		Conn: conn,
 	}, nil
 }
 

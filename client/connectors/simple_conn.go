@@ -3,7 +3,7 @@ package connectors
 import "net"
 
 type simpleConn struct {
-	net.TCPConn
+	net.Conn
 }
 
 func (s *simpleConn) Release() {

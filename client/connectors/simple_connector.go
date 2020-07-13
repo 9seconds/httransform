@@ -1,6 +1,10 @@
 package connectors
 
-import "context"
+import (
+	"context"
+
+	"github.com/9seconds/httransform/v2/client/dialers"
+)
 
 type simpleConnector struct {
 	baseConnector
@@ -17,7 +21,7 @@ func (s *simpleConnector) Connect(ctx context.Context, addr string) (Conn, error
 	}, nil
 }
 
-func NewSimpleConnector(ctx context.Context, dialer Dialer) Connector {
+func NewSimpleConnector(ctx context.Context, dialer dialers.Dialer) Connector {
 	ctx, cancel := context.WithCancel(ctx)
 
 	return &simpleConnector{

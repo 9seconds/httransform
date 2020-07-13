@@ -6,16 +6,18 @@ import (
 	"net"
 
 	"github.com/PumpkinSeed/errors"
+
+	"github.com/9seconds/httransform/v2/client/dialers"
 )
 
 type baseConnector struct {
-	dialer Dialer
+	dialer dialers.Dialer
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func (b *baseConnector) connect(ctx context.Context, addr string) (net.Conn, error) {
-	ctx, cancel := context.WithTimeout(ctx, b.dialer.Timeout())
+	ctx, cancel := context.WithTimeout(ctx, b.dialer.GetTimeout())
 	defer cancel()
 
 	go func() {
@@ -47,7 +49,7 @@ func (b *baseConnector) connect(ctx context.Context, addr string) (net.Conn, err
 	var conn net.Conn
 
 	for _, ip := range ips {
-		conn, err = b.dialer.Dial(ctx, "tcp", net.JoinHostPort(ip, port))
+		conn, err = b.dialer.Dial(ctx, net.JoinHostPort(ip, port))
 
 		if err == nil {
 			return conn, nil

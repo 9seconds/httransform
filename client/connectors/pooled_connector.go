@@ -3,6 +3,8 @@ package connectors
 import (
 	"context"
 	"time"
+
+	"github.com/9seconds/httransform/v2/client/dialers"
 )
 
 type pooledConnectorGetRequest struct {
@@ -72,7 +74,7 @@ func (p *pooledConnector) run(gcEvery, staleAfter time.Duration) {
 	}
 }
 
-func NewPooledConnector(ctx context.Context, dialer Dialer) Connector {
+func NewPooledConnector(ctx context.Context, dialer dialers.Dialer) Connector {
 	ctx, cancel := context.WithCancel(ctx)
 	rv := &pooledConnector{
 		baseConnector: baseConnector{

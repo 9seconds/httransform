@@ -5,12 +5,12 @@ import (
 	"io"
 	"sync"
 
-	"github.com/9seconds/httransform/v2/client/dialers"
+	"github.com/9seconds/httransform/v2/client/connectors"
 )
 
 type baseReader struct {
 	reader     *bufio.Reader
-	conn       dialers.Conn
+	conn       connectors.Conn
 	closeOnce  sync.Once
 	forceClose bool
 	closed     bool

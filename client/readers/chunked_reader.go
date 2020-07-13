@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/9seconds/httransform/v2/client/connectors"
 	"github.com/PumpkinSeed/errors"
-
-	"github.com/9seconds/httransform/v2/client/dialers"
 )
 
 var chunkedReaderHex2IntTable = func() [256]byte {
@@ -154,7 +153,7 @@ func (c *chunkedReader) consumeCRLF() error {
 	return nil
 }
 
-func NewChunkedReader(conn dialers.Conn, reader *bufio.Reader, forceClose bool) Reader {
+func NewChunkedReader(conn connectors.Conn, reader *bufio.Reader, forceClose bool) Reader {
 	return &chunkedReader{
 		baseReader: baseReader{
 			conn:       conn,

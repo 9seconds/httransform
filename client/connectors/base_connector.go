@@ -1,4 +1,4 @@
-package dialers
+package connectors
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 	"github.com/PumpkinSeed/errors"
 )
 
-type baseDialer struct {
+type baseConnector struct {
 	dialer net.Dialer
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
-func (b *baseDialer) dial(ctx context.Context, addr string) (net.Conn, error) {
+func (b *baseConnector) connect(ctx context.Context, addr string) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, b.dialer.Timeout)
 	defer cancel()
 
@@ -61,6 +61,6 @@ func (b *baseDialer) dial(ctx context.Context, addr string) (net.Conn, error) {
 	return nil, errors.Wrap(err, ErrCannotDial)
 }
 
-func (b *baseDialer) Shutdown() {
+func (b *baseConnector) Shutdown() {
 	b.cancel()
 }

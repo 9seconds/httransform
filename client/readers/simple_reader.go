@@ -6,7 +6,7 @@ import (
 
 	"github.com/PumpkinSeed/errors"
 
-	"github.com/9seconds/httransform/v2/client/dialers"
+	"github.com/9seconds/httransform/v2/client/connectors"
 )
 
 type simpleReader struct {
@@ -28,7 +28,7 @@ func (s *simpleReader) Read(p []byte) (int, error) {
 	return n, errors.Wrap(err, ErrReader)
 }
 
-func NewSimpleReader(conn dialers.Conn, reader *bufio.Reader, forceClose bool, length int64) Reader {
+func NewSimpleReader(conn connectors.Conn, reader *bufio.Reader, forceClose bool, length int64) Reader {
 	return &simpleReader{
 		baseReader: baseReader{
 			conn:       conn,

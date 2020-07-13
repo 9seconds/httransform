@@ -13,12 +13,12 @@ import (
 	"github.com/PumpkinSeed/errors"
 	"github.com/valyala/fasthttp"
 
-	"github.com/9seconds/httransform/v2/client/dialers"
+	"github.com/9seconds/httransform/v2/client/connectors"
 	"github.com/9seconds/httransform/v2/client/readers"
 )
 
 type Client struct {
-	dialer          dialers.Dialer
+	connector       connectors.Connector
 	tlsConfigs      map[string]*tls.Config
 	tlsConfigsMutex sync.Mutex
 }
@@ -61,13 +61,13 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 
 	request.SetRequestURIBytes(originalURI)
 
-	conn, err := c.dialer.Dial(ctx, addr)
+	conn, err := c.connector.Connect(ctx, addr)
 	if err != nil {
 		return errors.Wrap(err, ErrClient)
 	}
 
 	if isHTTP {
-		conn = dialers.NewTLSConn(conn, c.getTLSConfig(addr))
+		conn = connectors.NewTLSConn(conn, c.getTLSConfig(addr))
 	}
 
 	go func() {
@@ -142,9 +142,9 @@ func (c *Client) getTLSConfig(addr string) *tls.Config {
 	return conf
 }
 
-func NewClient(dialer dialers.Dialer) *Client {
+func NewClient(connector connectors.Connector) *Client {
 	return &Client{
-		dialer:     dialer,
+		connector:  connector,
 		tlsConfigs: map[string]*tls.Config{},
 	}
 }

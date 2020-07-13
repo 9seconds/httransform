@@ -1,4 +1,4 @@
-package dialers
+package connectors
 
 import (
 	"net"
@@ -11,7 +11,7 @@ type pooledConn struct {
 
 	timestamp time.Time
 	once      sync.Once
-	pool      *connectionPool
+	pool      *pooledConnectorConnectionPool
 }
 
 func (p *pooledConn) Release() {

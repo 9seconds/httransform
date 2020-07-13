@@ -1,4 +1,4 @@
-package dialers
+package connectors
 
 import (
 	"crypto/tls"

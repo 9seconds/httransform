@@ -1,4 +1,4 @@
-package dialers
+package connectors
 
 import (
 	"context"
@@ -8,27 +8,27 @@ import (
 	"github.com/libp2p/go-reuseport"
 )
 
-type pooledDialerGetRequest struct {
+type pooledConnectorGetRequest struct {
 	addr     string
 	ctx      context.Context
-	response chan<- pooledDialerGetResponse
+	response chan<- pooledConnectorGetResponse
 }
 
-type pooledDialerGetResponse struct {
+type pooledConnectorGetResponse struct {
 	conn *pooledConn
 	err  error
 }
 
-type pooledDialer struct {
-	baseDialer
+type pooledConnector struct {
+	baseConnector
 
-	pools              map[string]*connectionPool
-	channelGetRequests chan pooledDialerGetRequest
+	pools              map[string]*pooledConnectorConnectionPool
+	channelGetRequests chan pooledConnectorGetRequest
 }
 
-func (p *pooledDialer) Dial(ctx context.Context, addr string) (Conn, error) {
-	response := make(chan pooledDialerGetResponse)
-	req := pooledDialerGetRequest{
+func (p *pooledConnector) Connect(ctx context.Context, addr string) (Conn, error) {
+	response := make(chan pooledConnectorGetResponse)
+	req := pooledConnectorGetRequest{
 		addr:     addr,
 		ctx:      ctx,
 		response: response,
@@ -45,7 +45,7 @@ func (p *pooledDialer) Dial(ctx context.Context, addr string) (Conn, error) {
 	}
 }
 
-func (p *pooledDialer) run(gcEvery, staleAfter time.Duration) {
+func (p *pooledConnector) run(gcEvery, staleAfter time.Duration) {
 	ticker := time.NewTicker(gcEvery)
 	defer ticker.Stop()
 
@@ -75,14 +75,14 @@ func (p *pooledDialer) run(gcEvery, staleAfter time.Duration) {
 	}
 }
 
-func NewPooledDialer(ctx context.Context, timeout time.Duration) Dialer {
+func NewPooledConnector(ctx context.Context, timeout time.Duration) Connector {
 	if timeout == 0 {
-		timeout = PooledDialerTimeout
+		timeout = PooledConnectorTimeout
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	rv := &pooledDialer{
-		baseDialer: baseDialer{
+	rv := &pooledConnector{
+		baseConnector: baseConnector{
 			dialer: net.Dialer{
 				Timeout: timeout,
 				Control: reuseport.Control,
@@ -90,11 +90,11 @@ func NewPooledDialer(ctx context.Context, timeout time.Duration) Dialer {
 			ctx:    ctx,
 			cancel: cancel,
 		},
-		pools:              map[string]*connectionPool{},
-		channelGetRequests: make(chan pooledDialerGetRequest),
+		pools:              map[string]*pooledConnectorConnectionPool{},
+		channelGetRequests: make(chan pooledConnectorGetRequest),
 	}
 
-	go rv.run(PooledDialerGCEvery, PooledDialerStaleAfter)
+	go rv.run(PooledConnectorConnectionPoolGCEvery, PooledConnectorConnectionPoolStaleAfter)
 
 	return rv
 }

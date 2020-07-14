@@ -13,5 +13,6 @@ const (
 )
 
 var (
-	ErrClient = errors.New("http client error")
+	ErrClient            = errors.New("http client error")
+	ErrUnsupportedScheme = errors.Wrap(errors.New("unsupported URI scheme"), ErrClient)
 )

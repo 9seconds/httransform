@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -18,7 +19,8 @@ import (
 )
 
 type Client struct {
-	connector       connectors.Connector
+	httpConnector   connectors.Connector
+	httpsConnector  connectors.Connector
 	tlsConfigs      map[string]*tls.Config
 	tlsConfigsMutex sync.Mutex
 }
@@ -46,28 +48,39 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 	originalURI := request.Header.RequestURI()
 	uri := request.URI()
 	addr := string(uri.Host())
-	isHTTP := bytes.EqualFold(uri.Scheme(), []byte("http"))
+	scheme := string(bytes.ToLower(uri.Scheme()))
 
-	if _, _, err := net.SplitHostPort(addr); err != nil {
-		if isHTTP {
-			addr = net.JoinHostPort(addr, DefaultHTTPPort)
-		} else {
-			addr = net.JoinHostPort(addr, DefaultHTTPSPort)
-		}
-	}
+	var conn connectors.Conn
+	var err error
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	request.SetRequestURIBytes(originalURI)
 
-	conn, err := c.connector.Connect(ctx, addr)
-	if err != nil {
-		return errors.Wrap(err, ErrClient)
-	}
+	switch scheme {
+	case "http":
+		if _, _, err = net.SplitHostPort(addr); err != nil {
+			addr = net.JoinHostPort(addr, DefaultHTTPPort)
+		}
 
-	if isHTTP {
+		conn, err = c.httpConnector.Connect(ctx, addr)
+		if err != nil {
+			return errors.Wrap(err, ErrClient)
+		}
+	case "https":
+		if _, _, err = net.SplitHostPort(addr); err != nil {
+			addr = net.JoinHostPort(addr, DefaultHTTPSPort)
+		}
+
+		conn, err = c.httpsConnector.Connect(ctx, addr)
+		if err != nil {
+			return errors.Wrap(err, ErrClient)
+		}
+
 		conn = connectors.NewTLSConn(conn, c.getTLSConfig(addr))
+	default:
+		return errors.Wrap(fmt.Errorf("scheme %s", scheme), ErrUnsupportedScheme)
 	}
 
 	go func() {
@@ -75,7 +88,7 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 		conn.Close()
 	}()
 
-	if _, err := request.WriteTo(conn); err != nil {
+	if _, err = request.WriteTo(conn); err != nil {
 		return errors.Wrap(err, ErrClient)
 	}
 
@@ -83,7 +96,7 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 	response.Header.DisableNormalizing()
 
 	connReader := bufio.NewReader(conn)
-	if err := response.Header.Read(connReader); err != nil {
+	if err = response.Header.Read(connReader); err != nil {
 		return errors.Wrap(err, ErrClient)
 	}
 
@@ -99,6 +112,7 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 			response.Header.ConnectionClose(),
 			int64(contentLength))
 		response.SetBodyStream(reader, contentLength)
+
 		return nil
 	}
 
@@ -142,9 +156,10 @@ func (c *Client) getTLSConfig(addr string) *tls.Config {
 	return conf
 }
 
-func NewClient(connector connectors.Connector) *Client {
+func NewClient(httpConnector, httpsConnector connectors.Connector) *Client {
 	return &Client{
-		connector:  connector,
-		tlsConfigs: map[string]*tls.Config{},
+		httpConnector:  httpConnector,
+		httpsConnector: httpsConnector,
+		tlsConfigs:     map[string]*tls.Config{},
 	}
 }

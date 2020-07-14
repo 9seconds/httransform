@@ -56,8 +56,6 @@ func (p *pooledConnectorConnectionPool) run(gcEvery, staleAfter time.Duration) {
 				v.Close()
 			}
 
-			p.list = pooledConnectorConnectionList{}
-
 			return
 		case conn := <-p.channelConnReturns:
 			conn.once = sync.Once{}

@@ -15,8 +15,9 @@ type socksProxyDialer interface {
 }
 
 type socksDialer struct {
-	dialer  socksProxyDialer
-	timeout time.Duration
+	baseDialer
+
+	dialer socksProxyDialer
 }
 
 func (s *socksDialer) Dial(ctx context.Context, addr string) (net.Conn, error) {
@@ -26,10 +27,6 @@ func (s *socksDialer) Dial(ctx context.Context, addr string) (net.Conn, error) {
 	}
 
 	return conn, nil
-}
-
-func (s *socksDialer) GetTimeout() time.Duration {
-	return s.timeout
 }
 
 func NewSocks5(address string, timeout time.Duration, user, password string) (Dialer, error) {
@@ -50,7 +47,9 @@ func NewSocks5(address string, timeout time.Duration, user, password string) (Di
 	}
 
 	return &socksDialer{
-		dialer:  socks.(socksProxyDialer),
-		timeout: timeout,
+		baseDialer: baseDialer{
+			timeout: timeout,
+		},
+		dialer: socks.(socksProxyDialer),
 	}, nil
 }

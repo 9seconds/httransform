@@ -11,8 +11,7 @@ import (
 
 type simpleDialer struct {
 	net.Dialer
-
-	timeout time.Duration
+	baseDialer
 }
 
 func (s *simpleDialer) Dial(ctx context.Context, addr string) (net.Conn, error) {
@@ -24,16 +23,14 @@ func (s *simpleDialer) Dial(ctx context.Context, addr string) (net.Conn, error) 
 	return conn, nil
 }
 
-func (s *simpleDialer) GetTimeout() time.Duration {
-	return s.timeout
-}
-
 func NewSimpleDialer(timeout time.Duration) Dialer {
 	return &simpleDialer{
 		Dialer: net.Dialer{
 			Timeout: timeout,
 			Control: reuseport.Control,
 		},
-		timeout: timeout,
+		baseDialer: baseDialer{
+			timeout: timeout,
+		},
 	}
 }

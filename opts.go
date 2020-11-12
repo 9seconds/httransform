@@ -17,7 +17,7 @@ const (
 	DefaultTLSCacheSize       = 512
 )
 
-func DefaultEventProcessor(_ *events.Event) {}
+func DefaultEventProcessor(_ events.Event) {}
 
 type ServerOpts struct {
 	Concurrency        uint

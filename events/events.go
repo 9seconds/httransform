@@ -1,7 +1,6 @@
 package events
 
 import (
-	"sync"
 	"time"
 )
 
@@ -18,19 +17,12 @@ type Event struct {
 	Value     interface{}
 }
 
-type EventProcessor func(*Event)
+type EventProcessor func(Event)
 
-var poolEvents = sync.Pool{
-	New: func() interface{} {
-		return Event{}
-	},
-}
-
-func acquireEvent() *Event {
-	return poolEvents.Get().(*Event)
-}
-
-func releaseEvent(evt *Event) {
-	evt.Value = nil
-	poolEvents.Put(evt)
+func New(id EventType, value interface{}) Event {
+	return Event{
+		ID:        id,
+		Value:     value,
+		Timestamp: time.Now(),
+	}
 }

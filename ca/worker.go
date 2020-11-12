@@ -53,7 +53,6 @@ func (w *worker) Get(host string) (*tls.Config, error) {
 }
 
 func (w *worker) Run() {
-
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -66,7 +65,13 @@ func (w *worker) Run() {
 			} else {
 				conf = w.process(req.host)
 				w.cache.Add(req.host, conf)
-				w.eventStream.Send(events.EventTypeNewCertificate, req.host)
+
+				evt := events.New(events.EventTypeNewCertificate, req.host)
+
+				select {
+				case <-w.ctx.Done():
+				case w.eventStream.Chan <- evt:
+				}
 			}
 
 			req.response <- conf

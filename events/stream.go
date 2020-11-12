@@ -1,33 +1,19 @@
 package events
 
-import (
-	"context"
-	"time"
-)
+import "context"
 
 type EventStream struct {
-	ctx           context.Context
-	channelEvents chan *Event
-	processor     EventProcessor
-}
+	Chan chan Event
 
-func (e *EventStream) Send(eventType EventType, value interface{}) {
-	evt := acquireEvent()
-	evt.ID = eventType
-	evt.Value = value
-	evt.Timestamp = time.Now()
-
-	select {
-	case <-e.ctx.Done():
-	case e.channelEvents <- evt:
-	}
+	ctx       context.Context
+	processor EventProcessor
 }
 
 func NewEventStream(ctx context.Context, processor EventProcessor) *EventStream {
 	rv := &EventStream{
-		ctx:           ctx,
-		channelEvents: make(chan *Event, 1),
-		processor:     processor,
+		ctx:       ctx,
+		processor: processor,
+		Chan:      make(chan Event, 1),
 	}
 
 	go func() {
@@ -35,9 +21,8 @@ func NewEventStream(ctx context.Context, processor EventProcessor) *EventStream 
 			select {
 			case <-ctx.Done():
 				return
-			case evt := <-rv.channelEvents:
+			case evt := <-rv.Chan:
 				rv.processor(evt)
-				releaseEvent(evt)
 			}
 		}
 	}()

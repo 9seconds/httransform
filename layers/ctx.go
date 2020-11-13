@@ -2,6 +2,7 @@ package layers
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -44,20 +45,26 @@ func (c *Context) RequestID() string {
 	return c.requestID
 }
 
-func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, parent *Context) {
+func (c *Context) Respond(msg string, statusCode int) {
+	c.originalCtx.Response.Reset()
+	c.originalCtx.Response.SetStatusCode(statusCode)
+	c.originalCtx.Response.SetConnectionClose()
+	c.originalCtx.Response.Header.SetContentType("text/plain")
+	c.originalCtx.Response.SetBodyString(msg)
+}
+
+func (c *Context) Error(err error) {
+	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()), fasthttp.StatusInternalServerError)
+}
+
+func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, tunneled bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
 	c.ctxCancel = cancel
-
-	if parent != nil {
-		c.requestID = parent.requestID
-		c.tunneled = true
-	} else {
-		c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
-		c.tunneled = false
-	}
+	c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
+	c.tunneled = tunneled
 }
 
 func (c Context) Reset() {

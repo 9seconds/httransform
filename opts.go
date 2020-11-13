@@ -1,4 +1,4 @@
-package httransform
+package main
 
 import (
 	"net/url"
@@ -33,7 +33,6 @@ type ServerOpts struct {
 	EventProcessor     events.EventProcessor
 	TLSCertCA          []byte
 	TLSPrivateKey      []byte
-	TLSOrgName         string
 	Layers             []layers.Layer
 	Auth               *url.Userinfo
 }
@@ -116,10 +115,6 @@ func (s *ServerOpts) GetTLSCertCA() []byte {
 
 func (s *ServerOpts) GetTLSPrivateKey() []byte {
 	return s.TLSPrivateKey
-}
-
-func (s *ServerOpts) GetTLSOrgName() string {
-	return s.TLSOrgName
 }
 
 func (s *ServerOpts) GetLayers() []layers.Layer {

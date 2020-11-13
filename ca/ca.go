@@ -34,7 +34,6 @@ func NewCA(ctx context.Context,
 	channelEvents chan<- events.Event,
 	certCA []byte,
 	privateKey []byte,
-	orgName string,
 	cacheSize int) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, privateKey)
 	if err != nil {
@@ -64,7 +63,6 @@ func NewCA(ctx context.Context,
 			ca:              ca,
 			ctx:             ctx,
 			cache:           cache,
-			orgName:         orgName,
 			channelEvents:   channelEvents,
 			channelRequests: make(chan workerRequest),
 		}

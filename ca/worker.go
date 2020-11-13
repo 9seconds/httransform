@@ -25,7 +25,6 @@ type workerRequest struct {
 }
 
 type worker struct {
-	orgName         string
 	ca              tls.Certificate
 	ctx             context.Context
 	cache           *lru.Cache
@@ -84,7 +83,7 @@ func (w *worker) process(host string) *tls.Config {
 	template := x509.Certificate{
 		SerialNumber:          &big.Int{},
 		Issuer:                w.ca.Leaf.Subject,
-		Subject:               pkix.Name{Organization: []string{w.orgName}},
+		Subject:               pkix.Name{},
 		NotBefore:             time.Unix(0, 0),
 		NotAfter:              time.Date(now.Year()+1, now.Month(), 0, 0, 0, 0, 0, now.Location()),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,

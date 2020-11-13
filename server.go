@@ -1,4 +1,4 @@
-package httransform
+package main
 
 import (
 	"context"
@@ -120,7 +120,6 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 	certAuth, err := ca.NewCA(ctx, channelEvents,
 		oopts.GetTLSCertCA(),
 		oopts.GetTLSPrivateKey(),
-		oopts.GetTLSOrgName(),
 		oopts.GetTLSCacheSize())
 
 	if err != nil {

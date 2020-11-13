@@ -10,9 +10,8 @@ const (
 	EventTypeNewCertificate  EventType = iota // value - hostname(string)
 	EventTypeDropCertificate                  // value - hostname(string)
 	EventTypeFailedAuth                       // value - nil
-	EventTypePlainRequest                     // value - requestid(string)
-	EventTypeTunneledRequest                  // value - requestid(string)
-	EventTypeRequestDone                      // value - requestid(string)
+	EventTypeStartRequest                     // value - requestMeta
+	EventTypeFinishRequest                    // value - requestMeta
 )
 
 type Event struct {

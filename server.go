@@ -62,7 +62,6 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	defer ownCtx.Cancel()
 
 	ownCtx.Init(ctx, false)
-	s.sendEvent(events.EventTypePlainRequest, ownCtx.RequestID())
 	s.main(ownCtx)
 }
 
@@ -91,7 +90,6 @@ func (s *Server) hijackConnect(host string, ctx *fasthttp.RequestCtx) fasthttp.H
 			defer ownCtx.Cancel()
 
 			ownCtx.Init(ctx, true)
-			s.sendEvent(events.EventTypeTunneledRequest, ownCtx.RequestID())
 			s.main(ownCtx)
 		}
 
@@ -100,7 +98,11 @@ func (s *Server) hijackConnect(host string, ctx *fasthttp.RequestCtx) fasthttp.H
 }
 
 func (s *Server) main(ctx *layers.Context) {
-	defer s.sendEvent(events.EventTypeRequestDone, ctx.RequestID())
+	requestMeta := events.AcquireRequestMeta()
+	defer events.ReleaseRequestMeta(requestMeta)
+
+	s.sendEvent(events.EventTypeStartRequest, requestMeta)
+	defer s.sendEvent(events.EventTypeFinishRequest, requestMeta)
 
 	ctx.Respond("YES", 200)
 }

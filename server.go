@@ -101,10 +101,30 @@ func (s *Server) main(ctx *layers.Context) {
 	requestMeta := events.AcquireRequestMeta()
 	defer events.ReleaseRequestMeta(requestMeta)
 
+	requestMeta.Init(ctx)
+
 	s.sendEvent(events.EventTypeStartRequest, requestMeta)
 	defer s.sendEvent(events.EventTypeFinishRequest, requestMeta)
 
-	ctx.Respond("YES", 200)
+	currentLayer := 0
+
+	var err error
+
+	for ; currentLayer < len(s.layers); currentLayer++ {
+		if err = s.layers[currentLayer].OnRequest(ctx); err != nil {
+			ctx.Error(err)
+			break
+		}
+	}
+
+	if currentLayer == len(s.layers) {
+		ctx.Respond("EXECUTED", 200)
+		// s.execute(ctx)
+	}
+
+	for ; currentLayer > 0; currentLayer-- {
+		s.layers[currentLayer-1].OnResponse(ctx, err)
+	}
 }
 
 func (s *Server) sendEvent(eventType events.EventType, value interface{}) {

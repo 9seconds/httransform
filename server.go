@@ -11,6 +11,7 @@ import (
 	"github.com/9seconds/httransform/v2/auth"
 	"github.com/9seconds/httransform/v2/ca"
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/layers"
 	"github.com/valyala/fasthttp"
 )
@@ -22,6 +23,7 @@ type Server struct {
 	channelEvents chan<- events.Event
 	layers        []layers.Layer
 	auth          []byte
+	executor      executor.Executor
 	ca            *ca.CA
 	server        *fasthttp.Server
 }
@@ -60,7 +62,6 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
-	defer ownCtx.Cancel()
 
 	ownCtx.Init(ctx, s.channelEvents, false)
 	s.main(ownCtx)
@@ -88,7 +89,6 @@ func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.Hi
 		srv.Handler = func(ctx *fasthttp.RequestCtx) {
 			ownCtx := layers.AcquireContext()
 			defer layers.ReleaseContext(ownCtx)
-			defer ownCtx.Cancel()
 
 			ownCtx.Init(ctx, s.channelEvents, true)
 			s.main(ownCtx)
@@ -129,8 +129,7 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	if currentLayer == len(s.layers) {
-		ctx.Respond("EXECUTED", 200)
-		// s.execute(ctx)
+		s.executor(ctx)
 	}
 
 	for ; currentLayer > 0; currentLayer-- {
@@ -155,6 +154,11 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 		oopts.GetTLSPrivateKey(),
 		oopts.GetTLSCacheSize())
 
+	exec := oopts.GetExecutor()
+	if exec == nil {
+		exec = executor.MakeDefaultExecutor(ctx)
+	}
+
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("cannot make certificate authority: %w", err)
@@ -167,6 +171,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 		ca:            certAuth,
 		layers:        oopts.GetLayers(),
 		auth:          proxyAuth,
+		executor:      exec,
 		serverPool: sync.Pool{
 			New: func() interface{} {
 				return &fasthttp.Server{

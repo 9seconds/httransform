@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/layers"
 )
 
@@ -18,8 +19,6 @@ const (
 	DefaultMaxRequestBodySize = 1024 * 1024 * 100
 	DefaultTLSCacheSize       = 512
 )
-
-func DefaultEventProcessor(_ events.Event) {}
 
 type ServerOpts struct {
 	Concurrency        uint
@@ -35,6 +34,7 @@ type ServerOpts struct {
 	TLSPrivateKey      []byte
 	Layers             []layers.Layer
 	Auth               *url.Userinfo
+	Executor           executor.Executor
 }
 
 func (s *ServerOpts) GetConcurrency() int {
@@ -103,7 +103,7 @@ func (s *ServerOpts) GetTLSCacheSize() int {
 
 func (s *ServerOpts) GetEventProcessor() events.EventProcessor {
 	if s.EventProcessor == nil {
-		return DefaultEventProcessor
+		return events.DefaultProcessor
 	}
 
 	return s.EventProcessor
@@ -130,4 +130,8 @@ func (s *ServerOpts) GetAuth() []byte {
 	}
 
 	return []byte(user + ":" + password)
+}
+
+func (s *ServerOpts) GetExecutor() executor.Executor {
+	return s.Executor
 }

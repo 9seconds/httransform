@@ -20,6 +20,8 @@ type Event struct {
 
 type EventProcessor func(Event)
 
+func DefaultProcessor(_ Event) {}
+
 func New(id EventType, value interface{}) Event {
 	return Event{
 		ID:        id,

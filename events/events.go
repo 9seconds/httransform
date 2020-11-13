@@ -1,8 +1,6 @@
 package events
 
-import (
-	"time"
-)
+import "time"
 
 type EventType byte
 
@@ -11,7 +9,7 @@ const (
 	EventTypeDropCertificate                  // value - hostname(string)
 	EventTypeFailedAuth                       // value - nil
 	EventTypeStartRequest                     // value - requestMeta
-	EventTypeFinishRequest                    // value - requestMeta
+	EventTypeFinishRequest                    // value - responseMeta
 )
 
 type Event struct {

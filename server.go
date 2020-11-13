@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -61,7 +62,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	defer layers.ReleaseContext(ownCtx)
 	defer ownCtx.Cancel()
 
-	ownCtx.Init(ctx, false)
+	ownCtx.Init(ctx, s.channelEvents, false)
 	s.main(ownCtx)
 }
 
@@ -89,7 +90,7 @@ func (s *Server) hijackConnect(host string, ctx *fasthttp.RequestCtx) fasthttp.H
 			defer layers.ReleaseContext(ownCtx)
 			defer ownCtx.Cancel()
 
-			ownCtx.Init(ctx, true)
+			ownCtx.Init(ctx, s.channelEvents, true)
 			s.main(ownCtx)
 		}
 
@@ -101,10 +102,20 @@ func (s *Server) main(ctx *layers.Context) {
 	requestMeta := events.AcquireRequestMeta()
 	defer events.ReleaseRequestMeta(requestMeta)
 
-	requestMeta.Init(ctx)
+	requestMeta.RequestID = ctx.RequestID()
+	ctx.Request().URI().CopyTo(&requestMeta.URI)
+	requestMeta.Method = string(bytes.ToLower(ctx.Request().Header.Method()))
 
 	s.sendEvent(events.EventTypeStartRequest, requestMeta)
-	defer s.sendEvent(events.EventTypeFinishRequest, requestMeta)
+	defer func() {
+		responseMeta := events.AcquireResponseMeta()
+		defer events.ReleaseResponseMeta(responseMeta)
+
+		responseMeta.Request = requestMeta
+		responseMeta.StatusCode = ctx.Response().StatusCode()
+
+		s.sendEvent(events.EventTypeFinishRequest, responseMeta)
+	}()
 
 	currentLayer := 0
 

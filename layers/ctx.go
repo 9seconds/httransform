@@ -9,15 +9,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/9seconds/httransform/v2/events"
 	"github.com/valyala/fasthttp"
 )
 
 type Context struct {
-	requestID   string
-	ctxCancel   context.CancelFunc
-	ctx         context.Context
-	originalCtx *fasthttp.RequestCtx
-	values      map[string]interface{}
+	requestID     string
+	ctxCancel     context.CancelFunc
+	ctx           context.Context
+	originalCtx   *fasthttp.RequestCtx
+	values        map[string]interface{}
+	channelEvents chan<- events.Event
 }
 
 func (c *Context) Request() *fasthttp.Request {
@@ -40,6 +42,10 @@ func (c *Context) RequestID() string {
 	return c.requestID
 }
 
+func (c *Context) Events() chan<- events.Event {
+	return c.channelEvents
+}
+
 func (c *Context) Respond(msg string, statusCode int) {
 	c.originalCtx.Response.Reset()
 	c.originalCtx.Response.Header.DisableNormalizing()
@@ -53,13 +59,14 @@ func (c *Context) Error(err error) {
 	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()), fasthttp.StatusInternalServerError)
 }
 
-func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, tunneled bool) {
+func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, channelEvents chan<- events.Event, tunneled bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
 	c.ctxCancel = cancel
 	c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
+	c.channelEvents = channelEvents
 
 	uri := fasthttpCtx.Request.URI()
 
@@ -75,6 +82,7 @@ func (c Context) Reset() {
 	c.ctx = nil
 	c.ctxCancel = nil
 	c.requestID = ""
+	c.channelEvents = nil
 
 	for key := range c.values {
 		delete(c.values, key)

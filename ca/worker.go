@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/binary"
 	"math/big"
 	"net"
 	"time"
@@ -98,11 +96,9 @@ func (w *worker) process(host string) *tls.Config {
 		template.Subject.CommonName = host
 	}
 
-	hash := sha512.New()
-
-	hash.Write([]byte(host))
-	binary.Write(hash, binary.LittleEndian, now.UnixNano())
-	template.SerialNumber.SetBytes(hash.Sum(nil))
+	randBytes := make([]byte, 64)
+	rand.Read(randBytes)
+	template.SerialNumber.SetBytes(randBytes)
 
 	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)
 	if err != nil {

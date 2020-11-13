@@ -7,6 +7,7 @@ require (
 	github.com/libp2p/go-reuseport v0.0.2
 	github.com/rs/dnscache v0.0.0-20190621150935-06bb5526f76b
 	github.com/valyala/fasthttp v1.17.0
+	golang.org/x/net v0.0.0-20201016165138-7b1cca2348c0
 )
 
 go 1.13

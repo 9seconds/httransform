@@ -11,17 +11,21 @@ import (
 	"github.com/rs/dnscache"
 )
 
-type Base struct {
+type base struct {
 	net.Dialer
 
 	dnsCache dnscache.Resolver
 }
 
-func (b *Base) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+func (b *base) Dial(network, address string) (net.Conn, error) {
+	return b.DialContext(context.Background(), network, address)
+}
+
+func (b *base) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, b.Timeout)
 	defer cancel()
 
-	host, port, err := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, fmt.Errorf("cannot dial: %w", err)
 	}
@@ -52,7 +56,7 @@ func (b *Base) DialContext(ctx context.Context, network, addr string) (net.Conn,
 }
 
 func NewBase(ctx context.Context, timeout time.Duration) Dialer {
-	rv := &Base{
+	rv := &base{
 		Dialer: net.Dialer{
 			Timeout: timeout,
 			Control: reuseport.Control,

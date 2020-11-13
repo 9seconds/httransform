@@ -84,8 +84,8 @@ func (w *worker) process(host string) *tls.Config {
 		SerialNumber:          &big.Int{},
 		Issuer:                w.ca.Leaf.Subject,
 		Subject:               pkix.Name{},
-		NotBefore:             time.Unix(0, 0),
-		NotAfter:              time.Date(now.Year()+1, now.Month(), 0, 0, 0, 0, 0, now.Location()),
+		NotBefore:             adjustDate(now, -1),
+		NotAfter:              adjustDate(now, 1),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -124,4 +124,8 @@ func (w *worker) process(host string) *tls.Config {
 		InsecureSkipVerify: true,
 		Certificates:       []tls.Certificate{certificate},
 	}
+}
+
+func adjustDate(now time.Time, incr int) time.Time {
+	return time.Date(now.Year()+incr, now.Month(), 0, 0, 0, 0, 0, now.Location())
 }

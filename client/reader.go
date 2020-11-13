@@ -11,7 +11,12 @@ type streamReader struct {
 }
 
 func (s *streamReader) Read(p []byte) (int, error) {
-	return s.data.Read(p)
+	n, err := s.data.Read(p)
+	if err != nil {
+		s.cancel()
+	}
+
+	return n, err
 }
 
 func (s *streamReader) Close() error {

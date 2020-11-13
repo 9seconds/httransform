@@ -18,7 +18,6 @@ type Context struct {
 	ctx         context.Context
 	originalCtx *fasthttp.RequestCtx
 	values      map[string]interface{}
-	tunneled    bool
 }
 
 func (c *Context) Request() *fasthttp.Request {
@@ -37,16 +36,13 @@ func (c *Context) LocalAddr() net.Addr {
 	return c.originalCtx.LocalAddr()
 }
 
-func (c *Context) Tunneled() bool {
-	return c.tunneled
-}
-
 func (c *Context) RequestID() string {
 	return c.requestID
 }
 
 func (c *Context) Respond(msg string, statusCode int) {
 	c.originalCtx.Response.Reset()
+	c.originalCtx.Response.Header.DisableNormalizing()
 	c.originalCtx.Response.SetStatusCode(statusCode)
 	c.originalCtx.Response.SetConnectionClose()
 	c.originalCtx.Response.Header.SetContentType("text/plain")
@@ -64,7 +60,14 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, tunneled bool) {
 	c.ctx = ctx
 	c.ctxCancel = cancel
 	c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
-	c.tunneled = tunneled
+
+	uri := fasthttpCtx.Request.URI()
+
+	if tunneled {
+		uri.SetScheme("https")
+	} else {
+		uri.SetScheme("http")
+	}
 }
 
 func (c Context) Reset() {
@@ -72,7 +75,6 @@ func (c Context) Reset() {
 	c.ctx = nil
 	c.ctxCancel = nil
 	c.requestID = ""
-	c.tunneled = false
 
 	for key := range c.values {
 		delete(c.values, key)

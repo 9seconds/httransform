@@ -1,6 +1,7 @@
 package httransform
 
 import (
+	"net/url"
 	"time"
 
 	"github.com/9seconds/httransform/v2/events"
@@ -34,6 +35,7 @@ type ServerOpts struct {
 	TLSPrivateKey      []byte
 	TLSOrgName         string
 	Layers             []layers.Layer
+	Auth               *url.Userinfo
 }
 
 func (s *ServerOpts) GetConcurrency() int {
@@ -122,4 +124,15 @@ func (s *ServerOpts) GetTLSOrgName() string {
 
 func (s *ServerOpts) GetLayers() []layers.Layer {
 	return s.Layers
+}
+
+func (s *ServerOpts) GetAuth() []byte {
+	user := s.Auth.Username()
+	password, _ := s.Auth.Password()
+
+	if user == "" && password == "" {
+		return nil
+	}
+
+	return []byte(user + ":" + password)
 }

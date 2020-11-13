@@ -18,11 +18,12 @@ type Server struct {
 	serverPool    sync.Pool
 	channelEvents chan<- events.Event
 	layers        []layers.Layer
+	auth          []byte
 	ca            *ca.CA
 	server        *fasthttp.Server
 }
 
-func (s *Server) SerCve(ln net.Listener) error {
+func (s *Server) Serve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
@@ -57,6 +58,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 		channelEvents: channelEvents,
 		ca:            certAuth,
 		layers:        oopts.GetLayers(),
+		auth:          oopts.GetAuth(),
 		serverPool: sync.Pool{
 			New: func() interface{} {
 				return &fasthttp.Server{

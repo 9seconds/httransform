@@ -12,12 +12,12 @@ import (
 )
 
 type Server struct {
-	ctx         context.Context
-	ctxCancel   context.CancelFunc
-	serverPool  sync.Pool
-	eventStream *events.EventStream
-	ca          *ca.CA
-	server      *fasthttp.Server
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	serverPool    sync.Pool
+	channelEvents chan<- events.Event
+	ca            *ca.CA
+	server        *fasthttp.Server
 }
 
 func (s *Server) Serve(ln net.Listener) error {
@@ -37,8 +37,8 @@ func (s *Server) main(ctx *fasthttp.RequestCtx) {
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts
-	eventStream := events.NewEventStream(ctx, oopts.GetEventProcessor())
-	certAuth, err := ca.NewCA(ctx, eventStream,
+	channelEvents := events.NewEventChannel(ctx, oopts.GetEventProcessor())
+	certAuth, err := ca.NewCA(ctx, channelEvents,
 		oopts.GetTLSCertCA(),
 		oopts.GetTLSPrivateKey(),
 		oopts.GetTLSOrgName(),
@@ -50,10 +50,10 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 	}
 
 	srv := &Server{
-		ctx:         ctx,
-		ctxCancel:   cancel,
-		eventStream: eventStream,
-		ca:          certAuth,
+		ctx:           ctx,
+		ctxCancel:     cancel,
+		channelEvents: channelEvents,
+		ca:            certAuth,
 		serverPool: sync.Pool{
 			New: func() interface{} {
 				return &fasthttp.Server{

@@ -154,14 +154,14 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 		oopts.GetTLSPrivateKey(),
 		oopts.GetTLSCacheSize())
 
-	exec := oopts.GetExecutor()
-	if exec == nil {
-		exec = executor.MakeDefaultExecutor(ctx)
-	}
-
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("cannot make certificate authority: %w", err)
+	}
+
+	exec := oopts.GetExecutor()
+	if exec == nil {
+		exec = executor.MakeDefaultExecutor(ctx, 0, 0)
 	}
 
 	srv := &Server{

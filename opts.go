@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/9seconds/httransform/v2/client"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/layers"
@@ -35,6 +36,7 @@ type ServerOpts struct {
 	Layers             []layers.Layer
 	Auth               *url.Userinfo
 	Executor           executor.Executor
+	Client             *client.Client
 }
 
 func (s *ServerOpts) GetConcurrency() int {

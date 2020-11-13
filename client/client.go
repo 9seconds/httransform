@@ -33,48 +33,26 @@ type Client struct {
 }
 
 func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response) error {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-
 	uri := request.URI()
-	host := string(uri.Host())
 	isPlain := bytes.EqualFold(uri.Scheme(), []byte("http"))
 
-	var addrError *net.AddrError
-
-	hostname, _, err := net.SplitHostPort(host)
-	switch {
-	case errors.As(err, &addrError) && strings.Contains(addrError.Err, "missing port"):
-		hostname = host
-		if isPlain {
-			host = net.JoinHostPort(host, "80")
-		} else {
-			host = net.JoinHostPort(host, "443")
-		}
-		uri.SetHost(host)
-	case err != nil:
-		cancel()
-		return fmt.Errorf("incorrect host %s: %w", host, err)
+	if err := c.ensureHostPort(request.URI(), isPlain); err != nil {
+		return err
 	}
 
-	conn, err := c.dialer.DialContext(ctx, "tcp", host)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+
+	conn, err := c.dial(ctx, string(uri.Host()), isPlain)
 	if err != nil {
 		cancel()
-		return fmt.Errorf("cannot dial to host %s: %w", host, err)
+		return err
 	}
 
 	go func() {
 		<-ctx.Done()
+		cancel()
 		conn.Close()
 	}()
-
-	if !isPlain {
-		tlsConn := tls.Client(conn, c.getTLSConfig(hostname))
-		if err := tlsConn.Handshake(); err != nil {
-			cancel()
-			return fmt.Errorf("cannot establish tls handshake: %w", err)
-		}
-		conn = tlsConn
-	}
 
 	if _, err := request.WriteTo(conn); err != nil {
 		cancel()
@@ -118,6 +96,47 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 	}
 
 	return nil
+}
+
+func (c *Client) ensureHostPort(uri *fasthttp.URI, isPlain bool) error {
+	host := string(uri.Host())
+
+	var addrError *net.AddrError
+
+	_, _, err := net.SplitHostPort(host)
+	switch {
+	case errors.As(err, &addrError) && strings.Contains(addrError.Err, "missing port"):
+		if isPlain {
+			host = net.JoinHostPort(host, "80")
+		} else {
+			host = net.JoinHostPort(host, "443")
+		}
+		uri.SetHost(host)
+	case err != nil:
+		return fmt.Errorf("incorrect host %s: %w", host, err)
+	}
+
+	return nil
+}
+
+func (c *Client) dial(ctx context.Context, hostport string, isPlain bool) (net.Conn, error) {
+	conn, err := c.dialer.DialContext(ctx, "tcp", hostport)
+	if err != nil {
+		return nil, fmt.Errorf("cannot dial to host %s: %w", hostport, err)
+	}
+
+	host, _, _ := net.SplitHostPort(hostport)
+
+	if !isPlain {
+		tlsConn := tls.Client(conn, c.getTLSConfig(host))
+		if err := tlsConn.Handshake(); err != nil {
+			conn.Close()
+			return nil, fmt.Errorf("cannot establish tls handshake: %w", err)
+		}
+		return tlsConn, nil
+	}
+
+	return conn, nil
 }
 
 func (c *Client) getTLSConfig(host string) *tls.Config {

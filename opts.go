@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/layers"
 )
 
 const (
@@ -32,6 +33,7 @@ type ServerOpts struct {
 	TLSCertCA          []byte
 	TLSPrivateKey      []byte
 	TLSOrgName         string
+	Layers             []layers.Layer
 }
 
 func (s *ServerOpts) GetConcurrency() int {
@@ -116,4 +118,8 @@ func (s *ServerOpts) GetTLSPrivateKey() []byte {
 
 func (s *ServerOpts) GetTLSOrgName() string {
 	return s.TLSOrgName
+}
+
+func (s *ServerOpts) GetLayers() []layers.Layer {
+	return s.Layers
 }

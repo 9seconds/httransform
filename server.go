@@ -8,6 +8,7 @@ import (
 
 	"github.com/9seconds/httransform/v2/ca"
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/layers"
 	"github.com/valyala/fasthttp"
 )
 
@@ -16,11 +17,12 @@ type Server struct {
 	ctxCancel     context.CancelFunc
 	serverPool    sync.Pool
 	channelEvents chan<- events.Event
+	layers        []layers.Layer
 	ca            *ca.CA
 	server        *fasthttp.Server
 }
 
-func (s *Server) Serve(ln net.Listener) error {
+func (s *Server) SerCve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
@@ -54,6 +56,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 		ctxCancel:     cancel,
 		channelEvents: channelEvents,
 		ca:            certAuth,
+		layers:        oopts.GetLayers(),
 		serverPool: sync.Pool{
 			New: func() interface{} {
 				return &fasthttp.Server{

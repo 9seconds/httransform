@@ -11,8 +11,7 @@ import (
 )
 
 type Context struct {
-	ID string
-
+	requestID   string
 	ctxCancel   context.CancelFunc
 	ctx         context.Context
 	originalCtx *fasthttp.RequestCtx
@@ -40,6 +39,10 @@ func (c *Context) Tunneled() bool {
 	return c.tunneled
 }
 
+func (c *Context) RequestID() string {
+	return c.requestID
+}
+
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, parent *Context) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
@@ -48,10 +51,10 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, parent *Context) {
 	c.ctxCancel = cancel
 
 	if parent != nil {
-		c.ID = parent.ID
+		c.requestID = parent.requestID
 		c.tunneled = true
 	} else {
-		c.ID = strconv.FormatUint(fasthttpCtx.ID(), 16)
+		c.requestID = strconv.FormatUint(fasthttpCtx.ID(), 16)
 		c.tunneled = false
 	}
 }
@@ -60,7 +63,7 @@ func (c Context) Reset() {
 	c.originalCtx = nil
 	c.ctx = nil
 	c.ctxCancel = nil
-	c.ID = ""
+	c.requestID = ""
 	c.tunneled = false
 
 	for key := range c.values {

@@ -52,7 +52,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		ctx.Hijack(s.hijackConnect(host, ctx))
+		ctx.Hijack(s.upgradeToTLS(host, ctx))
 		ctx.Success("", nil)
 
 		return
@@ -66,7 +66,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	s.main(ownCtx)
 }
 
-func (s *Server) hijackConnect(host string, ctx *fasthttp.RequestCtx) fasthttp.HijackHandler {
+func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.HijackHandler {
 	return func(conn net.Conn) {
 		defer conn.Close()
 

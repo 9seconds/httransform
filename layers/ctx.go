@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -54,7 +55,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, parent *Context) {
 		c.requestID = parent.requestID
 		c.tunneled = true
 	} else {
-		c.requestID = strconv.FormatUint(fasthttpCtx.ID(), 16)
+		c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
 		c.tunneled = false
 	}
 }

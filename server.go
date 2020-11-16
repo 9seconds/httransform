@@ -129,7 +129,9 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	if currentLayer == len(s.layers) {
-		s.executor(ctx)
+		if err := s.executor(ctx); err != nil {
+			ctx.Error(err)
+		}
 	}
 
 	for ; currentLayer > 0; currentLayer-- {
@@ -161,7 +163,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 
 	exec := oopts.GetExecutor()
 	if exec == nil {
-		exec = executor.MakeDefaultExecutor(ctx, 0, 0)
+		exec = executor.MakeDefaultExecutor(ctx, 0)
 	}
 
 	srv := &Server{

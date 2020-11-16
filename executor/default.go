@@ -11,23 +11,16 @@ import (
 
 const (
 	DefaultDialTimeout = 20 * time.Second
-	DefaultHTTPTimeout = 3 * time.Minute
 )
 
-func MakeDefaultExecutor(ctx context.Context, dialTimeout, httpTimeout time.Duration) Executor {
+func MakeDefaultExecutor(ctx context.Context, dialTimeout time.Duration) Executor {
 	if dialTimeout == 0 {
 		dialTimeout = DefaultDialTimeout
 	}
 
-	if httpTimeout == 0 {
-		httpTimeout = DefaultHTTPTimeout
-	}
-
 	client := client.NewClient(dialer.NewBase(ctx, dialTimeout), false)
 
-	return func(ctx *layers.Context) {
-		if err := client.Do(ctx, ctx.Request(), ctx.Response()); err != nil {
-			ctx.Error(err)
-		}
+	return func(ctx *layers.Context) error {
+		return client.Do(ctx, ctx.Request(), ctx.Response())
 	}
 }

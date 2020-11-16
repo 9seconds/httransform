@@ -19,7 +19,6 @@ import (
 
 const (
 	TLSConfigsCacheMaxSize = 128
-	BufioReaderSize        = 16 * 1024
 )
 
 type Client struct {

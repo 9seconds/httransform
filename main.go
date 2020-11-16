@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"net"
+	"time"
+
+	"github.com/9seconds/httransform/v2/layers"
 )
 
 // These are generates examples of self-signed certificates
@@ -45,6 +48,9 @@ func main() {
 	srv, err := NewServer(ctx, ServerOpts{
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
+		Layers: []layers.Layer{
+			layers.TimeoutLayer{time.Minute},
+		},
 	})
 	if err != nil {
 		panic(err)

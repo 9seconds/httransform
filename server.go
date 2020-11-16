@@ -99,20 +99,19 @@ func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.Hi
 }
 
 func (s *Server) main(ctx *layers.Context) {
-	requestMeta := events.AcquireRequestMeta()
-	defer events.ReleaseRequestMeta(requestMeta)
+	requestMeta := &events.RequestMeta{
+		RequestID: ctx.RequestID(),
+		Method:    string(bytes.ToLower(ctx.Request().Header.Method())),
+	}
 
-	requestMeta.RequestID = ctx.RequestID()
 	ctx.Request().URI().CopyTo(&requestMeta.URI)
-	requestMeta.Method = string(bytes.ToLower(ctx.Request().Header.Method()))
-
 	s.sendEvent(events.EventTypeStartRequest, requestMeta)
-	defer func() {
-		responseMeta := events.AcquireResponseMeta()
-		defer events.ReleaseResponseMeta(responseMeta)
 
-		responseMeta.Request = requestMeta
-		responseMeta.StatusCode = ctx.Response().StatusCode()
+	defer func() {
+		responseMeta := &events.ResponseMeta{
+			Request:    requestMeta,
+			StatusCode: ctx.Response().StatusCode(),
+		}
 
 		s.sendEvent(events.EventTypeFinishRequest, responseMeta)
 	}()

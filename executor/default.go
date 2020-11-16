@@ -23,7 +23,7 @@ func MakeDefaultExecutor(ctx context.Context, dialTimeout, httpTimeout time.Dura
 		httpTimeout = DefaultHTTPTimeout
 	}
 
-	client := client.NewClient(dialer.NewBase(ctx, dialTimeout), httpTimeout, false)
+	client := client.NewClient(dialer.NewBase(ctx, dialTimeout), false)
 
 	return func(ctx *layers.Context) {
 		if err := client.Do(ctx, ctx.Request(), ctx.Response()); err != nil {

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -12,7 +11,6 @@ import (
 	"net/http/httputil"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/9seconds/httransform/v2/dialer"
 	lru "github.com/hashicorp/golang-lru"
@@ -28,19 +26,17 @@ type Client struct {
 	dialer         dialer.Dialer
 	tlsConfigs     *lru.Cache
 	tlsConfigsLock sync.Mutex
-	timeout        time.Duration
 	tlsNoVerify    bool
 }
 
 func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response) error {
 	uri := request.URI()
 	isPlain := bytes.EqualFold(uri.Scheme(), []byte("http"))
+	ctx, cancel := context.WithCancel(ctx)
 
 	if err := c.ensureHostPort(request.URI(), isPlain); err != nil {
 		return err
 	}
-
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 
 	conn, err := c.dial(ctx, string(uri.Host()), isPlain)
 	if err != nil {
@@ -62,11 +58,12 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 	response.Reset()
 	response.Header.EnableNormalizing()
 
-	bufConn := bufio.NewReaderSize(conn, BufioReaderSize)
+	bufConn := acquireBufferedConn(conn, cancel)
 	statusCode := fasthttp.StatusContinue
 
 	for statusCode == fasthttp.StatusContinue {
-		if err := response.Header.Read(bufConn); err != nil {
+		if err := response.Header.Read(bufConn.rd); err != nil {
+			releaseBufferedConn(bufConn)
 			cancel()
 			return fmt.Errorf("cannot read response headers: %w", err)
 		}
@@ -83,14 +80,14 @@ func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fa
 		cancel()
 	case contentLength > 0:
 		reader := &streamReader{
-			data:   io.LimitReader(bufConn, int64(contentLength)),
-			cancel: cancel,
+			bufferedConn: bufConn,
+			toReadFrom:   io.LimitReader(bufConn, int64(contentLength)),
 		}
 		response.SetBodyStream(reader, contentLength)
 	default:
 		reader := &streamReader{
-			data:   httputil.NewChunkedReader(bufConn),
-			cancel: cancel,
+			bufferedConn: bufConn,
+			toReadFrom:   httputil.NewChunkedReader(bufConn),
 		}
 		response.SetBodyStream(reader, -1)
 	}
@@ -160,7 +157,7 @@ func (c *Client) getTLSConfig(host string) *tls.Config {
 	return conf
 }
 
-func NewClient(dial dialer.Dialer, httpTimeout time.Duration, tlsNoVerify bool) *Client {
+func NewClient(dial dialer.Dialer, tlsNoVerify bool) *Client {
 	cache, err := lru.New(TLSConfigsCacheMaxSize)
 	if err != nil {
 		panic(err)
@@ -169,7 +166,6 @@ func NewClient(dial dialer.Dialer, httpTimeout time.Duration, tlsNoVerify bool) 
 	rv := &Client{
 		dialer:      dial,
 		tlsConfigs:  cache,
-		timeout:     httpTimeout,
 		tlsNoVerify: tlsNoVerify,
 	}
 

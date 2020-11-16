@@ -1,25 +1,29 @@
 package client
 
 import (
-	"context"
 	"io"
+	"sync"
 )
 
 type streamReader struct {
-	data   io.Reader
-	cancel context.CancelFunc
+	bufferedConn *bufferedConn
+	toReadFrom   io.Reader
+	closeOnce    sync.Once
 }
 
 func (s *streamReader) Read(p []byte) (int, error) {
-	n, err := s.data.Read(p)
+	n, err := s.toReadFrom.Read(p)
 	if err != nil {
-		s.cancel()
+		s.Close()
 	}
 
 	return n, err
 }
 
 func (s *streamReader) Close() error {
-	s.cancel()
+	s.closeOnce.Do(func() {
+		s.bufferedConn.Cancel()
+		releaseBufferedConn(s.bufferedConn)
+	})
 	return nil
 }

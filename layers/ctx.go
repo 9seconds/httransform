@@ -14,12 +14,14 @@ import (
 )
 
 type Context struct {
-	requestID     string
-	ctxCancel     context.CancelFunc
-	ctx           context.Context
-	originalCtx   *fasthttp.RequestCtx
-	values        map[string]interface{}
-	channelEvents chan<- events.Event
+	ConnectTo string
+	RequestID string
+	Events    chan<- events.Event
+
+	ctxCancel   context.CancelFunc
+	ctx         context.Context
+	originalCtx *fasthttp.RequestCtx
+	values      map[string]interface{}
 }
 
 func (c *Context) Request() *fasthttp.Request {
@@ -38,14 +40,6 @@ func (c *Context) LocalAddr() net.Addr {
 	return c.originalCtx.LocalAddr()
 }
 
-func (c *Context) RequestID() string {
-	return c.requestID
-}
-
-func (c *Context) Events() chan<- events.Event {
-	return c.channelEvents
-}
-
 func (c *Context) Respond(msg string, statusCode int) {
 	c.originalCtx.Response.Reset()
 	c.originalCtx.Response.Header.DisableNormalizing()
@@ -59,18 +53,22 @@ func (c *Context) Error(err error) {
 	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()), fasthttp.StatusInternalServerError)
 }
 
-func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx, channelEvents chan<- events.Event, tunneled bool) {
+func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
+	connectTo string,
+	channelEvents chan<- events.Event,
+	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
+	c.RequestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
+	c.Events = channelEvents
+	c.ConnectTo = connectTo
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
 	c.ctxCancel = cancel
-	c.requestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
-	c.channelEvents = channelEvents
 
 	uri := fasthttpCtx.Request.URI()
 
-	if tunneled {
+	if isTLS {
 		uri.SetScheme("https")
 	} else {
 		uri.SetScheme("http")
@@ -81,8 +79,9 @@ func (c Context) Reset() {
 	c.originalCtx = nil
 	c.ctx = nil
 	c.ctxCancel = nil
-	c.requestID = ""
-	c.channelEvents = nil
+	c.RequestID = ""
+	c.Events = nil
+	c.ConnectTo = ""
 
 	for key := range c.values {
 		delete(c.values, key)

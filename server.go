@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/9seconds/httransform/v2/auth"
@@ -48,15 +50,22 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	}
 
 	if ctx.IsConnect() {
-		host, _, err := net.SplitHostPort(string(ctx.RequestURI()))
+		address, err := s.extractAddress(string(ctx.RequestURI()), true)
 		if err != nil {
 			ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
 
 			return
 		}
 
-		ctx.Hijack(s.upgradeToTLS(host, ctx))
+		ctx.Hijack(s.upgradeToTLS(address, ctx))
 		ctx.Success("", nil)
+
+		return
+	}
+
+	address, err := s.extractAddress(string(ctx.URI().Host()), false)
+	if err != nil {
+		ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
 
 		return
 	}
@@ -64,11 +73,13 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
 
-	ownCtx.Init(ctx, s.channelEvents, false)
+	ownCtx.Init(ctx, address, s.channelEvents, false)
 	s.main(ownCtx)
 }
 
-func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.HijackHandler {
+func (s *Server) upgradeToTLS(address string, ctx *fasthttp.RequestCtx) fasthttp.HijackHandler {
+	host, _, _ := net.SplitHostPort(address)
+
 	return func(conn net.Conn) {
 		defer conn.Close()
 
@@ -91,7 +102,7 @@ func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.Hi
 			ownCtx := layers.AcquireContext()
 			defer layers.ReleaseContext(ownCtx)
 
-			ownCtx.Init(ctx, s.channelEvents, true)
+			ownCtx.Init(ctx, address, s.channelEvents, true)
 			s.main(ownCtx)
 		}
 
@@ -101,7 +112,7 @@ func (s *Server) upgradeToTLS(host string, ctx *fasthttp.RequestCtx) fasthttp.Hi
 
 func (s *Server) main(ctx *layers.Context) {
 	requestMeta := &events.RequestMeta{
-		RequestID: ctx.RequestID(),
+		RequestID: ctx.RequestID,
 		Method:    string(bytes.ToLower(ctx.Request().Header.Method())),
 	}
 
@@ -137,6 +148,25 @@ func (s *Server) main(ctx *layers.Context) {
 	for ; currentLayer > 0; currentLayer-- {
 		s.layers[currentLayer-1].OnResponse(ctx, err)
 	}
+}
+
+func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
+	host, _, err := net.SplitHostPort(hostport)
+
+	var addrError *net.AddrError
+
+	switch {
+	case errors.As(err, &addrError) && strings.Contains(addrError.Err, "missing port"):
+		if isTLS {
+			return net.JoinHostPort(host, "443"), nil
+		}
+
+		return net.JoinHostPort(host, "80"), nil
+	case err != nil:
+		return "", fmt.Errorf("incorrect host %s: %w", hostport, err)
+	}
+
+	return hostport, nil
 }
 
 func (s *Server) sendEvent(eventType events.EventType, value interface{}) {

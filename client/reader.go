@@ -22,8 +22,8 @@ func (s *streamReader) Read(p []byte) (int, error) {
 
 func (s *streamReader) Close() error {
 	s.closeOnce.Do(func() {
-		s.bufferedConn.Cancel()
-		releaseBufferedConn(s.bufferedConn)
+		// s.bufferedConn.Cancel()
+		// releaseBufferedConn(s.bufferedConn)
 	})
 	return nil
 }

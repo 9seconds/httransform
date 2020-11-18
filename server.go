@@ -10,6 +10,7 @@ import (
 
 	"github.com/9seconds/httransform/v2/auth"
 	"github.com/9seconds/httransform/v2/ca"
+	"github.com/9seconds/httransform/v2/dialers"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/layers"
@@ -162,7 +163,11 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
 
 	exec := oopts.GetExecutor()
 	if exec == nil {
-		exec = executor.MakeDefaultExecutor(ctx, 0)
+		dialer, _ := dialers.NewBase(dialers.Opts{
+			Context:       ctx,
+			TLSSkipVerify: oopts.GetTLSSkipVerify(),
+		})
+		exec = executor.MakeDefaultExecutor(dialer)
 	}
 
 	srv := &Server{

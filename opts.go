@@ -37,6 +37,7 @@ type ServerOpts struct {
 	Auth               *url.Userinfo
 	Executor           executor.Executor
 	Client             *client.Client
+	TLSSkipVerify      bool
 }
 
 func (s *ServerOpts) GetConcurrency() int {
@@ -117,6 +118,10 @@ func (s *ServerOpts) GetTLSCertCA() []byte {
 
 func (s *ServerOpts) GetTLSPrivateKey() []byte {
 	return s.TLSPrivateKey
+}
+
+func (s *ServerOpts) GetTLSSkipVerify() bool {
+	return s.TLSSkipVerify
 }
 
 func (s *ServerOpts) GetLayers() []layers.Layer {

@@ -24,15 +24,18 @@ type Client struct {
 func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response) error {
 	uri := request.URI()
 	isSecure := bytes.EqualFold(uri.Scheme(), []byte("https"))
-	ctx, cancel := context.WithCancel(ctx)
 
 	if err := c.patchURI(uri, isSecure); err != nil {
 		return fmt.Errorf("cannot patch uri: %w", err)
 	}
+
+	return nil
 }
 
 func (c *Client) patchURI(uri *fasthttp.URI, isSecure bool) error {
-	host := string(uri.Host())
+	// host := string(uri.Host())
+
+	return nil
 
 }
 

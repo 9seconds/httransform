@@ -11,7 +11,7 @@ type Dialer interface {
 	UpgradeToTLS(context.Context, net.Conn, string) (net.Conn, error)
 }
 
-func Dial(dialer Dialer, ctx context.Context, address string, upgradeToTLS bool) (net.Conn, error) {
+func Dial(ctx context.Context, dialer Dialer, address string, upgradeToTLS bool) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, fmt.Errorf("incorrect address format: %w", err)

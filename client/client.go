@@ -21,22 +21,38 @@ type Client struct {
 	bufConnPool sync.Pool
 }
 
-func (c *Client) Do(ctx context.Context, request *fasthttp.Request, response *fasthttp.Response) error {
+func (c *Client) Do(ctx context.Context,
+	connectAddress string,
+	request *fasthttp.Request,
+	response *fasthttp.Response) error {
 	uri := request.URI()
 	isSecure := bytes.EqualFold(uri.Scheme(), []byte("https"))
 
-	if err := c.patchURI(uri, isSecure); err != nil {
-		return fmt.Errorf("cannot patch uri: %w", err)
+	conn, err := dialers.Dial(ctx, c.dialer, connectAddress, isSecure)
+	if err != nil {
+		return fmt.Errorf("cannot call to %s: %w", connectAddress, err)
 	}
 
+	if _, err := request.WriteTo(conn); err != nil {
+		return fmt.Errorf("cannot send a request: %w", err)
+	}
+
+	response.Reset()
+	response.Header.EnableNormalizing()
+
+	bufConn := c.acquireBufferedConn(conn)
+	statusCode := fasthttp.StatusContinue
+
+	for statusCode == fasthttp.StatusContinue {
+		if err := response.Header.Read(bufConn.rd); err != nil {
+			c.releaseBufferedConn(bufConn)
+			return fmt.Errorf("cannot read response headers: %w", err)
+		}
+	}
+
+	response.SetConnectionClose()
+
 	return nil
-}
-
-func (c *Client) patchURI(uri *fasthttp.URI, isSecure bool) error {
-	// host := string(uri.Host())
-
-	return nil
-
 }
 
 func (c *Client) acquireBufferedConn(rd io.Reader) *bufio.Reader {

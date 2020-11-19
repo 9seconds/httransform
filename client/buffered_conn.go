@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"sync"
 )
 
 type bufferedConn struct {
@@ -22,4 +23,10 @@ func (b *bufferedConn) Cancel() {
 func (b *bufferedConn) Reset(rd io.Reader, cancel context.CancelFunc) {
 	b.rd.Reset(rd)
 	b.cancel = cancel
+}
+
+var poolBufferedConn = sync.Pool{
+	New: func() interface{} {
+
+	},
 }

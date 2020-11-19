@@ -26,6 +26,8 @@ func (c *Client) Do(ctx context.Context,
 	isSecure := bytes.EqualFold(uri.Scheme(), []byte("https"))
 	ctx, cancel := context.WithCancel(ctx)
 
+	c.dialer.PatchHTTPRequest(request)
+
 	conn, err := dialers.Dial(ctx, c.dialer, connectAddress, isSecure)
 	if err != nil {
 		return fmt.Errorf("cannot call to %s: %w", connectAddress, err)

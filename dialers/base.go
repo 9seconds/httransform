@@ -1,6 +1,7 @@
 package dialers
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/dnscache"
+	"github.com/valyala/fasthttp"
 )
 
 type base struct {
@@ -69,6 +71,12 @@ func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (ne
 	}
 
 	return tlsConn, nil
+}
+
+func (b *base) PatchHTTPRequest(req *fasthttp.Request) {
+	if bytes.EqualFold(req.URI().Scheme(), []byte("http")) {
+		req.SetRequestURIBytes(req.URI().PathOriginal())
+	}
 }
 
 func (b *base) getTLSConfig(host string) *tls.Config {

@@ -2,6 +2,7 @@ package dialers
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -55,6 +56,12 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string
 	}
 
 	return h.baseDialer.UpgradeToTLS(ctx, conn, host)
+}
+
+func (h *httpProxy) PatchHTTPRequest(req *fasthttp.Request) {
+	if bytes.EqualFold(req.URI().Scheme(), []byte("http")) {
+		req.SetRequestURIBytes(req.Header.RequestURI())
+	}
 }
 
 func (h *httpProxy) acquireBufioReader(rd io.Reader) *bufio.Reader {

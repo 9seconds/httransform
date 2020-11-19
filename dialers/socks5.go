@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/valyala/fasthttp"
 	"golang.org/x/net/proxy"
 )
 
@@ -19,6 +20,10 @@ func (s *socksProxy) Dial(ctx context.Context, host, port string) (net.Conn, err
 
 func (s *socksProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (net.Conn, error) {
 	return s.baseDialer.UpgradeToTLS(ctx, conn, host)
+}
+
+func (s *socksProxy) PatchHTTPRequest(req *fasthttp.Request) {
+	s.baseDialer.PatchHTTPRequest(req)
 }
 
 func NewSocks(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {

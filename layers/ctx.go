@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/gofrs/uuid"
 	"github.com/valyala/fasthttp"
 )
 
@@ -59,7 +58,12 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
-	c.RequestID = strings.ToLower(strconv.FormatUint(fasthttpCtx.ID(), 16))
+	id, err := uuid.NewV4()
+	if err != nil {
+		panic(err)
+	}
+
+	c.RequestID = id.String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
 	c.originalCtx = fasthttpCtx

@@ -63,7 +63,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	address, err := s.extractAddress(string(ctx.URI().Host()), false)
+	address, err := s.extractAddress(string(ctx.Host()), false)
 	if err != nil {
 		ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
 
@@ -151,17 +151,17 @@ func (s *Server) main(ctx *layers.Context) {
 }
 
 func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
-	host, _, err := net.SplitHostPort(hostport)
+	_, _, err := net.SplitHostPort(hostport)
 
 	var addrError *net.AddrError
 
 	switch {
 	case errors.As(err, &addrError) && strings.Contains(addrError.Err, "missing port"):
 		if isTLS {
-			return net.JoinHostPort(host, "443"), nil
+			return net.JoinHostPort(hostport, "443"), nil
 		}
 
-		return net.JoinHostPort(host, "80"), nil
+		return net.JoinHostPort(hostport, "80"), nil
 	case err != nil:
 		return "", fmt.Errorf("incorrect host %s: %w", hostport, err)
 	}

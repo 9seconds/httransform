@@ -10,6 +10,6 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 	client := client.NewClient(dialer)
 
 	return func(ctx *layers.Context) error {
-		return client.Do(ctx, ctx.Request(), ctx.Response())
+		return client.Do(ctx, ctx.ConnectTo, ctx.Request(), ctx.Response())
 	}
 }

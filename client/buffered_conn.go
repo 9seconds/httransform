@@ -7,6 +7,10 @@ import (
 	"sync"
 )
 
+const (
+	BufferedConnSize = 32 * 1024
+)
+
 type bufferedConn struct {
 	rd     *bufio.Reader
 	cancel context.CancelFunc
@@ -27,6 +31,21 @@ func (b *bufferedConn) Reset(rd io.Reader, cancel context.CancelFunc) {
 
 var poolBufferedConn = sync.Pool{
 	New: func() interface{} {
-
+		return &bufferedConn{
+			rd: bufio.NewReaderSize(nil, BufferedConnSize),
+		}
 	},
+}
+
+func acquireBufferedConn(rd io.Reader, cancel context.CancelFunc) *bufferedConn {
+	reader := poolBufferedConn.Get().(*bufferedConn)
+
+	reader.Reset(rd, cancel)
+
+	return reader
+}
+
+func releaseBufferedConn(conn *bufferedConn) {
+	conn.Reset(nil, nil)
+	poolBufferedConn.Put(conn)
 }

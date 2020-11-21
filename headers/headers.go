@@ -79,6 +79,10 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 			}
 		}
 	}
+
+	if !found {
+		h.Append(name, value)
+	}
 }
 
 func (h *Headers) SetExact(name, value string, cleanupRest bool) {
@@ -94,6 +98,10 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 				found = true
 			}
 		}
+	}
+
+	if !found {
+		h.Append(name, value)
 	}
 }
 

@@ -8,14 +8,17 @@ import (
 	"time"
 
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/headers"
 	"github.com/gofrs/uuid"
 	"github.com/valyala/fasthttp"
 )
 
 type Context struct {
-	ConnectTo string
-	RequestID string
-	Events    chan<- events.Event
+	ConnectTo       string
+	RequestID       string
+	Events          chan<- events.Event
+	RequestHeaders  headers.Headers
+	ResponseHeaders headers.Headers
 
 	ctxCancel   context.CancelFunc
 	ctx         context.Context
@@ -66,6 +69,8 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	c.RequestID = id.String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
+	c.RequestHeaders.Reset()
+	c.RequestHeaders.Reset()
 
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
@@ -130,6 +135,12 @@ func (c *Context) Delete(key string) {
 var poolContext = sync.Pool{
 	New: func() interface{} {
 		return &Context{
+			RequestHeaders: headers.Headers{
+				Headers: []headers.Header{},
+			},
+			ResponseHeaders: headers.Headers{
+				Headers: []headers.Header{},
+			},
 			values: map[string]interface{}{},
 		}
 	},

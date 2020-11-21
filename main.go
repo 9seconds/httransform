@@ -49,9 +49,7 @@ func main() {
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
 		Layers: []layers.Layer{
-			layers.StartHeadersLayer{},
 			layers.TimeoutLayer{time.Minute},
-			layers.FinishHeadersLayer{},
 		},
 	})
 	if err != nil {

@@ -125,7 +125,11 @@ func (s *ServerOpts) GetTLSSkipVerify() bool {
 }
 
 func (s *ServerOpts) GetLayers() []layers.Layer {
-	return s.Layers
+	toReturn := []layers.Layer{layerStartHeaders{}}
+	toReturn = append(toReturn, s.Layers...)
+	toReturn = append(toReturn, layerFinishHeaders{})
+
+	return toReturn
 }
 
 func (s *ServerOpts) GetAuth() []byte {

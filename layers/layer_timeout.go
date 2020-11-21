@@ -23,5 +23,5 @@ func (t TimeoutLayer) OnResponse(ctx *Context, err error) error {
 		panic("cannot find a cancel function in the context")
 	}
 
-	return nil
+	return err
 }

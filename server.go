@@ -133,17 +133,14 @@ func (s *Server) main(ctx *layers.Context) {
 	var err error
 
 	for ; currentLayer < len(s.layers); currentLayer++ {
-		if err = s.layers[currentLayer].OnRequest(ctx); err != nil {
-			ctx.Error(err)
-
+		err = s.layers[currentLayer].OnRequest(ctx)
+		if err != nil {
 			break
 		}
 	}
 
 	if currentLayer == len(s.layers) {
-		if err := s.executor(ctx); err != nil {
-			ctx.Error(err)
-		}
+		err = s.executor(ctx)
 	}
 
 	for ; currentLayer > 0; currentLayer-- {

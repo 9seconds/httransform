@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net/textproto"
+	"strings"
 	"sync"
 )
+
+var newLineReplacer = strings.NewReplacer("\r\n", "\r\n\t")
 
 type Header struct {
 	ID    string
@@ -182,7 +185,7 @@ func (h *Headers) syncWriteHeaders(buf *bytes.Buffer) {
 		buf.WriteString(h.Headers[i].Name)
 		buf.WriteByte(':')
 		buf.WriteByte(' ')
-		buf.WriteString(h.Headers[i].Value)
+		newLineReplacer.WriteString(buf, h.Headers[i].Value) // nolint: errcheck
 		buf.WriteByte('\r')
 		buf.WriteByte('\n')
 	}

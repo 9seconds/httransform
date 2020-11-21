@@ -144,15 +144,16 @@ func (h *Headers) Sync() error {
 
 	h.original.DisableNormalizing()
 
-	buf := bytes.Buffer{}
+	buf := acquireBytesBuffer()
+	defer releaseBytesBuffer(buf)
 
-	if err := h.syncWriteFirstLine(&buf); err != nil {
+	if err := h.syncWriteFirstLine(buf); err != nil {
 		return fmt.Errorf("cannot get a first line: %w", err)
 	}
 
-	h.syncWriteHeaders(&buf)
+	h.syncWriteHeaders(buf)
 
-	if err := h.original.Read(&buf); err != nil {
+	if err := h.original.Read(buf); err != nil {
 		return fmt.Errorf("cannot parse given headers: %w", err)
 	}
 

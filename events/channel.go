@@ -37,6 +37,7 @@ func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel
 					return
 				case evt := <-eventChannel:
 					processor(evt)
+					ReleaseEvent(evt)
 				}
 			}
 		}(shards[i])

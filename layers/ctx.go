@@ -16,7 +16,7 @@ import (
 type Context struct {
 	ConnectTo       string
 	RequestID       string
-	Events          chan<- events.Event
+	Events          events.EventChannel
 	RequestHeaders  headers.Headers
 	ResponseHeaders headers.Headers
 
@@ -57,7 +57,7 @@ func (c *Context) Error(err error) {
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
-	channelEvents chan<- events.Event,
+	channelEvents events.EventChannel,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 

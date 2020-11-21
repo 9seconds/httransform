@@ -23,7 +23,7 @@ type Server struct {
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
 	serverPool    sync.Pool
-	channelEvents chan<- events.Event
+	channelEvents events.EventChannel
 	layers        []layers.Layer
 	auth          []byte
 	executor      executor.Executor
@@ -174,7 +174,7 @@ func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
 func (s *Server) sendEvent(eventType events.EventType, value interface{}) {
 	select {
 	case <-s.ctx.Done():
-	case s.channelEvents <- events.New(eventType, value):
+	case s.channelEvents <- events.AcquireEvent(eventType, value):
 	}
 }
 

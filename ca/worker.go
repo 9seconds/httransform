@@ -26,7 +26,7 @@ type worker struct {
 	ca              tls.Certificate
 	ctx             context.Context
 	cache           *lru.Cache
-	channelEvents   chan<- events.Event
+	channelEvents   events.EventChannel
 	channelRequests chan workerRequest
 }
 
@@ -65,7 +65,7 @@ func (w *worker) Run() {
 
 				select {
 				case <-w.ctx.Done():
-				case w.channelEvents <- events.New(events.EventTypeNewCertificate, req.host):
+				case w.channelEvents <- events.AcquireEvent(events.EventTypeNewCertificate, req.host):
 				}
 			}
 

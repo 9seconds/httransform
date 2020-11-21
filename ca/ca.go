@@ -31,7 +31,7 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 }
 
 func NewCA(ctx context.Context,
-	channelEvents chan<- events.Event,
+	channelEvents events.EventChannel,
 	certCA []byte,
 	privateKey []byte,
 	cacheSize int) (*CA, error) {
@@ -47,7 +47,7 @@ func NewCA(ctx context.Context,
 	cache, err := lru.NewWithEvict(cacheSize, func(key, _ interface{}) {
 		select {
 		case <-ctx.Done():
-		case channelEvents <- events.New(events.EventTypeDropCertificate, key):
+		case channelEvents <- events.AcquireEvent(events.EventTypeDropCertificate, key):
 		}
 	})
 	if err != nil {

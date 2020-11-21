@@ -5,9 +5,9 @@ import (
 	"runtime"
 )
 
-func NewEventChannel(ctx context.Context, processor EventProcessor) chan<- Event {
+func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel {
 	numCPU := runtime.NumCPU()
-	eventChan := make(chan Event, numCPU)
+	eventChan := make(chan *Event, numCPU)
 
 	for i := 0; i < numCPU; i++ {
 		go func() {
@@ -17,6 +17,7 @@ func NewEventChannel(ctx context.Context, processor EventProcessor) chan<- Event
 					return
 				case evt := <-eventChan:
 					processor(evt)
+					ReleaseEvent(evt)
 				}
 			}
 		}()

@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/9seconds/httransform/v2/headers"
 	"github.com/9seconds/httransform/v2/layers"
 )
 
@@ -50,6 +51,11 @@ func main() {
 		TLSPrivateKey: caPrivateKey,
 		Layers: []layers.Layer{
 			layers.TimeoutLayer{time.Minute},
+			&layers.HeadersLayer{
+				RequestSet: []headers.Header{
+					{Name: "X-Crawlera-ip", Value: "desktop"},
+				},
+			},
 		},
 	})
 	if err != nil {

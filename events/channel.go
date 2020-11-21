@@ -12,8 +12,8 @@ var (
 
 func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel {
 	multiplexChannel := make(chan *Event, channelShardNumber)
-
 	shards := make([]chan *Event, channelShardNumber)
+
 	for i := range shards {
 		shards[i] = make(chan *Event, 1)
 	}

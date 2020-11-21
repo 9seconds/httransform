@@ -65,7 +65,7 @@ func (w *worker) Run() {
 
 				select {
 				case <-w.ctx.Done():
-				case w.channelEvents <- events.AcquireEvent(events.EventTypeNewCertificate, req.host):
+				case w.channelEvents <- events.AcquireEvent(events.EventTypeNewCertificate, req.host, req.host):
 				}
 			}
 

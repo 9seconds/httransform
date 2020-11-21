@@ -5,23 +5,42 @@ import (
 	"runtime"
 )
 
-func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel {
-	numCPU := runtime.NumCPU()
-	eventChan := make(chan *Event, numCPU)
+var (
+	channelShardNumber       = runtime.NumCPU()
+	channelShardNumberUint64 = uint64(channelShardNumber)
+)
 
-	for i := 0; i < numCPU; i++ {
-		go func() {
+func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel {
+	multiplexChannel := make(chan *Event, channelShardNumber)
+
+	shards := make([]chan *Event, channelShardNumber)
+	for i := range shards {
+		shards[i] = make(chan *Event, 1)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case evt := <-multiplexChannel:
+				shards[evt.shard] <- evt
+			}
+		}
+	}()
+
+	for i := range shards {
+		go func(eventChannel <-chan *Event) {
 			for {
 				select {
 				case <-ctx.Done():
 					return
-				case evt := <-eventChan:
+				case evt := <-eventChannel:
 					processor(evt)
-					ReleaseEvent(evt)
 				}
 			}
-		}()
+		}(shards[i])
 	}
 
-	return eventChan
+	return multiplexChannel
 }

@@ -1,8 +1,11 @@
 package events
 
 import (
+	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/OneOfOne/xxhash"
 )
 
 type EventType byte
@@ -21,6 +24,7 @@ const (
 type Event struct {
 	id        EventType
 	timestamp time.Time
+	shard     int
 	value     interface{}
 }
 
@@ -50,12 +54,21 @@ var poolEvent = sync.Pool{
 	},
 }
 
-func AcquireEvent(eventType EventType, value interface{}) *Event {
+func AcquireEvent(eventType EventType, value interface{}, sequenceID string) *Event {
 	evt := poolEvent.Get().(*Event)
+
+	var shard int
+
+	if sequenceID == "" {
+		shard = rand.Intn(channelShardNumber)
+	} else {
+		shard = int(xxhash.Checksum64([]byte(sequenceID)) % channelShardNumberUint64)
+	}
 
 	evt.id = eventType
 	evt.timestamp = time.Now()
 	evt.value = value
+	evt.shard = shard
 
 	return evt
 }

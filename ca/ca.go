@@ -5,24 +5,22 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"hash/fnv"
 	"runtime"
 
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/OneOfOne/xxhash"
 	lru "github.com/hashicorp/golang-lru"
 )
 
 type CA struct {
-	workers []worker
+	workers    []worker
+	lenWorkers uint64
 }
 
 func (c *CA) Get(host string) (*tls.Config, error) {
-	hashFunc := fnv.New64a()
-	hashFunc.Write([]byte(host)) // nolint: errcheck
+	chosenWorker := xxhash.Checksum64([]byte(host)) % c.lenWorkers
 
-	chosenWorker := int(hashFunc.Sum64() % uint64(len(c.workers)))
-
-	conf, err := c.workers[chosenWorker].Get(host)
+	conf, err := c.workers[int(chosenWorker)].Get(host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get tls config for host: %w", err)
 	}
@@ -47,7 +45,7 @@ func NewCA(ctx context.Context,
 	cache, err := lru.NewWithEvict(cacheSize, func(key, _ interface{}) {
 		select {
 		case <-ctx.Done():
-		case channelEvents <- events.AcquireEvent(events.EventTypeDropCertificate, key):
+		case channelEvents <- events.AcquireEvent(events.EventTypeDropCertificate, key, key.(string)):
 		}
 	})
 	if err != nil {
@@ -55,7 +53,8 @@ func NewCA(ctx context.Context,
 	}
 
 	obj := &CA{
-		workers: make([]worker, 0, runtime.NumCPU()),
+		workers:    make([]worker, 0, runtime.NumCPU()),
+		lenWorkers: uint64(runtime.NumCPU()),
 	}
 
 	for i := 0; i < runtime.NumCPU(); i++ {

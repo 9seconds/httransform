@@ -1,6 +1,7 @@
 module github.com/9seconds/httransform/v2
 
 require (
+	github.com/OneOfOne/xxhash v1.2.8
 	github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80
 	github.com/andybalholm/brotli v1.0.1 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible

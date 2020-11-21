@@ -69,8 +69,6 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	c.RequestID = id.String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
-	c.RequestHeaders.Reset()
-	c.RequestHeaders.Reset()
 
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
@@ -89,9 +87,13 @@ func (c Context) Reset() {
 	c.originalCtx = nil
 	c.ctx = nil
 	c.ctxCancel = nil
+
 	c.RequestID = ""
 	c.Events = nil
 	c.ConnectTo = ""
+
+	c.RequestHeaders.Reset()
+	c.ResponseHeaders.Reset()
 
 	for key := range c.values {
 		delete(c.values, key)

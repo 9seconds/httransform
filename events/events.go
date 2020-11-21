@@ -13,7 +13,7 @@ const (
 	EventTypeDropCertificate                  // value - hostname(string)
 	EventTypeFailedAuth                       // value - nil
 	EventTypeStartRequest                     // value - requestMeta
-	EventTypeFailedRequest                    // value - error
+	EventTypeFailedRequest                    // value - errorMeta
 	EventTypeFinishRequest                    // value - responseMeta
 	EventTypeUserValues                       // fake value
 )

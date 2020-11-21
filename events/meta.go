@@ -12,3 +12,8 @@ type ResponseMeta struct {
 	Request    *RequestMeta
 	StatusCode int
 }
+
+type ErrorMeta struct {
+	Request *RequestMeta
+	Error   error
+}

@@ -148,7 +148,12 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	if err != nil {
-		s.sendEvent(events.EventTypeFailedRequest, err)
+		errorMeta := &events.ErrorMeta{
+			Request: requestMeta,
+			Error:   err,
+		}
+
+		s.sendEvent(events.EventTypeFailedRequest, errorMeta)
 		ctx.Error(err)
 	}
 }

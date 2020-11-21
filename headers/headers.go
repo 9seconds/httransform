@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"fmt"
+	"net/textproto"
 	"sync"
 )
 
@@ -156,7 +157,13 @@ func (h *Headers) Sync() error {
 }
 
 func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
-	reader := makeTextProtoReader(h.original.Headers())
+	bytesReader := acquireBytesReader(h.original.Headers())
+	defer releaseBytesReader(bytesReader)
+
+	bufReader := acquireBufioReader(bytesReader)
+	defer releaseBufioReader(bufReader)
+
+	reader := textproto.Reader{R: bufReader}
 
 	line, err := reader.ReadLineBytes()
 	if err != nil {
@@ -197,7 +204,16 @@ func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 	}
 
 	h.original = original
-	reader := makeTextProtoReader(original.Headers())
+
+	bytesReader := acquireBytesReader(original.Headers())
+	defer releaseBytesReader(bytesReader)
+
+	bufReader := acquireBufioReader(bytesReader)
+	defer releaseBufioReader(bufReader)
+
+	reader := textproto.Reader{
+		R: bufReader,
+	}
 
 	if _, err := reader.ReadLineBytes(); err != nil {
 		return fmt.Errorf("cannot skip first line: %w", err)

@@ -1,7 +1,6 @@
 package headers
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 
@@ -20,7 +19,10 @@ func (r RequestHeaderWrapper) Read(rd io.Reader) error {
 	r.ref.Reset()
 	r.ref.DisableNormalizing()
 
-	if err := r.ref.Read(bufio.NewReader(rd)); err != nil {
+	bufReader := acquireBufioReader(rd)
+	defer releaseBufioReader(bufReader)
+
+	if err := r.ref.Read(bufReader); err != nil {
 		return fmt.Errorf("cannot read request headers: %w", err)
 	}
 
@@ -49,7 +51,10 @@ func (r ResponseHeaderWrapper) Read(rd io.Reader) error {
 	r.ref.Reset()
 	r.ref.DisableNormalizing()
 
-	if err := r.ref.Read(bufio.NewReader(rd)); err != nil {
+	bufReader := acquireBufioReader(rd)
+	defer releaseBufioReader(bufReader)
+
+	if err := r.ref.Read(bufReader); err != nil {
 		return fmt.Errorf("cannot read response headers: %w", err)
 	}
 

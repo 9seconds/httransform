@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func DialerFromURL(opt Opts, proxyUrl string) (Dialer, error) {
-	parsed, err := url.Parse(proxyUrl)
+func DialerFromURL(opt Opts, proxyURL string) (Dialer, error) {
+	parsed, err := url.Parse(proxyURL)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy url: %w", err)
 	}

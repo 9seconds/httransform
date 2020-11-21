@@ -44,7 +44,6 @@ func (s StartHeadersLayer) OnResponse(ctx *Context, err error) error {
 
 		if err2 := responseHeaders.Sync(); err2 != nil {
 			return errors.Wrap(err, fmt.Errorf("cannot sync response headers: %w", err))
-
 		}
 
 		headers.ReleaseHeaderSet(responseHeaders)

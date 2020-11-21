@@ -7,5 +7,6 @@
 *.test
 
 vendor/
+.bin/
 coverage.txt
 httransform

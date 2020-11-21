@@ -97,7 +97,7 @@ func (w *worker) process(host string) *tls.Config {
 	}
 
 	randBytes := make([]byte, 64)
-	rand.Read(randBytes)
+	rand.Read(randBytes) // nolint: errcheck
 	template.SerialNumber.SetBytes(randBytes)
 
 	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)
@@ -117,7 +117,7 @@ func (w *worker) process(host string) *tls.Config {
 	}
 
 	return &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, // nolint: gosec
 		Certificates:       []tls.Certificate{certificate},
 	}
 }

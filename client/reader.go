@@ -17,7 +17,7 @@ func (s *streamReader) Read(p []byte) (int, error) {
 		s.Close()
 	}
 
-	return n, err
+	return n, err // nolint: wrapcheck
 }
 
 func (s *streamReader) Close() error {
@@ -25,5 +25,6 @@ func (s *streamReader) Close() error {
 		s.bufferedConn.Cancel()
 		releaseBufferedConn(s.bufferedConn)
 	})
+
 	return nil
 }

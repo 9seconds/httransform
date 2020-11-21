@@ -102,7 +102,7 @@ func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
 		proxyPort:      port,
 		bufioReaderPool: sync.Pool{
 			New: func() interface{} {
-				return bufio.NewReaderSize(nil, 5*1024)
+				return bufio.NewReaderSize(nil, 5*1024) // nolint: gomnd
 			},
 		},
 	}, nil

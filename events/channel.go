@@ -19,7 +19,6 @@ func NewEventChannel(ctx context.Context, processor EventProcessor) chan<- Event
 					processor(evt)
 				}
 			}
-
 		}()
 	}
 

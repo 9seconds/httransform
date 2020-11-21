@@ -57,7 +57,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		ctx.Hijack(s.upgradeToTLS(address, ctx))
+		ctx.Hijack(s.upgradeToTLS(address))
 		ctx.Success("", nil)
 
 		return
@@ -77,7 +77,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	s.main(ownCtx)
 }
 
-func (s *Server) upgradeToTLS(address string, ctx *fasthttp.RequestCtx) fasthttp.HijackHandler {
+func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
 	return func(conn net.Conn) {
@@ -106,7 +106,7 @@ func (s *Server) upgradeToTLS(address string, ctx *fasthttp.RequestCtx) fasthttp
 			s.main(ownCtx)
 		}
 
-		srv.ServeConn(tlsConn)
+		srv.ServeConn(tlsConn) // nolint: errcheck
 	}
 }
 
@@ -135,6 +135,7 @@ func (s *Server) main(ctx *layers.Context) {
 	for ; currentLayer < len(s.layers); currentLayer++ {
 		if err = s.layers[currentLayer].OnRequest(ctx); err != nil {
 			ctx.Error(err)
+
 			break
 		}
 	}
@@ -146,7 +147,11 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	for ; currentLayer > 0; currentLayer-- {
-		s.layers[currentLayer-1].OnResponse(ctx, err)
+		err = s.layers[currentLayer-1].OnResponse(ctx, err)
+	}
+
+	if err != nil {
+		ctx.Error(err)
 	}
 }
 
@@ -176,18 +181,19 @@ func (s *Server) sendEvent(eventType events.EventType, value interface{}) {
 	}
 }
 
-func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) {
+func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts
 	channelEvents := events.NewEventChannel(ctx, oopts.GetEventProcessor())
 	proxyAuth := oopts.GetAuth()
+
 	certAuth, err := ca.NewCA(ctx, channelEvents,
 		oopts.GetTLSCertCA(),
 		oopts.GetTLSPrivateKey(),
 		oopts.GetTLSCacheSize())
-
 	if err != nil {
 		cancel()
+
 		return nil, fmt.Errorf("cannot make certificate authority: %w", err)
 	}
 

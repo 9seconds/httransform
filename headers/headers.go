@@ -152,7 +152,7 @@ func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
 
 	line, err := reader.ReadLineBytes()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot scan a first line: %w", err)
 	}
 
 	buf.Write(line)
@@ -211,8 +211,7 @@ func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 		if colPosition < 0 {
 			h.Reset()
 
-			return fmt.Errorf("Malformed header %s", string(line))
-
+			return fmt.Errorf("malformed header %s", string(line))
 		}
 
 		endKey := colPosition

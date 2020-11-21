@@ -1,0 +1,13 @@
+[run]
+concurrency = 4
+deadline = "2m"
+tests = false
+skip-dirs = ["vendor"]
+skip-files = ["main.go"]
+
+[output]
+format = "colored-line-number"
+
+[linters]
+enable-all = true
+disable = ["gochecknoglobals", "exhaustivestruct", "goerr113"]

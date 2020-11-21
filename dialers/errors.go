@@ -2,6 +2,4 @@ package dialers
 
 import "errors"
 
-var (
-	ErrNoIPs = errors.New("no ips")
-)
+var ErrNoIPs = errors.New("no ips")

@@ -2,6 +2,7 @@ package headers
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 
 	"github.com/valyala/fasthttp"
@@ -20,7 +21,7 @@ func (r RequestHeaderWrapper) Read(rd io.Reader) error {
 	r.ref.DisableNormalizing()
 
 	if err := r.ref.Read(bufio.NewReader(rd)); err != nil {
-		return nil
+		return fmt.Errorf("cannot read request headers: %w", err)
 	}
 
 	r.ref.SetHostBytes(host)
@@ -49,7 +50,7 @@ func (r ResponseHeaderWrapper) Read(rd io.Reader) error {
 	r.ref.DisableNormalizing()
 
 	if err := r.ref.Read(bufio.NewReader(rd)); err != nil {
-		return err
+		return fmt.Errorf("cannot read response headers: %w", err)
 	}
 
 	r.ref.SetStatusCode(statusCode)

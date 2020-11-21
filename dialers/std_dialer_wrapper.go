@@ -12,7 +12,7 @@ type StdDialerWrapper struct {
 
 func (s StdDialerWrapper) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	if network != "tcp" {
-		return nil, fmt.Errorf("Incorrect network %s", network)
+		return nil, fmt.Errorf("incorrect network %s", network)
 	}
 
 	host, port, err := net.SplitHostPort(address)

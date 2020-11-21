@@ -18,7 +18,7 @@ type CA struct {
 
 func (c *CA) Get(host string) (*tls.Config, error) {
 	hashFunc := fnv.New64a()
-	hashFunc.Write([]byte(host))
+	hashFunc.Write([]byte(host)) // nolint: errcheck
 
 	chosenWorker := int(hashFunc.Sum64() % uint64(len(c.workers)))
 

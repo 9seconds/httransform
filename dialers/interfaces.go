@@ -32,6 +32,7 @@ func Dial(ctx context.Context, dialer Dialer, address string, upgradeToTLS bool)
 	tlsConn, err := dialer.UpgradeToTLS(ctx, conn, host)
 	if err != nil {
 		conn.Close()
+
 		return nil, fmt.Errorf("cannot upgrade connection to %s to tls: %w", address, err)
 	}
 

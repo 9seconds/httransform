@@ -148,6 +148,7 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	if err != nil {
+		s.sendEvent(events.EventTypeFailedRequest, err)
 		ctx.Error(err)
 	}
 }

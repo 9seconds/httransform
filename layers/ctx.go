@@ -52,7 +52,8 @@ func (c *Context) Respond(msg string, statusCode int) {
 }
 
 func (c *Context) Error(err error) {
-	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()), fasthttp.StatusInternalServerError)
+	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()),
+		fasthttp.StatusInternalServerError)
 }
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,

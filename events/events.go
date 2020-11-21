@@ -60,7 +60,7 @@ func AcquireEvent(eventType EventType, value interface{}, sequenceID string) *Ev
 	var shard int
 
 	if sequenceID == "" {
-		shard = rand.Intn(channelShardNumber)
+		shard = rand.Intn(channelShardNumber) // nolint: gosec
 	} else {
 		shard = int(xxhash.Checksum64([]byte(sequenceID)) % channelShardNumberUint64)
 	}

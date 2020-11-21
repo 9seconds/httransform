@@ -66,6 +66,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	c.RequestID = id.String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
+
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
 	c.ctxCancel = cancel

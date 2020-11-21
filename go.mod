@@ -1,6 +1,7 @@
 module github.com/9seconds/httransform/v2
 
 require (
+	github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80
 	github.com/andybalholm/brotli v1.0.1 // indirect
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/golang-lru v0.5.4

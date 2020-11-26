@@ -2,7 +2,6 @@ package http
 
 import (
 	"bufio"
-	"context"
 	"io"
 	"sync"
 )
@@ -12,17 +11,17 @@ const (
 )
 
 type bufferedReader struct {
-	reader *bufio.Reader
-	cancel context.CancelFunc
+	reader   *bufio.Reader
+	callback ResponseCallback
 }
 
 func (b *bufferedReader) Read(p []byte) (int, error) {
 	return b.reader.Read(p)
 }
 
-func (b *bufferedReader) Reset(rd io.Reader, cancel context.CancelFunc) {
+func (b *bufferedReader) Reset(rd io.Reader, callback ResponseCallback) {
 	b.reader.Reset(rd)
-	b.cancel = cancel
+	b.callback = callback
 }
 
 var poolBufferedConn = sync.Pool{
@@ -33,10 +32,10 @@ var poolBufferedConn = sync.Pool{
 	},
 }
 
-func acquireBufferedReader(rd io.Reader, cancel context.CancelFunc) *bufferedReader {
+func acquireBufferedReader(rd io.Reader, callback ResponseCallback) *bufferedReader {
 	reader := poolBufferedConn.Get().(*bufferedReader)
 
-	reader.Reset(rd, cancel)
+	reader.Reset(rd, callback)
 
 	return reader
 }

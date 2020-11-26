@@ -27,6 +27,6 @@ func (c *closingReader) Close() error {
 }
 
 func (c *closingReader) doClose() {
-    c.bufReader.cancel()
+    c.bufReader.callback()
     releaseBufferedReader(c.bufReader)
 }

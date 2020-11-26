@@ -2,6 +2,7 @@ package executor
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 
@@ -13,22 +14,23 @@ import (
 
 func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 	return func(ctx *layers.Context) error {
-        conn, err := defaultExecutorDial(ctx, dialer)
-        if err != nil {
-            return fmt.Errorf("cannot dial to the netloc: %w", err)
-        }
+		conn, err := defaultExecutorDial(ctx, dialer)
+		if err != nil {
+			return fmt.Errorf("cannot dial to the netloc: %w", err)
+		}
 
-        request := ctx.Request()
-        response := ctx.Response()
+		request := ctx.Request()
+		response := ctx.Response()
+		ownCtx, cancel := context.WithCancel(ctx)
 
-        dialer.PatchHTTPRequest(request)
+		dialer.PatchHTTPRequest(request)
 
-        go func() {
-            <-ctx.Done()
-            conn.Close()
-        }()
+		go func() {
+			<-ownCtx.Done()
+			conn.Close()
+		}()
 
-        return http.Execute(ctx, conn, request, response)
+		return http.Execute(ownCtx, conn, request, response, func() { cancel() })
 	}
 }
 
@@ -50,16 +52,16 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 		Events:  ctx.Events,
 	}
 
-    if bytes.EqualFold(ctx.Request().URI().Scheme(), []byte("http")) {
-        return conn, nil
-    }
+	if bytes.EqualFold(ctx.Request().URI().Scheme(), []byte("http")) {
+		return conn, nil
+	}
 
-    tlsConn, err := dialer.UpgradeToTLS(ctx, conn, host)
-    if err != nil {
-        conn.Close()
+	tlsConn, err := dialer.UpgradeToTLS(ctx, conn, host)
+	if err != nil {
+		conn.Close()
 
-        return nil, fmt.Errorf("cannot upgrade connection to tls: %w", err)
-    }
+		return nil, fmt.Errorf("cannot upgrade connection to tls: %w", err)
+	}
 
-    return tlsConn, nil
+	return tlsConn, nil
 }

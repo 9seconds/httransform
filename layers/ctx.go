@@ -13,6 +13,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type RequestHijacker func(clientConn, netlocConn net.Conn)
+
 type Context struct {
 	ConnectTo       string
 	RequestID       string
@@ -24,6 +26,7 @@ type Context struct {
 	ctx         context.Context
 	originalCtx *fasthttp.RequestCtx
 	values      map[string]interface{}
+	hijacked    bool
 }
 
 func (c *Context) Request() *fasthttp.Request {
@@ -54,6 +57,19 @@ func (c *Context) Respond(msg string, statusCode int) {
 func (c *Context) Error(err error) {
 	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()),
 		fasthttp.StatusInternalServerError)
+}
+
+func (c *Context) Hijack(hijacker RequestHijacker, netlocConn net.Conn) {
+	c.hijacked = true
+	c.originalCtx.Hijack(func(clientConn net.Conn) {
+		defer netlocConn.Close()
+
+		hijacker(clientConn, netlocConn)
+	})
+}
+
+func (c *Context) Hijacked() bool {
+    return c.hijacked
 }
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
@@ -88,6 +104,7 @@ func (c Context) Reset() {
 	c.originalCtx = nil
 	c.ctx = nil
 	c.ctxCancel = nil
+	c.hijacked = false
 
 	c.RequestID = ""
 	c.Events = nil

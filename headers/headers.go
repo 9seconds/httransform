@@ -50,7 +50,7 @@ func (h *Headers) GetAllExact(key string) []*Header {
 func (h *Headers) GetLast(key string) *Header {
 	headers := h.GetAll(key)
 
-	if len(headers) == 0 {
+	if len(headers) > 0 {
 		return headers[len(headers)-1]
 	}
 
@@ -60,7 +60,7 @@ func (h *Headers) GetLast(key string) *Header {
 func (h *Headers) GetLastExact(key string) *Header {
 	headers := h.GetAllExact(key)
 
-	if len(headers) == 0 {
+	if len(headers) > 0 {
 		return headers[len(headers)-1]
 	}
 
@@ -155,6 +155,11 @@ func (h *Headers) Sync() error {
 
 	if err := h.original.Read(buf); err != nil {
 		return fmt.Errorf("cannot parse given headers: %w", err)
+	}
+
+	value := h.GetLast("Connection")
+	if value == nil || value.Value != "close" {
+		h.original.ResetConnectionClose()
 	}
 
 	return nil

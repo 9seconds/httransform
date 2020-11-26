@@ -59,7 +59,7 @@ func (c *Context) Error(err error) {
 		fasthttp.StatusInternalServerError)
 }
 
-func (c *Context) Hijack(hijacker RequestHijacker, netlocConn net.Conn) {
+func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
 	c.hijacked = true
 	c.originalCtx.Hijack(func(clientConn net.Conn) {
 		defer netlocConn.Close()

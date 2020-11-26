@@ -37,6 +37,10 @@ func (r RequestHeaderWrapper) DisableNormalizing() {
 	r.ref.DisableNormalizing()
 }
 
+func (r RequestHeaderWrapper) ResetConnectionClose() {
+    r.ref.ResetConnectionClose()
+}
+
 func (r RequestHeaderWrapper) Headers() []byte {
 	return r.ref.RawHeaders()
 }
@@ -65,6 +69,10 @@ func (r ResponseHeaderWrapper) Read(rd io.Reader) error {
 
 func (r ResponseHeaderWrapper) DisableNormalizing() {
 	r.ref.DisableNormalizing()
+}
+
+func (r ResponseHeaderWrapper) ResetConnectionClose() {
+    r.ref.ResetConnectionClose()
 }
 
 func (r ResponseHeaderWrapper) Headers() []byte {

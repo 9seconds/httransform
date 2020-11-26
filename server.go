@@ -117,15 +117,15 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	ctx.Request().URI().CopyTo(&requestMeta.URI)
-	s.sendEvent(events.EventTypeStartRequest, requestMeta, requestMeta.ID())
+	s.sendEvent(events.EventTypeStartRequest, requestMeta, requestMeta.RequestID)
 
 	defer func() {
 		responseMeta := &events.ResponseMeta{
-			Request:    requestMeta,
+			RequestID:  ctx.RequestID,
 			StatusCode: ctx.Response().StatusCode(),
 		}
 
-		s.sendEvent(events.EventTypeFinishRequest, responseMeta, responseMeta.ID())
+		s.sendEvent(events.EventTypeFinishRequest, responseMeta, responseMeta.RequestID)
 	}()
 
 	currentLayer := 0
@@ -146,11 +146,11 @@ func (s *Server) main(ctx *layers.Context) {
 
 	if err != nil {
 		errorMeta := &events.ErrorMeta{
-			Request: requestMeta,
+			RequestID: ctx.RequestID,
 			Error:   err,
 		}
 
-		s.sendEvent(events.EventTypeFailedRequest, errorMeta, errorMeta.ID())
+		s.sendEvent(events.EventTypeFailedRequest, errorMeta, errorMeta.RequestID)
 		ctx.Error(err)
 	}
 }

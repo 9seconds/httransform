@@ -81,8 +81,6 @@ func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
 	return func(conn net.Conn) {
-		defer conn.Close()
-
 		conf, err := s.ca.Get(host)
 		if err != nil {
 			return

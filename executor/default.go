@@ -46,7 +46,7 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 	}
 
 	conn = &conns.TrafficConn{
-		Parent:  conn,
+		Conn:    conn,
 		Context: ctx,
 		ID:      ctx.RequestID,
 		Events:  ctx.Events,

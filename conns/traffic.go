@@ -5,13 +5,13 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/9seconds/httransform/v2/events"
 )
 
 type TrafficConn struct {
-	Parent  net.Conn
+	net.Conn
+
 	Context context.Context
 	ID      string
 	Events  events.EventChannel
@@ -26,7 +26,7 @@ func (t *TrafficConn) Read(p []byte) (int, error) {
 	t.exclusiveMutex.RLock()
 	defer t.exclusiveMutex.RUnlock()
 
-	n, err := t.Parent.Read(p)
+	n, err := t.Conn.Read(p)
 
 	atomic.AddUint64(&t.readBytes, uint64(n))
 
@@ -37,7 +37,7 @@ func (t *TrafficConn) Write(p []byte) (int, error) {
 	t.exclusiveMutex.RLock()
 	defer t.exclusiveMutex.RUnlock()
 
-	n, err := t.Parent.Write(p)
+	n, err := t.Conn.Write(p)
 
 	atomic.AddUint64(&t.writtenBytes, uint64(n))
 
@@ -45,31 +45,11 @@ func (t *TrafficConn) Write(p []byte) (int, error) {
 }
 
 func (t *TrafficConn) Close() error {
-	err := t.Parent.Close()
+	err := t.Conn.Close()
 
 	t.closedOnce.Do(t.doClose)
 
 	return err
-}
-
-func (t *TrafficConn) LocalAddr() net.Addr {
-	return t.Parent.LocalAddr()
-}
-
-func (t *TrafficConn) RemoteAddr() net.Addr {
-	return t.Parent.RemoteAddr()
-}
-
-func (t *TrafficConn) SetDeadline(tm time.Time) error {
-	return t.Parent.SetDeadline(tm)
-}
-
-func (t *TrafficConn) SetReadDeadline(tm time.Time) error {
-	return t.Parent.SetReadDeadline(tm)
-}
-
-func (t *TrafficConn) SetWriteDeadline(tm time.Time) error {
-	return t.Parent.SetWriteDeadline(tm)
 }
 
 func (t *TrafficConn) doClose() {
@@ -78,7 +58,7 @@ func (t *TrafficConn) doClose() {
 
 	meta := &events.TrafficMeta{
 		ID:           t.ID,
-		Addr:         t.Parent.RemoteAddr(),
+		Addr:         t.RemoteAddr(),
 		ReadBytes:    t.readBytes,
 		WrittenBytes: t.writtenBytes,
 	}

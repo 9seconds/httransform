@@ -18,7 +18,7 @@ type CA struct {
 }
 
 func (c *CA) Get(host string) (*tls.Config, error) {
-	chosenWorker := xxhash.Checksum64([]byte(host)) % c.lenWorkers
+	chosenWorker := xxhash.ChecksumString64(host) % c.lenWorkers
 
 	conf, err := c.workers[int(chosenWorker)].Get(host)
 	if err != nil {

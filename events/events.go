@@ -18,6 +18,7 @@ const (
 	EventTypeStartRequest                     // value - requestMeta
 	EventTypeFailedRequest                    // value - errorMeta
 	EventTypeFinishRequest                    // value - responseMeta
+	EventTypeTraffic                          // value - trafficMeta
 	EventTypeUserValues                       // fake value
 )
 
@@ -62,7 +63,7 @@ func AcquireEvent(eventType EventType, value interface{}, sequenceID string) *Ev
 	if sequenceID == "" {
 		shard = rand.Intn(channelShardNumber) // nolint: gosec
 	} else {
-		shard = int(xxhash.Checksum64([]byte(sequenceID)) % channelShardNumberUint64)
+		shard = int(xxhash.ChecksumString64(sequenceID) % channelShardNumberUint64)
 	}
 
 	evt.id = eventType

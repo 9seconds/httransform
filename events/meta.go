@@ -1,6 +1,10 @@
 package events
 
-import "github.com/valyala/fasthttp"
+import (
+	"net"
+
+	"github.com/valyala/fasthttp"
+)
 
 type RequestMeta struct {
 	RequestID string
@@ -16,4 +20,11 @@ type ResponseMeta struct {
 type ErrorMeta struct {
 	RequestID string
 	Error     error
+}
+
+type TrafficMeta struct {
+	ID           string
+	Addr         net.Addr
+	ReadBytes    uint64
+	WrittenBytes uint64
 }

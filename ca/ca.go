@@ -43,10 +43,7 @@ func NewCA(ctx context.Context,
 	}
 
 	cache, err := lru.NewWithEvict(cacheSize, func(key, _ interface{}) {
-		select {
-		case <-ctx.Done():
-		case channelEvents <- events.AcquireEvent(events.EventTypeDropCertificate, key, key.(string)):
-		}
+		channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key.(string))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot build a new cache: %w", err)

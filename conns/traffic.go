@@ -83,11 +83,5 @@ func (t *TrafficConn) doClose() {
 		WrittenBytes: t.writtenBytes,
 	}
 
-	evt := events.AcquireEvent(events.EventTypeTraffic, meta, t.ID)
-
-	select {
-	case <-t.Context.Done():
-		events.ReleaseEvent(evt)
-	case t.Events <- evt:
-	}
+	t.Events.Send(t.Context, events.EventTypeTraffic, meta, t.ID)
 }

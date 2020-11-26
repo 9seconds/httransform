@@ -63,10 +63,7 @@ func (w *worker) Run() {
 				conf = w.process(req.host)
 				w.cache.Add(req.host, conf)
 
-				select {
-				case <-w.ctx.Done():
-				case w.channelEvents <- events.AcquireEvent(events.EventTypeNewCertificate, req.host, req.host):
-				}
+				w.channelEvents.Send(w.ctx, events.EventTypeNewCertificate, req.host, req.host)
 			}
 
 			req.response <- conf

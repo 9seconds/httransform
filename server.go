@@ -44,7 +44,7 @@ func (s *Server) Close() error {
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	if err := auth.AuthenticateRequestHeaders(&ctx.Request.Header, s.auth); err != nil {
 		ctx.Error(fmt.Sprintf("Cannot authenticate: %s", err.Error()), fasthttp.StatusProxyAuthRequired)
-		s.sendEvent(events.EventTypeFailedAuth, nil, "")
+		s.channelEvents.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
 		return
 	}
@@ -117,7 +117,7 @@ func (s *Server) main(ctx *layers.Context) {
 	}
 
 	ctx.Request().URI().CopyTo(&requestMeta.URI)
-	s.sendEvent(events.EventTypeStartRequest, requestMeta, requestMeta.RequestID)
+	s.channelEvents.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
 
 	defer func() {
 		responseMeta := &events.ResponseMeta{
@@ -125,7 +125,7 @@ func (s *Server) main(ctx *layers.Context) {
 			StatusCode: ctx.Response().StatusCode(),
 		}
 
-		s.sendEvent(events.EventTypeFinishRequest, responseMeta, responseMeta.RequestID)
+		s.channelEvents.Send(s.ctx, events.EventTypeFinishRequest, responseMeta, ctx.RequestID)
 	}()
 
 	currentLayer := 0
@@ -147,10 +147,10 @@ func (s *Server) main(ctx *layers.Context) {
 	if err != nil {
 		errorMeta := &events.ErrorMeta{
 			RequestID: ctx.RequestID,
-			Error:   err,
+			Error:     err,
 		}
 
-		s.sendEvent(events.EventTypeFailedRequest, errorMeta, errorMeta.RequestID)
+		s.channelEvents.Send(ctx, events.EventTypeFailedRequest, errorMeta, ctx.RequestID)
 		ctx.Error(err)
 	}
 }
@@ -172,13 +172,6 @@ func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
 	}
 
 	return hostport, nil
-}
-
-func (s *Server) sendEvent(eventType events.EventType, value interface{}, sequenceID string) {
-	select {
-	case <-s.ctx.Done():
-	case s.channelEvents <- events.AcquireEvent(eventType, value, sequenceID):
-	}
 }
 
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen

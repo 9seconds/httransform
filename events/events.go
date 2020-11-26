@@ -55,15 +55,15 @@ var poolEvent = sync.Pool{
 	},
 }
 
-func AcquireEvent(eventType EventType, value interface{}, sequenceID string) *Event {
+func AcquireEvent(eventType EventType, value interface{}, shardKey string) *Event {
 	evt := poolEvent.Get().(*Event)
 
 	var shard int
 
-	if sequenceID == "" {
+	if shardKey == "" {
 		shard = rand.Intn(channelShardNumber) // nolint: gosec
 	} else {
-		shard = int(xxhash.ChecksumString64(sequenceID) % channelShardNumberUint64)
+		shard = int(xxhash.ChecksumString64(shardKey) % channelShardNumberUint64)
 	}
 
 	evt.id = eventType

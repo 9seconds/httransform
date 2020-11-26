@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"net/url"
 	"time"
 
@@ -140,7 +141,9 @@ func (s *ServerOpts) GetAuth() []byte {
 		return nil
 	}
 
-	return []byte(user + ":" + password)
+	encoded := base64.StdEncoding.EncodeToString([]byte(user + ":" + password))
+
+	return []byte(encoded)
 }
 
 func (s *ServerOpts) GetExecutor() executor.Executor {

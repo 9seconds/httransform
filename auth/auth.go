@@ -3,7 +3,6 @@ package auth
 import (
 	"bytes"
 	"crypto/subtle"
-	"encoding/base64"
 	"fmt"
 
 	"github.com/valyala/fasthttp"
@@ -23,16 +22,7 @@ func ProxyAuthenticate(headerValue, expectedAuth []byte) error {
 		pos++
 	}
 
-	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(headerValue[pos:])))
-	n, err := base64.StdEncoding.Decode(decoded, headerValue[pos:])
-	decoded = decoded[:n]
-
-	if err != nil {
-		return fmt.Errorf("incorrectly encoded authorization payload: %w", err)
-	}
-
-	compare := subtle.ConstantTimeCompare(decoded[:n], expectedAuth)
-	if compare != 1 {
+	if subtle.ConstantTimeCompare(headerValue[pos:], expectedAuth) != 1 {
 		return ErrFailedAuth
 	}
 
@@ -40,11 +30,11 @@ func ProxyAuthenticate(headerValue, expectedAuth []byte) error {
 }
 
 func AuthenticateRequestHeaders(headers *fasthttp.RequestHeader, expectedAuth []byte) error {
-	var authError error
-
 	if len(expectedAuth) == 0 {
 		return nil
 	}
+
+	authError := ErrFailedAuth
 
 	headers.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Proxy-Authorization")) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/9seconds/httransform/v2/conns"
@@ -19,18 +20,14 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 			return fmt.Errorf("cannot dial to the netloc: %w", err)
 		}
 
-		request := ctx.Request()
-		response := ctx.Response()
-		ownCtx, cancel := context.WithCancel(ctx)
+		dialer.PatchHTTPRequest(ctx.Request())
 
-		dialer.PatchHTTPRequest(request)
+		header := ctx.RequestHeaders.GetLast("Connection")
+		if header != nil && header.Value == "Upgrade" {
+			return defaultExecutorConnectionUpgrade(ctx, conn)
+		}
 
-		go func() {
-			<-ownCtx.Done()
-			conn.Close()
-		}()
-
-		return http.Execute(ownCtx, conn, request, response, func() { cancel() })
+		return defaultExecutorHTTPRequest(ctx, conn)
 	}
 }
 
@@ -64,4 +61,38 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 	}
 
 	return tlsConn, nil
+}
+
+func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error {
+	if err := http.Execute(ctx, conn, ctx.Request(), ctx.Response(), http.NoopResponseCallback); err != nil {
+		return fmt.Errorf("cannot send http request: %w", err)
+	}
+
+	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
+		go tcpPipe(clientConn, netlocConn)
+
+		tcpPipe(netlocConn, clientConn)
+	})
+
+	return nil
+}
+
+func defaultExecutorHTTPRequest(ctx *layers.Context, conn net.Conn) error {
+	ownCtx, cancel := context.WithCancel(ctx)
+
+	go func() {
+		<-ownCtx.Done()
+		conn.Close()
+	}()
+
+	return http.Execute(ownCtx, conn, ctx.Request(), ctx.Response(), func() { cancel() })
+}
+
+func tcpPipe(src io.ReadCloser, dst io.WriteCloser) {
+	defer func() {
+		src.Close()
+		dst.Close()
+	}()
+
+	io.Copy(dst, src)
 }

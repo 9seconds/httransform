@@ -12,6 +12,7 @@ import (
 
 	"github.com/9seconds/httransform/v2/auth"
 	"github.com/9seconds/httransform/v2/ca"
+	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/dialers"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
@@ -80,21 +81,21 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
-	return func(conn net.Conn) {
+	return conns.FixedHijackHandler(func(conn net.Conn) bool {
 		conf, err := s.ca.Get(host)
 		if err != nil {
-			return
+			return true
 		}
 
 		tlsConn := tls.Server(conn, conf)
-		defer tlsConn.Close()
-
 		if err := tlsConn.Handshake(); err != nil {
-			return
+			return true
 		}
 
 		srv := s.serverPool.Get().(*fasthttp.Server)
 		defer s.serverPool.Put(srv)
+
+		needToClose := true
 
 		srv.Handler = func(ctx *fasthttp.RequestCtx) {
 			ownCtx := layers.AcquireContext()
@@ -102,10 +103,14 @@ func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 
 			ownCtx.Init(ctx, address, s.channelEvents, true)
 			s.main(ownCtx)
+
+			needToClose = !ownCtx.Hijacked()
 		}
 
 		srv.ServeConn(tlsConn) // nolint: errcheck
-	}
+
+		return needToClose
+	})
 }
 
 func (s *Server) main(ctx *layers.Context) {
@@ -222,6 +227,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 					NoDefaultContentType:          true,
 					NoDefaultDate:                 true,
 					DisablePreParseMultipartForm:  true,
+					KeepHijackedConns:             true,
 				}
 			},
 		},

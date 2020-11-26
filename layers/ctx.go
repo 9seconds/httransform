@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/headers"
 	"github.com/gofrs/uuid"
@@ -26,7 +27,6 @@ type Context struct {
 	ctx         context.Context
 	originalCtx *fasthttp.RequestCtx
 	values      map[string]interface{}
-	hijacked    bool
 }
 
 func (c *Context) Request() *fasthttp.Request {
@@ -60,16 +60,18 @@ func (c *Context) Error(err error) {
 }
 
 func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
-	c.hijacked = true
-	c.originalCtx.Hijack(func(clientConn net.Conn) {
-		defer netlocConn.Close()
+    handler := conns.FixedHijackHandler(func(clientConn net.Conn) bool {
+        defer netlocConn.Close()
 
-		hijacker(clientConn, netlocConn)
-	})
+        hijacker(clientConn, netlocConn)
+
+        return true
+    })
+    c.originalCtx.Hijack(handler)
 }
 
 func (c *Context) Hijacked() bool {
-    return c.hijacked
+    return c.originalCtx.Hijacked()
 }
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
@@ -104,7 +106,6 @@ func (c Context) Reset() {
 	c.originalCtx = nil
 	c.ctx = nil
 	c.ctxCancel = nil
-	c.hijacked = false
 
 	c.RequestID = ""
 	c.Events = nil

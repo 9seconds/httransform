@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/dialers"
@@ -23,7 +24,7 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 		dialer.PatchHTTPRequest(ctx.Request())
 
 		header := ctx.RequestHeaders.GetLast("Connection")
-		if header != nil && header.Value == "Upgrade" {
+		if header != nil && strings.EqualFold(header.Value, "Upgrade") {
 			return defaultExecutorConnectionUpgrade(ctx, conn)
 		}
 

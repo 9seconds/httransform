@@ -263,9 +263,6 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 	}
 	srv.server = srv.serverPool.Get().(*fasthttp.Server)
 	srv.server.Handler = srv.entrypoint
-	srv.server.ContinueHandler = func(headers *fasthttp.RequestHeader) bool {
-		return auth.AuthenticateRequestHeaders(headers, proxyAuth) == nil
-	}
 
 	go func() {
 		<-ctx.Done()

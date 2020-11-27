@@ -18,7 +18,7 @@ type tcpUpgrader struct {
 func (t *tcpUpgrader) Manage(clientConn, netlocConn net.Conn) {
 	wg := &sync.WaitGroup{}
 
-	wg.Add(2)
+	wg.Add(2) // nolint: gomnd
 
 	go t.manage(clientConn, netlocConn, t.netlocBuffer, wg)
 
@@ -34,7 +34,7 @@ func (t *tcpUpgrader) manage(source io.ReadCloser, target io.WriteCloser, buf []
 		wg.Done()
 	}()
 
-	io.CopyBuffer(target, source, buf)
+	io.CopyBuffer(target, source, buf) // nolint: errcheck
 }
 
 func NewTCPUpgrader() Upgrader {

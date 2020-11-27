@@ -60,18 +60,18 @@ func (c *Context) Error(err error) {
 }
 
 func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
-    handler := conns.FixedHijackHandler(func(clientConn net.Conn) bool {
-        defer netlocConn.Close()
+	handler := conns.FixedHijackHandler(func(clientConn net.Conn) bool {
+		defer netlocConn.Close()
 
-        hijacker(clientConn, netlocConn)
+		hijacker(clientConn, netlocConn)
 
-        return true
-    })
-    c.originalCtx.Hijack(handler)
+		return true
+	})
+	c.originalCtx.Hijack(handler)
 }
 
 func (c *Context) Hijacked() bool {
-    return c.originalCtx.Hijacked()
+	return c.originalCtx.Hijacked()
 }
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,

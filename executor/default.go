@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 
@@ -70,16 +71,16 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
-        upgrader := upgrades.AcquireTCPUpgrader()
-        defer upgrades.ReleaseTCPUpgrader(upgrader)
+		upgrader := upgrades.AcquireTCPUpgrader()
+		defer upgrades.ReleaseTCPUpgrader(upgrader)
 
-        upgrader.Manage(clientConn, netlocConn)
+		upgrader.Manage(clientConn, netlocConn)
 	})
 
 	return nil
 }
 
-func defaultExecutorHTTPRequest(ctx *layers.Context, conn net.Conn) error {
+func defaultExecutorHTTPRequest(ctx *layers.Context, conn io.ReadWriteCloser) error {
 	ownCtx, cancel := context.WithCancel(ctx)
 
 	go func() {

@@ -38,7 +38,7 @@ func (r RequestHeaderWrapper) DisableNormalizing() {
 }
 
 func (r RequestHeaderWrapper) ResetConnectionClose() {
-    r.ref.ResetConnectionClose()
+	r.ref.ResetConnectionClose()
 }
 
 func (r RequestHeaderWrapper) Headers() []byte {
@@ -72,7 +72,7 @@ func (r ResponseHeaderWrapper) DisableNormalizing() {
 }
 
 func (r ResponseHeaderWrapper) ResetConnectionClose() {
-    r.ref.ResetConnectionClose()
+	r.ref.ResetConnectionClose()
 }
 
 func (r ResponseHeaderWrapper) Headers() []byte {

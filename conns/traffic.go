@@ -30,7 +30,7 @@ func (t *TrafficConn) Read(p []byte) (int, error) {
 
 	atomic.AddUint64(&t.readBytes, uint64(n))
 
-	return n, err
+	return n, err // nolint: wrapcheck
 }
 
 func (t *TrafficConn) Write(p []byte) (int, error) {
@@ -41,7 +41,7 @@ func (t *TrafficConn) Write(p []byte) (int, error) {
 
 	atomic.AddUint64(&t.writtenBytes, uint64(n))
 
-	return n, err
+	return n, err // nolint: wrapcheck
 }
 
 func (t *TrafficConn) Close() error {
@@ -49,7 +49,7 @@ func (t *TrafficConn) Close() error {
 
 	t.closedOnce.Do(t.doClose)
 
-	return err
+	return err // nolint: wrapcheck
 }
 
 func (t *TrafficConn) doClose() {

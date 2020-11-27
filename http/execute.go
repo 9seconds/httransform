@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http/httputil"
 
 	"github.com/valyala/fasthttp"
 )
 
 func Execute(ctx context.Context,
-	conn net.Conn,
+	conn io.ReadWriter,
 	request *fasthttp.Request,
 	response *fasthttp.Response,
 	responseCallback ResponseCallback) error {
@@ -21,6 +20,7 @@ func Execute(ctx context.Context,
 
 	if _, err := request.WriteTo(conn); err != nil {
 		responseCallback()
+
 		return fmt.Errorf("cannot send a request: %w", err)
 	}
 

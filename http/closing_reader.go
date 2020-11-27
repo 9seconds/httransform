@@ -17,7 +17,7 @@ func (c *closingReader) Read(p []byte) (int, error) {
 		c.closeOnce.Do(c.doClose)
 	}
 
-	return n, err
+	return n, err // nolint: wrapcheck
 }
 
 func (c *closingReader) Close() error {
@@ -27,6 +27,6 @@ func (c *closingReader) Close() error {
 }
 
 func (c *closingReader) doClose() {
-    c.bufReader.callback()
-    releaseBufferedReader(c.bufReader)
+	c.bufReader.callback()
+	releaseBufferedReader(c.bufReader)
 }

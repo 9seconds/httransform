@@ -6,10 +6,20 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type RequestType byte
+
+const (
+	RequestTypePlain RequestType = 1 << iota
+	RequestTypeTLS
+	RequestTypeHTTP
+	RequestTypeUpgraded
+)
+
 type RequestMeta struct {
-	RequestID string
-	Method    string
-	URI       fasthttp.URI
+	RequestID   string
+	Method      string
+	URI         fasthttp.URI
+	RequestType RequestType
 }
 
 type ResponseMeta struct {

@@ -114,12 +114,8 @@ func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 }
 
 func (s *Server) main(ctx *layers.Context) {
-	requestMeta := &events.RequestMeta{
-		RequestID: ctx.RequestID,
-		Method:    string(bytes.ToLower(ctx.Request().Header.Method())),
-	}
+	requestMeta := s.getRequestMeta(ctx)
 
-	ctx.Request().URI().CopyTo(&requestMeta.URI)
 	s.channelEvents.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
 
 	defer func() {
@@ -175,6 +171,39 @@ func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
 	}
 
 	return hostport, nil
+}
+
+func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
+	request := ctx.Request()
+	uri := request.URI()
+	meta := &events.RequestMeta{
+		RequestID: ctx.RequestID,
+		Method:    string(bytes.ToUpper(request.Header.Method())),
+	}
+
+	uri.CopyTo(&meta.URI)
+
+	if bytes.EqualFold(uri.Scheme(), []byte("http")) {
+		meta.RequestType |= events.RequestTypePlain
+	} else {
+		meta.RequestType |= events.RequestTypeTLS
+	}
+
+	request.Header.VisitAll(func(key, value []byte) {
+		if bytes.EqualFold(key, []byte("Connection")) {
+			if bytes.EqualFold(value, []byte("Upgrade")) {
+				meta.RequestType |= events.RequestTypeUpgraded
+			} else {
+				meta.RequestType &^= events.RequestTypeUpgraded
+			}
+		}
+	})
+
+	if meta.RequestType&events.RequestTypeUpgraded == 0 {
+		meta.RequestType |= events.RequestTypeHTTP
+	}
+
+	return meta
 }
 
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen

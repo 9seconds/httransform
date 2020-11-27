@@ -1,7 +1,10 @@
 package upgrades
 
-import "net"
+import (
+	"context"
+	"net"
+)
 
 type Upgrader interface {
-	Manage(clientConn, netlocConn net.Conn)
+	Manage(ctx context.Context, clientConn, netlocConn net.Conn)
 }

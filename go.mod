@@ -4,6 +4,9 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80
 	github.com/andybalholm/brotli v1.0.1 // indirect
+	github.com/gobwas/httphead v0.0.0-20200921212729-da3d93bc3c58 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.0.4
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/klauspost/compress v1.11.3 // indirect

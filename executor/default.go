@@ -71,10 +71,10 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
-		upgrader := upgrades.AcquireTCPUpgrader()
-		defer upgrades.ReleaseTCPUpgrader(upgrader)
+		upgrader := upgrades.AcquireTCP()
+		defer upgrades.ReleaseTCP(upgrader)
 
-		upgrader.Manage(clientConn, netlocConn)
+		upgrader.Manage(ctx, clientConn, netlocConn)
 	})
 
 	return nil

@@ -1,13 +1,14 @@
 package upgrades
 
 import (
+	"context"
 	"io"
 	"net"
 	"sync"
 )
 
 const (
-	TCPUpgraderBufferSize = 10 * 1024
+	TCPBufferSize = 10 * 1024
 )
 
 type tcpUpgrader struct {
@@ -15,45 +16,43 @@ type tcpUpgrader struct {
 	netlocBuffer []byte
 }
 
-func (t *tcpUpgrader) Manage(clientConn, netlocConn net.Conn) {
-	wg := &sync.WaitGroup{}
+func (t *tcpUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
+    ctx, cancel := context.WithCancel(ctx)
 
-	wg.Add(2) // nolint: gomnd
+    go func() {
+        <-ctx.Done()
+        clientConn.Close()
+        netlocConn.Close()
+    }()
 
-	go t.manage(clientConn, netlocConn, t.netlocBuffer, wg)
+    go t.manage(clientConn, netlocConn, t.netlocBuffer, cancel)
 
-	go t.manage(netlocConn, clientConn, t.clientBuffer, wg)
-
-	wg.Wait()
+    t.manage(netlocConn, clientConn, t.clientBuffer, cancel)
 }
 
-func (t *tcpUpgrader) manage(source io.ReadCloser, target io.WriteCloser, buf []byte, wg *sync.WaitGroup) {
-	defer func() {
-		source.Close()
-		target.Close()
-		wg.Done()
-	}()
+func (t *tcpUpgrader) manage(src io.Reader, dst io.Writer, buf []byte, cancel context.CancelFunc) {
+    defer cancel()
 
-	io.CopyBuffer(target, source, buf) // nolint: errcheck
+	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
-func NewTCPUpgrader() Upgrader {
+func NewTCP() Upgrader {
 	return &tcpUpgrader{
-		clientBuffer: make([]byte, TCPUpgraderBufferSize),
-		netlocBuffer: make([]byte, TCPUpgraderBufferSize),
+		clientBuffer: make([]byte, TCPBufferSize),
+		netlocBuffer: make([]byte, TCPBufferSize),
 	}
 }
 
-var poolTCPUpgrader = sync.Pool{
+var poolTCP = sync.Pool{
 	New: func() interface{} {
-		return NewTCPUpgrader()
+		return NewTCP()
 	},
 }
 
-func AcquireTCPUpgrader() Upgrader {
-	return poolTCPUpgrader.Get().(Upgrader)
+func AcquireTCP() Upgrader {
+	return poolTCP.Get().(Upgrader)
 }
 
-func ReleaseTCPUpgrader(up Upgrader) {
-	poolTCPUpgrader.Put(up.(*tcpUpgrader))
+func ReleaseTCP(up Upgrader) {
+	poolTCP.Put(up.(*tcpUpgrader))
 }

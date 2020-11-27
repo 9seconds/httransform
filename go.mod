@@ -12,7 +12,7 @@ require (
 	github.com/valyala/fasthttp v1.17.0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
-	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
+	golang.org/x/sys v0.0.0-20201126233918-771906719818 // indirect
 )
 
 go 1.15

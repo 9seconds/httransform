@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/9seconds/httransform/v2/dialers"
 	"github.com/9seconds/httransform/v2/http"
 	"github.com/9seconds/httransform/v2/layers"
+	"github.com/9seconds/httransform/v2/upgrades"
 )
 
 func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
@@ -70,9 +70,10 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
-		go tcpPipe(clientConn, netlocConn)
+        upgrader := upgrades.AcquireTCPUpgrader()
+        defer upgrades.ReleaseTCPUpgrader(upgrader)
 
-		tcpPipe(netlocConn, clientConn)
+        upgrader.Manage(clientConn, netlocConn)
 	})
 
 	return nil
@@ -87,13 +88,4 @@ func defaultExecutorHTTPRequest(ctx *layers.Context, conn net.Conn) error {
 	}()
 
 	return http.Execute(ownCtx, conn, ctx.Request(), ctx.Response(), func() { cancel() })
-}
-
-func tcpPipe(src io.ReadCloser, dst io.WriteCloser) {
-	defer func() {
-		src.Close()
-		dst.Close()
-	}()
-
-	io.Copy(dst, src)
 }

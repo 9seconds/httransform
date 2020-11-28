@@ -10,12 +10,6 @@ import (
 
 var newLineReplacer = strings.NewReplacer("\r\n", "\r\n\t")
 
-type Header struct {
-	ID    string
-	Name  string
-	Value string
-}
-
 type Headers struct {
 	Headers []Header
 

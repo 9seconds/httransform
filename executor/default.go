@@ -10,6 +10,7 @@ import (
 
 	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/dialers"
+	"github.com/9seconds/httransform/v2/headers"
 	"github.com/9seconds/httransform/v2/http"
 	"github.com/9seconds/httransform/v2/layers"
 	"github.com/9seconds/httransform/v2/upgrades"
@@ -25,8 +26,12 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 		dialer.PatchHTTPRequest(ctx.Request())
 
 		header := ctx.RequestHeaders.GetLast("Connection")
-		if header != nil && strings.EqualFold(header.Value, "Upgrade") {
-			return defaultExecutorConnectionUpgrade(ctx, conn)
+		headerValues := headers.Values(header.GetValue())
+
+		for i := range headerValues {
+			if strings.EqualFold(headerValues[i], "Upgrade") {
+				return defaultExecutorConnectionUpgrade(ctx, conn)
+			}
 		}
 
 		return defaultExecutorHTTPRequest(ctx, conn)

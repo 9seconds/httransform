@@ -114,6 +114,7 @@ func (w *worker) process(host string) *tls.Config {
 	}
 
 	return &tls.Config{
+		ServerName:         host,
 		InsecureSkipVerify: true, // nolint: gosec
 		Certificates:       []tls.Certificate{certificate},
 	}

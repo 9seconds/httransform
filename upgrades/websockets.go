@@ -7,12 +7,13 @@ import (
 	"sync"
 
 	"github.com/gobwas/ws"
+	"github.com/gobwas/ws/wsutil"
 )
 
 type WebsocketReactor interface {
-	ClientMessage(*ws.Frame)
+	ClientMessage(wsutil.Message)
 	ClientError(error)
-	NetlocMessage(*ws.Frame)
+	NetlocMessage(wsutil.Message)
 	NetlocError(error)
 }
 
@@ -24,53 +25,63 @@ type websocketUpgrader struct {
 }
 
 func (w *websocketUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
-	clientReader, clientWriter := io.Pipe()
-	clientEnd := io.MultiWriter(clientConn, clientWriter)
-	netlocReader, netlocWriter := io.Pipe()
-	netlocEnd := io.MultiWriter(netlocConn, netlocWriter)
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
 		<-ctx.Done()
+		cancel()
 		clientConn.Close()
 		netlocConn.Close()
 	}()
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
+	clientPipeReader, clientPipeWriter := io.Pipe()
+	clientWriter := io.MultiWriter(clientConn, clientPipeWriter)
+
+	go w.consume(ctx,
+		clientPipeReader,
+		ws.StateClientSide,
+		w.reactor.ClientMessage,
+		w.reactor.ClientError)
+
+	netlocPipeReader, netlocPipeWriter := io.Pipe()
+	netlocWriter := io.MultiWriter(netlocConn, netlocPipeWriter)
+
+	go w.consume(ctx,
+		netlocPipeReader,
+		ws.StateServerSide,
+		w.reactor.NetlocMessage,
+		w.reactor.NetlocError)
+
+	go w.manage(clientWriter, netlocConn, w.clientBuffer, cancel)
+
+	w.manage(netlocWriter, clientConn, w.netlocBuffer, cancel)
+}
+
+func (w *websocketUpgrader) consume(ctx context.Context,
+	reader io.Reader,
+	state ws.State,
+	onMessage func(wsutil.Message),
+	onError func(error)) {
+	var err error
+
+	messages := []wsutil.Message{}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			messages, err = wsutil.ReadMessage(reader, state, messages[:0])
+
+			for _, v := range messages {
+				onMessage(v)
 			}
 
-			if frame, err := ws.ReadFrame(clientReader); err != nil {
-				w.reactor.ClientError(err)
-			} else {
-				w.reactor.ClientMessage(&frame)
+			if err != nil {
+				onError(err)
 			}
 		}
-	}()
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			if frame, err := ws.ReadFrame(netlocReader); err != nil {
-				w.reactor.NetlocError(err)
-			} else {
-				w.reactor.NetlocMessage(&frame)
-			}
-		}
-	}()
-
-	go w.manage(clientEnd, netlocConn, w.clientBuffer, cancel)
-
-	w.manage(netlocEnd, clientConn, w.netlocBuffer, cancel)
+	}
 }
 
 func (w *websocketUpgrader) manage(dst io.Writer, src io.Reader, buf []byte, cancel context.CancelFunc) {

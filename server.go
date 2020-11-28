@@ -16,6 +16,7 @@ import (
 	"github.com/9seconds/httransform/v2/dialers"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
+	"github.com/9seconds/httransform/v2/headers"
 	"github.com/9seconds/httransform/v2/layers"
 	"github.com/valyala/fasthttp"
 )
@@ -191,10 +192,13 @@ func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
 
 	request.Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Connection")) {
-			if bytes.EqualFold(value, []byte("Upgrade")) {
-				meta.RequestType |= events.RequestTypeUpgraded
-			} else {
-				meta.RequestType &^= events.RequestTypeUpgraded
+			values := headers.Values(string(value))
+			meta.RequestType &^= events.RequestTypeUpgraded
+
+			for i := range values {
+				if strings.EqualFold(values[i], "Upgrade") {
+					meta.RequestType |= events.RequestTypeUpgraded
+				}
 			}
 		}
 	})

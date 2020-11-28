@@ -62,7 +62,7 @@ func main() {
 		panic(err)
 	}
 
-	ln, err := net.Listen("tcp", "127.0.0.1:3128")
+    ln, err := net.Listen("tcp", "0.0.0.0:3128")
 	if err != nil {
 		panic(err)
 	}

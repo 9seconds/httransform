@@ -17,21 +17,21 @@ type tcpUpgrader struct {
 }
 
 func (t *tcpUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
-    ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 
-    go func() {
-        <-ctx.Done()
-        clientConn.Close()
-        netlocConn.Close()
-    }()
+	go func() {
+		<-ctx.Done()
+		clientConn.Close()
+		netlocConn.Close()
+	}()
 
-    go t.manage(clientConn, netlocConn, t.netlocBuffer, cancel)
+	go t.manage(clientConn, netlocConn, t.netlocBuffer, cancel)
 
-    t.manage(netlocConn, clientConn, t.clientBuffer, cancel)
+	t.manage(netlocConn, clientConn, t.clientBuffer, cancel)
 }
 
 func (t *tcpUpgrader) manage(src io.Reader, dst io.Writer, buf []byte, cancel context.CancelFunc) {
-    defer cancel()
+	defer cancel()
 
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }

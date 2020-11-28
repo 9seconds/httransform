@@ -87,7 +87,7 @@ func (w *websocketUpgrader) consume(ctx context.Context,
 func (w *websocketUpgrader) manage(dst io.Writer, src io.Reader, buf []byte, cancel context.CancelFunc) {
 	defer cancel()
 
-	io.CopyBuffer(dst, src, buf)
+	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
 func NewWebsocket(reactor WebsocketReactor) Upgrader {
@@ -113,8 +113,8 @@ func AcquireWebsocket(reactor WebsocketReactor) Upgrader {
 }
 
 func ReleaseWebsocket(up Upgrader) {
-	up_ := up.(*websocketUpgrader)
-	up_.reactor = nil
+	value := up.(*websocketUpgrader)
+	value.reactor = nil
 
-	poolWebsocket.Put(up_)
+	poolWebsocket.Put(value)
 }

@@ -4,28 +4,28 @@ import (
 	"context"
 	"time"
 
-	"github.com/jahnestacado/tlru"
+	"github.com/bluele/gcache"
 )
 
-type tlruCache struct {
+type cache struct {
 	ctx   context.Context
-	cache tlru.TLRU
+	cache gcache.Cache
 }
 
-func (t *tlruCache) Add(key string, value interface{}) {
+func (c *cache) Add(key string, value interface{}) {
 	select {
-	case <-t.ctx.Done():
+	case <-c.ctx.Done():
 	default:
-		t.cache.Set(tlru.Entry{Key: key, Value: value}) // nolint: errcheck
+		c.cache.Set(key, value) // nolint: errcheck
 	}
 }
 
-func (t *tlruCache) Get(key string) interface{} {
+func (c *cache) Get(key string) interface{} {
 	select {
-	case <-t.ctx.Done():
+	case <-c.ctx.Done():
 	default:
-		if entry := t.cache.Get(key); entry != nil {
-			return entry.Value
+		if value, err := c.cache.GetIFPresent(key); err == nil && value != nil {
+			return value
 		}
 	}
 
@@ -33,26 +33,13 @@ func (t *tlruCache) Get(key string) interface{} {
 }
 
 func New(ctx context.Context, size int, ttl time.Duration, callback EvictCallback) Interface {
-	channelEvictions := make(chan tlru.EvictedEntry, 1)
-	config := tlru.Config{
-		Size:            size,
-		TTL:             ttl,
-		EvictionPolicy:  tlru.LRA,
-		EvictionChannel: &channelEvictions,
-	}
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case evt := <-channelEvictions:
-				callback(evt.Key, evt.Value)
-			}
-		}
-	}()
-
-	return &tlruCache{
-		cache: tlru.New(config),
+	return &cache{
+		ctx: ctx,
+		cache: gcache.New(size).
+			LFU().
+			Expiration(ttl).
+			EvictedFunc(func(key, value interface{}) {
+				callback(key.(string), value)
+			}).Build(),
 	}
 }

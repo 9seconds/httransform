@@ -15,7 +15,7 @@ type WebsocketReactor interface {
 
 type NoopWebsocketReactor struct{}
 
-func (n NoopWebsocketReactor) ClientMessage(_ wsutil.Message) {}
-func (n NoopWebsocketReactor) ClientError(_ error)            {}
-func (n NoopWebsocketReactor) NetlocMessage(_ wsutil.Message) {}
-func (n NoopWebsocketReactor) NetlocError(_ error)            {}
+func (n NoopWebsocketReactor) ClientMessage(_ context.Context, _ wsutil.Message) {}
+func (n NoopWebsocketReactor) ClientError(_ context.Context, _ error)            {}
+func (n NoopWebsocketReactor) NetlocMessage(_ context.Context, _ wsutil.Message) {}
+func (n NoopWebsocketReactor) NetlocError(_ context.Context, _ error)            {}

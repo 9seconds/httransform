@@ -76,7 +76,7 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
-		upgrader := upgrades.AcquireTCP()
+		upgrader := upgrades.AcquireTCP(upgrades.NoopTCPReactor{})
 		defer upgrades.ReleaseTCP(upgrader)
 
 		upgrader.Manage(ctx, clientConn, netlocConn)

@@ -11,7 +11,19 @@ const (
 	TCPBufferSize = 10 * 1024
 )
 
+type tcpWriterWrapper struct {
+	ctx      context.Context
+	callback func(context.Context, []byte)
+}
+
+func (t tcpWriterWrapper) Write(p []byte) (int, error) {
+	t.callback(t.ctx, append([]byte(nil), p...))
+
+	return len(p), nil
+}
+
 type tcpInterface struct {
+	reactor      TCPReactor
 	clientBuffer []byte
 	netlocBuffer []byte
 }
@@ -25,15 +37,41 @@ func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Co
 		netlocConn.Close()
 	}()
 
-	go t.manage(clientConn, netlocConn, t.netlocBuffer, cancel)
+	go t.manage(ctx,
+		clientConn,
+		netlocConn,
+		t.reactor.NetlocBytes,
+		t.reactor.NetlocError,
+		t.netlocBuffer,
+		cancel)
 
-	t.manage(netlocConn, clientConn, t.clientBuffer, cancel)
+	t.manage(ctx,
+		netlocConn,
+		clientConn,
+		t.reactor.ClientBytes,
+		t.reactor.ClientError,
+		t.clientBuffer,
+		cancel)
 }
 
-func (t *tcpInterface) manage(src io.Reader, dst io.Writer, buf []byte, cancel context.CancelFunc) {
+func (t *tcpInterface) manage(ctx context.Context,
+	src io.Reader,
+	dst io.Writer,
+	onWriteBytes func(context.Context, []byte),
+	onWriteError func(context.Context, error),
+	buf []byte,
+	cancel context.CancelFunc) {
 	defer cancel()
 
-	io.CopyBuffer(dst, src, buf) // nolint: errcheck
+	writerWrapper := tcpWriterWrapper{
+		ctx:      ctx,
+		callback: onWriteBytes,
+	}
+	writer := io.MultiWriter(writerWrapper, dst)
+
+	if _, err := io.CopyBuffer(writer, src, buf); err != nil {
+		onWriteError(ctx, err)
+	}
 }
 
 func NewTCP() Interface {
@@ -49,10 +87,17 @@ var poolTCP = sync.Pool{
 	},
 }
 
-func AcquireTCP() Interface {
-	return poolTCP.Get().(Interface)
+func AcquireTCP(reactor TCPReactor) Interface {
+	rv := poolTCP.Get().(*tcpInterface)
+
+	rv.reactor = reactor
+
+	return rv
 }
 
 func ReleaseTCP(up Interface) {
-	poolTCP.Put(up.(*tcpInterface))
+	value := up.(*tcpInterface)
+	value.reactor = nil
+
+	poolTCP.Put(value)
 }

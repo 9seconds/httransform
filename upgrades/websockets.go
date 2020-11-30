@@ -11,7 +11,7 @@ import (
 )
 
 const (
-    WebsocketBufferSize = 10 * 1024
+	WebsocketBufferSize = 10 * 1024
 )
 
 type websocketInterface struct {

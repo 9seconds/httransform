@@ -11,12 +11,12 @@ const (
 	TCPBufferSize = 10 * 1024
 )
 
-type tcpUpgrader struct {
+type tcpInterface struct {
 	clientBuffer []byte
 	netlocBuffer []byte
 }
 
-func (t *tcpUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
+func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
@@ -30,14 +30,14 @@ func (t *tcpUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Con
 	t.manage(netlocConn, clientConn, t.clientBuffer, cancel)
 }
 
-func (t *tcpUpgrader) manage(src io.Reader, dst io.Writer, buf []byte, cancel context.CancelFunc) {
+func (t *tcpInterface) manage(src io.Reader, dst io.Writer, buf []byte, cancel context.CancelFunc) {
 	defer cancel()
 
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
 func NewTCP() Interface {
-	return &tcpUpgrader{
+	return &tcpInterface{
 		clientBuffer: make([]byte, TCPBufferSize),
 		netlocBuffer: make([]byte, TCPBufferSize),
 	}
@@ -54,5 +54,5 @@ func AcquireTCP() Interface {
 }
 
 func ReleaseTCP(up Interface) {
-	poolTCP.Put(up.(*tcpUpgrader))
+	poolTCP.Put(up.(*tcpInterface))
 }

@@ -33,7 +33,7 @@ func (h *Headers) GetAllExact(key string) []*Header {
 	rv := make([]*Header, 0, len(h.Headers))
 
 	for i := range h.Headers {
-		if key == h.Headers[i].Name() {
+		if key == h.Headers[i].name {
 			rv = append(rv, &h.Headers[i])
 		}
 	}
@@ -55,7 +55,7 @@ func (h *Headers) GetLast(key string) *Header {
 
 func (h *Headers) GetLastExact(key string) *Header {
 	for i := len(h.Headers) - 1; i >= 0; i-- {
-		if key == h.Headers[i].Name() {
+		if key == h.Headers[i].name {
 			return &h.Headers[i]
 		}
 	}
@@ -77,7 +77,7 @@ func (h *Headers) GetFirst(key string) *Header {
 
 func (h *Headers) GetFirstExact(key string) *Header {
 	for i := range h.Headers {
-		if key == h.Headers[i].Name() {
+		if key == h.Headers[i].name {
 			return &h.Headers[i]
 		}
 	}
@@ -101,7 +101,7 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 			found = true
 			h.Headers[i].value = value
 
-			if name != h.Headers[i].Name() {
+			if name != h.Headers[i].name {
 				h.Headers[i].name = name
 				h.Headers[i].id = makeHeaderID(name)
 			}
@@ -117,7 +117,7 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 	found := false
 
 	for i := 0; i < len(h.Headers); i++ {
-		if name != h.Headers[i].Name() {
+		if name != h.Headers[i].name {
 			continue
 		}
 
@@ -148,7 +148,7 @@ func (h *Headers) Remove(key string) {
 
 func (h *Headers) RemoveExact(key string) {
 	for i := 0; i < len(h.Headers); i++ {
-		if key == h.Headers[i].Name() {
+		if key == h.Headers[i].name {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
@@ -211,10 +211,10 @@ func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
 
 func (h *Headers) syncWriteHeaders(buf *bytes.Buffer) {
 	for i := range h.Headers {
-		buf.WriteString(h.Headers[i].Name())
+		buf.WriteString(h.Headers[i].name)
 		buf.WriteByte(':')
 		buf.WriteByte(' ')
-		newLineReplacer.WriteString(buf, h.Headers[i].Value()) // nolint: errcheck
+		newLineReplacer.WriteString(buf, h.Headers[i].value) // nolint: errcheck
 		buf.WriteByte('\r')
 		buf.WriteByte('\n')
 	}

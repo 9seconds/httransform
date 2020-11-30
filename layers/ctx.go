@@ -82,12 +82,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
-	id, err := uuid.NewV4()
-	if err != nil {
-		panic(err)
-	}
-
-	c.RequestID = id.String()
+	c.RequestID = uuid.Must(uuid.NewV4()).String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
 	c.User = user

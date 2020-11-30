@@ -15,7 +15,6 @@ type basicAuth struct {
 }
 
 func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
-	user := ""
 	authError := ErrFailedAuth
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
@@ -25,10 +24,10 @@ func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 	})
 
 	if authError == nil {
-		user = b.user
+        return b.user, nil
 	}
 
-	return user, authError
+    return "", authError
 }
 
 func (b *basicAuth) doAuth(header []byte) error {

@@ -29,7 +29,7 @@ func DialerFromURL(opt Opts, proxyURL string) (Dialer, error) {
 	case "socks5":
 		return NewSocks(opt, proxyAuth)
 	case "http", "https":
-		return NewHTTPProxy(opt, proxyAuth)
+		return NewHTTPProxy(opt, proxyAuth), nil
 	}
 
 	return nil, fmt.Errorf("unknown proxy scheme: %s", parsed.Scheme)

@@ -219,8 +219,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 
 	certAuth, err := ca.NewCA(ctx, channelEvents,
 		oopts.GetTLSCertCA(),
-		oopts.GetTLSPrivateKey(),
-		oopts.GetTLSCacheSize())
+		oopts.GetTLSPrivateKey())
 	if err != nil {
 		cancel()
 
@@ -229,7 +228,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 
 	exec := oopts.GetExecutor()
 	if exec == nil {
-		dialer, _ := dialers.NewBase(dialers.Opts{
+		dialer := dialers.NewBase(dialers.Opts{
 			Context:       ctx,
 			TLSSkipVerify: oopts.GetTLSSkipVerify(),
 		})

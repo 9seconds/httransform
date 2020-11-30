@@ -6,10 +6,16 @@ import (
 	"crypto/x509"
 	"fmt"
 	"runtime"
+	"time"
 
+	"github.com/9seconds/httransform/v2/cache"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/OneOfOne/xxhash"
-	lru "github.com/hashicorp/golang-lru"
+)
+
+const (
+	CACacheSize = 1024
+	CACacheTTL  = 5 * time.Minute
 )
 
 type CA struct {
@@ -31,8 +37,7 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 func NewCA(ctx context.Context,
 	channelEvents events.EventChannel,
 	certCA []byte,
-	privateKey []byte,
-	cacheSize int) (*CA, error) {
+	privateKey []byte) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot make a x509 keypair: %w", err)
@@ -42,13 +47,6 @@ func NewCA(ctx context.Context,
 		return nil, fmt.Errorf("invalid certificates: %w", err)
 	}
 
-	cache, err := lru.NewWithEvict(cacheSize, func(key, _ interface{}) {
-		channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key.(string))
-	})
-	if err != nil {
-		return nil, fmt.Errorf("cannot build a new cache: %w", err)
-	}
-
 	obj := &CA{
 		workers:    make([]worker, 0, runtime.NumCPU()),
 		lenWorkers: uint64(runtime.NumCPU()),
@@ -56,10 +54,12 @@ func NewCA(ctx context.Context,
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wrk := worker{
-			ca:              ca,
-			ctx:             ctx,
-			cache:           cache,
-			channelEvents:   channelEvents,
+			ca:            ca,
+			ctx:           ctx,
+			channelEvents: channelEvents,
+			cache: cache.New(ctx, CACacheSize, CACacheTTL, func(key string, _ interface{}) {
+				channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key)
+			}),
 			channelRequests: make(chan workerRequest),
 		}
 

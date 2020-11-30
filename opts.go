@@ -17,7 +17,6 @@ const (
 	DefaultWriteTimeout       = time.Minute
 	DefaultTCPKeepAlivePeriod = 30 * time.Second
 	DefaultMaxRequestBodySize = 1024 * 1024 * 100
-	DefaultTLSCacheSize       = 512
 )
 
 type ServerOpts struct {
@@ -25,7 +24,6 @@ type ServerOpts struct {
 	ReadBufferSize     uint
 	WriteBufferSize    uint
 	MaxRequestBodySize uint
-	TLSCacheSize       uint
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
 	TCPKeepAlivePeriod time.Duration
@@ -92,14 +90,6 @@ func (s *ServerOpts) GetMaxRequestBodySize() int {
 	}
 
 	return int(s.MaxRequestBodySize)
-}
-
-func (s *ServerOpts) GetTLSCacheSize() int {
-	if s.TLSCacheSize == 0 {
-		return DefaultTLSCacheSize
-	}
-
-	return int(s.TLSCacheSize)
 }
 
 func (s *ServerOpts) GetEventProcessor() events.EventProcessor {

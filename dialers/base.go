@@ -10,17 +10,22 @@ import (
 	"sync"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/9seconds/httransform/v2/cache"
 	"github.com/libp2p/go-reuseport"
 	"github.com/rs/dnscache"
 	"github.com/valyala/fasthttp"
+)
+
+const (
+	BaseDialerTLSConfigCacheSize = 512
+	BaseDialerTLSConfigTTL       = 10 * time.Minute
 )
 
 type base struct {
 	netDialer      net.Dialer
 	dnsCache       dnscache.Resolver
 	tlsConfigsLock sync.Mutex
-	tlsConfigs     *lru.TwoQueueCache
+	tlsConfigs     cache.Interface
 	tlsSkipVerify  bool
 }
 
@@ -80,14 +85,14 @@ func (b *base) PatchHTTPRequest(req *fasthttp.Request) {
 }
 
 func (b *base) getTLSConfig(host string) *tls.Config {
-	if conf, ok := b.tlsConfigs.Get(host); ok {
+	if conf := b.tlsConfigs.Get(host); conf != nil {
 		return conf.(*tls.Config)
 	}
 
 	b.tlsConfigsLock.Lock()
 	defer b.tlsConfigsLock.Unlock()
 
-	if conf, ok := b.tlsConfigs.Get(host); ok {
+	if conf := b.tlsConfigs.Get(host); conf != nil {
 		return conf.(*tls.Config)
 	}
 
@@ -102,18 +107,16 @@ func (b *base) getTLSConfig(host string) *tls.Config {
 	return conf
 }
 
-func NewBase(opt Opts) (Dialer, error) {
-	tlsConfigs, err := lru.New2Q(opt.GetTLSConfigCacheMaxSize())
-	if err != nil {
-		return nil, fmt.Errorf("cannot build lru cache for tls configs: %w", err)
-	}
-
+func NewBase(opt Opts) Dialer {
 	rv := &base{
 		netDialer: net.Dialer{
 			Timeout: opt.GetTimeout(),
 			Control: reuseport.Control,
 		},
-		tlsConfigs:    tlsConfigs,
+		tlsConfigs: cache.New(opt.GetContext(),
+			BaseDialerTLSConfigCacheSize,
+			BaseDialerTLSConfigTTL,
+			cache.NoopCacheCallback),
 		tlsSkipVerify: opt.GetTLSSkipVerify(),
 	}
 
@@ -131,5 +134,5 @@ func NewBase(opt Opts) (Dialer, error) {
 		}
 	}(opt.GetContext(), opt.GetCleanupDNSEvery())
 
-	return rv, nil
+	return rv
 }

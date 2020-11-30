@@ -77,12 +77,7 @@ func (h *httpProxy) releaseBufioReader(reader *bufio.Reader) {
 	h.bufioReaderPool.Put(reader)
 }
 
-func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
-	baseDialer, err := NewBase(opt)
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize a base dialer: %w", err)
-	}
-
+func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) Dialer {
 	connectRequest := fmt.Sprintf("CONNECT %s HTTP/1.1\r\n", proxyAuth.Address)
 
 	if proxyAuth.HasCredentials() {
@@ -96,7 +91,7 @@ func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
 	host, port, _ := net.SplitHostPort(proxyAuth.Address)
 
 	return &httpProxy{
-		baseDialer:     baseDialer.(*base),
+		baseDialer:     NewBase(opt).(*base),
 		connectRequest: []byte(connectRequest),
 		proxyHost:      host,
 		proxyPort:      port,
@@ -105,5 +100,5 @@ func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
 				return bufio.NewReaderSize(nil, 5*1024) // nolint: gomnd
 			},
 		},
-	}, nil
+	}
 }

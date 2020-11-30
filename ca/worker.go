@@ -11,8 +11,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/9seconds/httransform/v2/cache"
 	"github.com/9seconds/httransform/v2/events"
-	lru "github.com/hashicorp/golang-lru"
 )
 
 const RSAKeyLength = 2048
@@ -25,13 +25,13 @@ type workerRequest struct {
 type worker struct {
 	ca              tls.Certificate
 	ctx             context.Context
-	cache           *lru.Cache
+	cache           cache.Interface
 	channelEvents   events.EventChannel
 	channelRequests chan workerRequest
 }
 
 func (w *worker) Get(host string) (*tls.Config, error) {
-	if cert, ok := w.cache.Get(host); ok {
+	if cert := w.cache.Get(host); cert != nil {
 		return cert.(*tls.Config), nil
 	}
 
@@ -57,7 +57,7 @@ func (w *worker) Run() {
 		case req := <-w.channelRequests:
 			var conf *tls.Config
 
-			if cert, ok := w.cache.Get(req.host); ok {
+			if cert := w.cache.Get(req.host); cert != nil {
 				conf = cert.(*tls.Config)
 			} else {
 				conf = w.process(req.host)

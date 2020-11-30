@@ -27,10 +27,7 @@ func (s *socksProxy) PatchHTTPRequest(req *fasthttp.Request) {
 }
 
 func NewSocks(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
-	baseDialer, err := NewBase(opt)
-	if err != nil {
-		return nil, fmt.Errorf("cannot initialize a base dialer: %w", err)
-	}
+	baseDialer := NewBase(opt).(*base)
 
 	var auth *proxy.Auth
 
@@ -47,7 +44,7 @@ func NewSocks(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
 	}
 
 	return &socksProxy{
-		baseDialer: baseDialer.(*base),
+		baseDialer: baseDialer,
 		proxy:      proxyInstance.(proxy.ContextDialer),
 	}, nil
 }

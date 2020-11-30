@@ -28,17 +28,14 @@ func Execute(ctx context.Context,
 	response.Header.DisableNormalizing()
 
 	bufReader := acquireBufferedReader(conn, responseCallback)
-	statusCode := fasthttp.StatusContinue
 
-	for statusCode == fasthttp.StatusContinue {
+	for code := fasthttp.StatusContinue; code == fasthttp.StatusContinue; code = response.Header.StatusCode() {
 		if err := response.Header.Read(bufReader.reader); err != nil {
 			releaseBufferedReader(bufReader)
 			responseCallback()
 
 			return fmt.Errorf("cannot read response headers: %w", err)
 		}
-
-		statusCode = response.Header.StatusCode()
 	}
 
 	contentLength := response.Header.ContentLength()

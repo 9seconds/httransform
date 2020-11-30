@@ -17,11 +17,11 @@ type Headers struct {
 }
 
 func (h *Headers) GetAll(key string) []*Header {
-	key = makeHeaderID(key)
+	bkey := makeHeaderID(key)
 	rv := make([]*Header, 0, len(h.Headers))
 
 	for i := range h.Headers {
-		if key == h.Headers[i].ID {
+		if bytes.Equal(bkey, h.Headers[i].ID()) {
 			rv = append(rv, &h.Headers[i])
 		}
 	}
@@ -33,7 +33,7 @@ func (h *Headers) GetAllExact(key string) []*Header {
 	rv := make([]*Header, 0, len(h.Headers))
 
 	for i := range h.Headers {
-		if key == h.Headers[i].Name {
+		if key == h.Headers[i].Name() {
 			rv = append(rv, &h.Headers[i])
 		}
 	}
@@ -42,20 +42,44 @@ func (h *Headers) GetAllExact(key string) []*Header {
 }
 
 func (h *Headers) GetLast(key string) *Header {
-	headers := h.GetAll(key)
+	bkey := makeHeaderID(key)
 
-	if len(headers) > 0 {
-		return headers[len(headers)-1]
+	for i := len(h.Headers) - 1; i >= 0; i-- {
+		if bytes.Equal(bkey, h.Headers[i].ID()) {
+			return &h.Headers[i]
+		}
 	}
 
 	return nil
 }
 
 func (h *Headers) GetLastExact(key string) *Header {
-	headers := h.GetAllExact(key)
+	for i := len(h.Headers) - 1; i >= 0; i-- {
+		if key == h.Headers[i].Name() {
+			return &h.Headers[i]
+		}
+	}
 
-	if len(headers) > 0 {
-		return headers[len(headers)-1]
+	return nil
+}
+
+func (h *Headers) GetFirst(key string) *Header {
+	bkey := makeHeaderID(key)
+
+	for i := range h.Headers {
+		if bytes.Equal(bkey, h.Headers[i].ID()) {
+			return &h.Headers[i]
+		}
+	}
+
+	return nil
+}
+
+func (h *Headers) GetFirstExact(key string) *Header {
+	for i := range h.Headers {
+		if key == h.Headers[i].Name() {
+			return &h.Headers[i]
+		}
 	}
 
 	return nil
@@ -66,14 +90,20 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 	key := makeHeaderID(name)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if key == h.Headers[i].ID {
-			if cleanupRest && found {
-				copy(h.Headers[i:], h.Headers[i+1:])
-				h.Headers = h.Headers[:len(h.Headers)-1]
-			} else if !found {
-				h.Headers[i].Name = name
-				h.Headers[i].Value = value
-				found = true
+		if !bytes.Equal(key, h.Headers[i].ID()) {
+			continue
+		}
+
+		if cleanupRest && found {
+			copy(h.Headers[i:], h.Headers[i+1:])
+			h.Headers = h.Headers[:len(h.Headers)-1]
+		} else if !found {
+			found = true
+			h.Headers[i].value = value
+
+			if name != h.Headers[i].Name() {
+				h.Headers[i].name = name
+				h.Headers[i].id = makeHeaderID(name)
 			}
 		}
 	}
@@ -87,14 +117,16 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 	found := false
 
 	for i := 0; i < len(h.Headers); i++ {
-		if name == h.Headers[i].Name {
-			if cleanupRest && found {
-				copy(h.Headers[i:], h.Headers[i+1:])
-				h.Headers = h.Headers[:len(h.Headers)-1]
-			} else if !found {
-				h.Headers[i].Value = value
-				found = true
-			}
+		if name != h.Headers[i].Name() {
+			continue
+		}
+
+		if cleanupRest && found {
+			copy(h.Headers[i:], h.Headers[i+1:])
+			h.Headers = h.Headers[:len(h.Headers)-1]
+		} else if !found {
+			h.Headers[i].value = value
+			found = true
 		}
 	}
 
@@ -104,10 +136,10 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 }
 
 func (h *Headers) Remove(key string) {
-	key = makeHeaderID(key)
+    bkey := makeHeaderID(key)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if key == h.Headers[i].ID {
+		if bytes.Equal(bkey, h.Headers[i].ID()) {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
@@ -116,7 +148,7 @@ func (h *Headers) Remove(key string) {
 
 func (h *Headers) RemoveExact(key string) {
 	for i := 0; i < len(h.Headers); i++ {
-		if key == h.Headers[i].Name {
+		if key == h.Headers[i].Name() {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
@@ -124,11 +156,7 @@ func (h *Headers) RemoveExact(key string) {
 }
 
 func (h *Headers) Append(name, value string) {
-	h.Headers = append(h.Headers, Header{
-		ID:    makeHeaderID(name),
-		Name:  name,
-		Value: value,
-	})
+	h.Headers = append(h.Headers, NewHeader(name, value))
 }
 
 func (h *Headers) Sync() error {
@@ -151,9 +179,10 @@ func (h *Headers) Sync() error {
 		return fmt.Errorf("cannot parse given headers: %w", err)
 	}
 
-	value := h.GetLast("Connection")
-	if value == nil || value.Value != "close" {
-		h.original.ResetConnectionClose()
+	for _, v := range h.GetLast("Connection").Values() {
+		if v != "close" {
+			h.original.ResetConnectionClose()
+		}
 	}
 
 	return nil
@@ -182,10 +211,10 @@ func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
 
 func (h *Headers) syncWriteHeaders(buf *bytes.Buffer) {
 	for i := range h.Headers {
-		buf.WriteString(h.Headers[i].Name)
+		buf.WriteString(h.Headers[i].Name())
 		buf.WriteByte(':')
 		buf.WriteByte(' ')
-		newLineReplacer.WriteString(buf, h.Headers[i].Value) // nolint: errcheck
+		newLineReplacer.WriteString(buf, h.Headers[i].Value()) // nolint: errcheck
 		buf.WriteByte('\r')
 		buf.WriteByte('\n')
 	}

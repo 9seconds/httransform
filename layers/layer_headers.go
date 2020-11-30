@@ -47,11 +47,11 @@ func (h *HeadersLayer) execute(hdrs *headers.Headers,
 	set, setExact []headers.Header,
 	remove, removeExact []string) {
 	for i := range set {
-		hdrs.Set(set[i].Name, set[i].Value, true)
+		hdrs.Set(set[i].Name(), set[i].Value(), true)
 	}
 
 	for i := range setExact {
-		hdrs.Set(setExact[i].Name, setExact[i].Value, true)
+		hdrs.Set(setExact[i].Name(), setExact[i].Value(), true)
 	}
 
 	for i := range remove {

@@ -54,9 +54,7 @@ func main() {
 		Layers: []layers.Layer{
 			layers.TimeoutLayer{time.Minute},
 			&layers.HeadersLayer{
-				RequestSet: []headers.Header{
-					{Name: "X-Crawlera-ip", Value: "desktop"},
-				},
+				RequestSet: []headers.Header{headers.NewHeader("X-Crawlera-IP", "desktop")},
 			},
 		},
 	})

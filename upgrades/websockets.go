@@ -10,21 +10,14 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
-type WebsocketReactor interface {
-	ClientMessage(wsutil.Message)
-	ClientError(error)
-	NetlocMessage(wsutil.Message)
-	NetlocError(error)
-}
-
-type websocketUpgrader struct {
+type websocketInterface struct {
 	reactor WebsocketReactor
 
 	clientBuffer []byte
 	netlocBuffer []byte
 }
 
-func (w *websocketUpgrader) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
+func (w *websocketInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
@@ -57,7 +50,7 @@ func (w *websocketUpgrader) Manage(ctx context.Context, clientConn, netlocConn n
 	w.manage(netlocWriter, clientConn, w.netlocBuffer, cancel)
 }
 
-func (w *websocketUpgrader) consume(ctx context.Context,
+func (w *websocketInterface) consume(ctx context.Context,
 	reader io.Reader,
 	state ws.State,
 	onMessage func(wsutil.Message),
@@ -84,14 +77,14 @@ func (w *websocketUpgrader) consume(ctx context.Context,
 	}
 }
 
-func (w *websocketUpgrader) manage(dst io.Writer, src io.Reader, buf []byte, cancel context.CancelFunc) {
+func (w *websocketInterface) manage(dst io.Writer, src io.Reader, buf []byte, cancel context.CancelFunc) {
 	defer cancel()
 
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
 func NewWebsocket(reactor WebsocketReactor) Interface {
-	return &websocketUpgrader{
+	return &websocketInterface{
 		reactor:      reactor,
 		clientBuffer: make([]byte, TCPBufferSize),
 		netlocBuffer: make([]byte, TCPBufferSize),
@@ -105,7 +98,7 @@ var poolWebsocket = sync.Pool{
 }
 
 func AcquireWebsocket(reactor WebsocketReactor) Interface {
-	rv := poolWebsocket.Get().(*websocketUpgrader)
+	rv := poolWebsocket.Get().(*websocketInterface)
 
 	rv.reactor = reactor
 
@@ -113,7 +106,7 @@ func AcquireWebsocket(reactor WebsocketReactor) Interface {
 }
 
 func ReleaseWebsocket(up Interface) {
-	value := up.(*websocketUpgrader)
+	value := up.(*websocketInterface)
 	value.reactor = nil
 
 	poolWebsocket.Put(value)

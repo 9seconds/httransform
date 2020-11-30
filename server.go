@@ -83,7 +83,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
-	return conns.FixedHijackHandler(func(conn net.Conn) bool {
+	return conns.FixHijackHandler(func(conn net.Conn) bool {
 		conf, err := s.ca.Get(host)
 		if err != nil {
 			return true

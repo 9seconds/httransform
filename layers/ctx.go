@@ -61,7 +61,7 @@ func (c *Context) Error(err error) {
 }
 
 func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
-	handler := conns.FixedHijackHandler(func(clientConn net.Conn) bool {
+	handler := conns.FixHijackHandler(func(clientConn net.Conn) bool {
 		defer netlocConn.Close()
 
 		hijacker(clientConn, netlocConn)

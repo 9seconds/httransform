@@ -15,7 +15,7 @@ import (
 
 const (
 	CACacheSize = 1024
-	CACacheTTL  = 5 * time.Minute
+	CACacheTTL  = 7 * 24 * time.Hour
 )
 
 type CA struct {

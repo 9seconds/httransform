@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/base64"
-	"net/url"
 	"time"
 
+	"github.com/9seconds/httransform/v2/auth"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/layers"
@@ -34,8 +33,8 @@ type ServerOpts struct {
 	TLSCertCA          []byte
 	TLSPrivateKey      []byte
 	Layers             []layers.Layer
-	Auth               *url.Userinfo
 	Executor           executor.Executor
+	Authenticator      auth.Interface
 	TLSSkipVerify      bool
 }
 
@@ -131,17 +130,12 @@ func (s *ServerOpts) GetLayers() []layers.Layer {
 	return toReturn
 }
 
-func (s *ServerOpts) GetAuth() []byte {
-	user := s.Auth.Username()
-	password, _ := s.Auth.Password()
-
-	if user == "" && password == "" {
-		return nil
+func (s *ServerOpts) GetAuthenticator() auth.Interface {
+	if s.Authenticator == nil {
+		return auth.NoopAuth{}
 	}
 
-	encoded := base64.StdEncoding.EncodeToString([]byte(user + ":" + password))
-
-	return []byte(encoded)
+	return s.Authenticator
 }
 
 func (s *ServerOpts) GetExecutor() executor.Executor {

@@ -19,6 +19,7 @@ type RequestHijacker func(clientConn, netlocConn net.Conn)
 type Context struct {
 	ConnectTo       string
 	RequestID       string
+	User            string
 	Events          events.EventChannel
 	RequestHeaders  headers.Headers
 	ResponseHeaders headers.Headers
@@ -77,6 +78,7 @@ func (c *Context) Hijacked() bool {
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
 	channelEvents events.EventChannel,
+	user string,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
@@ -88,6 +90,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	c.RequestID = id.String()
 	c.Events = channelEvents
 	c.ConnectTo = connectTo
+	c.User = user
 
 	c.originalCtx = fasthttpCtx
 	c.ctx = ctx
@@ -110,6 +113,7 @@ func (c Context) Reset() {
 	c.RequestID = ""
 	c.Events = nil
 	c.ConnectTo = ""
+	c.User = ""
 
 	c.RequestHeaders.Reset()
 	c.ResponseHeaders.Reset()

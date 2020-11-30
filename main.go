@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/9seconds/httransform/v2/auth"
 	"github.com/9seconds/httransform/v2/headers"
 	"github.com/9seconds/httransform/v2/layers"
 )
@@ -49,6 +50,7 @@ func main() {
 	srv, err := NewServer(ctx, ServerOpts{
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
+		Authenticator: auth.NewBasicAuth("1", "1"),
 		Layers: []layers.Layer{
 			layers.TimeoutLayer{time.Minute},
 			&layers.HeadersLayer{
@@ -62,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-    ln, err := net.Listen("tcp", "0.0.0.0:3128")
+	ln, err := net.Listen("tcp", "0.0.0.0:3128")
 	if err != nil {
 		panic(err)
 	}

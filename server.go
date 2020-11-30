@@ -27,7 +27,7 @@ type Server struct {
 	serverPool    sync.Pool
 	channelEvents events.EventChannel
 	layers        []layers.Layer
-	auth          []byte
+	authenticator auth.Interface
 	executor      executor.Executor
 	ca            *ca.CA
 	server        *fasthttp.Server
@@ -44,8 +44,9 @@ func (s *Server) Close() error {
 }
 
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
-	if err := auth.AuthenticateRequestHeaders(&ctx.Request.Header, s.auth); err != nil {
-		ctx.Error(fmt.Sprintf("Cannot authenticate: %s", err.Error()), fasthttp.StatusProxyAuthRequired)
+	user, err := s.authenticator.Authenticate(ctx)
+	if err != nil {
+		ctx.Error(fmt.Sprintf("authenication is failed: %v", err), fasthttp.StatusProxyAuthRequired)
 		s.channelEvents.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
 		return
@@ -59,7 +60,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		ctx.Hijack(s.upgradeToTLS(address))
+		ctx.Hijack(s.upgradeToTLS(user, address))
 		ctx.Success("", nil)
 
 		return
@@ -75,11 +76,11 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
 
-	ownCtx.Init(ctx, address, s.channelEvents, false)
+	ownCtx.Init(ctx, address, s.channelEvents, user, false)
 	s.main(ownCtx)
 }
 
-func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
+func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
 	return conns.FixedHijackHandler(func(conn net.Conn) bool {
@@ -102,7 +103,7 @@ func (s *Server) upgradeToTLS(address string) fasthttp.HijackHandler {
 			ownCtx := layers.AcquireContext()
 			defer layers.ReleaseContext(ownCtx)
 
-			ownCtx.Init(ctx, address, s.channelEvents, true)
+			ownCtx.Init(ctx, address, s.channelEvents, user, true)
 			s.main(ownCtx)
 
 			needToClose = !ownCtx.Hijacked()
@@ -214,7 +215,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts
 	channelEvents := events.NewEventChannel(ctx, oopts.GetEventProcessor())
-	proxyAuth := oopts.GetAuth()
+	authenticator := oopts.GetAuthenticator()
 
 	certAuth, err := ca.NewCA(ctx, channelEvents,
 		oopts.GetTLSCertCA(),
@@ -241,7 +242,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 		channelEvents: channelEvents,
 		ca:            certAuth,
 		layers:        oopts.GetLayers(),
-		auth:          proxyAuth,
+		authenticator: authenticator,
 		executor:      exec,
 		serverPool: sync.Pool{
 			New: func() interface{} {

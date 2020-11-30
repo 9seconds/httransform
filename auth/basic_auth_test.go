@@ -26,9 +26,7 @@ func (suite *BasicAuthTestSuite) SetupTest() {
 	req.SetRequestURI("http://example.com/image.gif")
 	req.Header.SetMethod("GET")
 
-	suite.ctx.Init(req, &net.IPAddr{IP: net.ParseIP("127.0.0.1")}, nil)
-	suite.ctx.Request.SetHost("example.com")
-	suite.ctx.Request.Header.SetMethod("GET")
+    suite.ctx.Init(req, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000}, nil)
 
 	suite.auth = auth.NewBasicAuth("user", "password")
 	suite.userpassword = base64.StdEncoding.EncodeToString([]byte("user:password"))

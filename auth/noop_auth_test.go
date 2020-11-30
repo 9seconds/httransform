@@ -13,6 +13,7 @@ type NoopAuthTestSuite struct {
 
 func (suite *NoopAuthTestSuite) TestAuthenticate() {
 	_, err := auth.NoopAuth{}.Authenticate(nil)
+
 	suite.NoError(err)
 }
 

@@ -9,6 +9,7 @@ require (
 	github.com/gobwas/ws v1.0.4
 	github.com/gofrs/uuid v3.3.0+incompatible
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/kentik/patricia v0.0.0-20200128193914-c35d94c5e02f
 	github.com/klauspost/compress v1.11.3 // indirect
 	github.com/libp2p/go-reuseport v0.0.2
 	github.com/rs/dnscache v0.0.0-20190621150935-06bb5526f76b

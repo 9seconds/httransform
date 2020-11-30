@@ -3,7 +3,6 @@ package auth
 import "errors"
 
 var (
-
 	// ErrMalformedHeaderValue is returned if header is malformed. So,
 	// header value is present but format is incorrect: no 'basic ' prefix
 	// which defines a basic auth schema and so on.

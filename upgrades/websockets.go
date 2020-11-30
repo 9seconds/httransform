@@ -53,25 +53,21 @@ func (w *websocketInterface) Manage(ctx context.Context, clientConn, netlocConn 
 func (w *websocketInterface) consume(ctx context.Context,
 	reader io.Reader,
 	state ws.State,
-	onMessage func(wsutil.Message),
-	onError func(error)) {
-	var err error
-
-	messages := []wsutil.Message{}
-
+	onMessage func(context.Context, wsutil.Message),
+	onError func(context.Context, error)) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			messages, err = wsutil.ReadMessage(reader, state, messages[:0])
+			messages, err := wsutil.ReadMessage(reader, state, nil)
 
 			for _, v := range messages {
-				onMessage(v)
+				onMessage(ctx, v)
 			}
 
 			if err != nil {
-				onError(err)
+				onError(ctx, err)
 			}
 		}
 	}

@@ -1,12 +1,16 @@
 package upgrades
 
-import "github.com/gobwas/ws/wsutil"
+import (
+	"context"
+
+	"github.com/gobwas/ws/wsutil"
+)
 
 type WebsocketReactor interface {
-	ClientMessage(wsutil.Message)
-	ClientError(error)
-	NetlocMessage(wsutil.Message)
-	NetlocError(error)
+	ClientMessage(context.Context, wsutil.Message)
+	ClientError(context.Context, error)
+	NetlocMessage(context.Context, wsutil.Message)
+	NetlocError(context.Context, error)
 }
 
 type NoopWebsocketReactor struct{}

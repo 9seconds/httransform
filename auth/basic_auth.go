@@ -4,36 +4,51 @@ import (
 	"bytes"
 	"crypto/subtle"
 	"encoding/base64"
-	"fmt"
 
 	"github.com/valyala/fasthttp"
 )
 
+const (
+	basicAuthNotFound = -2
+	basicAuthFailed   = -1
+)
+
+type basicAuthPair struct {
+	user  string
+	value []byte
+}
+
 type basicAuth struct {
-	credentials map[string][]byte
+	credentials []basicAuthPair
 }
 
 func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
-	user := ""
-	authError := ErrAuthRequired
+	idx := basicAuthNotFound
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Proxy-Authorization")) {
-			user, authError = b.doAuth(value)
+			idx = b.doAuth(value)
 		}
 	})
 
-	return user, authError
+	switch idx {
+	case basicAuthNotFound:
+		return "", ErrAuthRequired
+	case basicAuthFailed:
+		return "", ErrFailedAuth
+	default:
+		return b.credentials[idx].user, nil
+	}
 }
 
-func (b *basicAuth) doAuth(header []byte) (string, error) {
+func (b *basicAuth) doAuth(header []byte) int {
 	pos := bytes.IndexByte(header, ' ')
 	if pos < 0 {
-		return "", ErrMalformedHeaderValue
+		return basicAuthFailed
 	}
 
 	if !bytes.EqualFold(header[:pos], []byte("Basic")) {
-		return "", fmt.Errorf("unsupported auth schema %s", string(header[:pos]))
+		return basicAuthFailed
 	}
 
 	for pos < len(header) && (header[pos] == ' ' || header[pos] == '\t') {
@@ -41,24 +56,23 @@ func (b *basicAuth) doAuth(header []byte) (string, error) {
 	}
 
 	toCompare := header[pos:]
-	user := ""
+	rv := basicAuthFailed
 
-	var counter int32
-
-	for k, v := range b.credentials {
-		value := int32(subtle.ConstantTimeCompare(toCompare, v))
-		counter += value
-
-		if subtle.ConstantTimeEq(value, 1) == 1 {
-			user = k
-		}
+    // Yes, it looks quite weird and simple basic auth implementation
+    // can be very-very simple but if we want to avoid timing attacks,
+    // we have to make it constant time. So, this is a reason why we
+    // compare and choose with subtle module. And this is a reason why
+    // we even find a user with ConstantTimeSelect which is a twist to
+    // understand.
+    //
+    // But idea is simple: negative ints mean failed auth, positive ones
+    // - indexes within an array.
+	for i := range b.credentials {
+		compared := subtle.ConstantTimeCompare(toCompare, b.credentials[i].value)
+		rv = subtle.ConstantTimeSelect(compared, i, rv)
 	}
 
-	if subtle.ConstantTimeEq(counter, 1) == 1 {
-		return user, nil
-	}
-
-	return "", ErrFailedAuth
+	return rv
 }
 
 // NewBasicAuth returns an implementation of authenticator which does
@@ -73,16 +87,19 @@ func (b *basicAuth) doAuth(header []byte) (string, error) {
 // This authenticator is implemented to work with RequestCtx with no
 // normalization.
 func NewBasicAuth(credentials map[string]string) Interface {
-	processedCredentials := map[string][]byte{}
+	pairs := make([]basicAuthPair, 0, len(credentials))
 
 	for k, v := range credentials {
 		userpassword := []byte(k + ":" + v)
 		encoded := base64.StdEncoding.EncodeToString(userpassword)
 
-		processedCredentials[k] = []byte(encoded)
+		pairs = append(pairs, basicAuthPair{
+			user:  k,
+			value: []byte(encoded),
+		})
 	}
 
 	return &basicAuth{
-		credentials: processedCredentials,
+		credentials: pairs,
 	}
 }

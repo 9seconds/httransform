@@ -27,7 +27,8 @@ func (suite *BasicAuthTestSuite) SetupTest() {
 	suite.ctx.Init(req, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000}, nil)
 
 	suite.auth = auth.NewBasicAuth(map[string]string{
-		"user": "password",
+		"user":  "password",
+		"user2": "password2",
 	})
 }
 
@@ -42,7 +43,7 @@ func (suite *BasicAuthTestSuite) TestIncorrectHeader() {
 
 	_, err := suite.auth.Authenticate(suite.ctx)
 
-	suite.EqualError(err, auth.ErrMalformedHeaderValue.Error())
+	suite.EqualError(err, auth.ErrFailedAuth.Error())
 }
 
 func (suite *BasicAuthTestSuite) TestUnsupportedSchema() {

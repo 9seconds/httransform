@@ -51,15 +51,16 @@ func NewCA(ctx context.Context,
 		workers:    make([]worker, 0, runtime.NumCPU()),
 		lenWorkers: uint64(runtime.NumCPU()),
 	}
+	cacheIf := cache.New(CACacheSize, CACacheTTL, func(key string, _ interface{}) {
+		channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key)
+	})
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wrk := worker{
-			ca:            ca,
-			ctx:           ctx,
-			channelEvents: channelEvents,
-			cache: cache.New(ctx, CACacheSize, CACacheTTL, func(key string, _ interface{}) {
-				channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key)
-			}),
+			ca:              ca,
+			ctx:             ctx,
+			channelEvents:   channelEvents,
+			cache:           cacheIf,
 			channelRequests: make(chan workerRequest),
 		}
 

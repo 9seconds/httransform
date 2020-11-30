@@ -113,10 +113,9 @@ func NewBase(opt Opts) Dialer {
 			Timeout: opt.GetTimeout(),
 			Control: reuseport.Control,
 		},
-		tlsConfigs: cache.New(opt.GetContext(),
-			BaseDialerTLSConfigCacheSize,
+		tlsConfigs: cache.New(BaseDialerTLSConfigCacheSize,
 			BaseDialerTLSConfigTTL,
-			cache.NoopCacheCallback),
+			cache.NoopEvictCallback),
 		tlsSkipVerify: opt.GetTLSSkipVerify(),
 	}
 

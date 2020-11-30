@@ -1,4 +1,4 @@
 package cache
 
-// NoopCacheCallback implements EvictCallback which does nothing.
-func NoopCacheCallback(_ string, _ interface{}) {}
+// NoopEvictCallback implements EvictCallback which does nothing.
+func NoopEvictCallback(_ string, _ interface{}) {}

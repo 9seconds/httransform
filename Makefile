@@ -31,14 +31,23 @@ clean:
 lint:
 	@$(GOTOOL) golangci-lint run
 
+.PHONY: doc
+doc:
+	@$(GOTOOL) godoc -http 0.0.0.0:10000
+
 .PHONY: install-tools
-install-tools: install-tools-lint
+install-tools: install-tools-lint install-tools-godoc
 
 .PHONY: install-tools-lint
 install-tools-lint:
 	@mkdir -p "$(GOBIN)" || true && \
 		curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh \
 		| bash -s -- -b "$(GOBIN)" "$(GOLANGCI_LINT_VERSION)"
+
+.PHONY: install-tools-godoc
+install-tools-godoc:
+	@mkdir -p "$(GOBIN)" || true && \
+		$(GOTOOL) go get -u golang.org/x/tools/cmd/godoc
 
 .PHONY: update-deps
 upgrade-deps:

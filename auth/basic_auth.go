@@ -51,6 +51,14 @@ func (b *basicAuth) doAuth(header []byte) error {
 	return nil
 }
 
+// NewBasicAuth returns an implementation of authenticator which does
+// proxy authorization in a basic auth fashion. Please see RFC2617 for
+// the reference:
+//
+// https://tools.ietf.org/html/rfc2617#section-2
+//
+// This authenticator is implemented to work with RequestCtx with no
+// normalization.
 func NewBasicAuth(user, password string) Interface {
 	userpassword := []byte(user + ":" + password)
 	encoded := base64.StdEncoding.EncodeToString(userpassword)

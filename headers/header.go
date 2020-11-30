@@ -10,6 +10,20 @@ type Header struct {
 	name  string
 }
 
+func (h *Header) String() string {
+    name := h.Name()
+    if name == "" {
+        name = "{empty}"
+    }
+
+    value := h.Value()
+    if value == "" {
+        value = "{empty}"
+    }
+
+    return name + ":" + value
+}
+
 func (h *Header) ID() []byte {
 	if h == nil {
 		return nil

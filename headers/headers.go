@@ -16,6 +16,16 @@ type Headers struct {
 	original FastHTTPHeaderWrapper
 }
 
+func (h *Headers) String() string {
+	headers := make([]string, len(h.Headers))
+
+	for i := range h.Headers {
+		headers[i] = h.Headers[i].String()
+	}
+
+	return strings.Join(headers, ", ")
+}
+
 func (h *Headers) GetAll(key string) []*Header {
 	bkey := makeHeaderID(key)
 	rv := make([]*Header, 0, len(h.Headers))
@@ -136,7 +146,7 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 }
 
 func (h *Headers) Remove(key string) {
-    bkey := makeHeaderID(key)
+	bkey := makeHeaderID(key)
 
 	for i := 0; i < len(h.Headers); i++ {
 		if bytes.Equal(bkey, h.Headers[i].ID()) {

@@ -11,17 +11,17 @@ type Header struct {
 }
 
 func (h *Header) String() string {
-    name := h.Name()
-    if name == "" {
-        name = "{empty}"
-    }
+	name := h.Name()
+	if name == "" {
+		name = "{empty}"
+	}
 
-    value := h.Value()
-    if value == "" {
-        value = "{empty}"
-    }
+	value := h.Value()
+	if value == "" {
+		value = "{empty}"
+	}
 
-    return name + ":" + value
+	return name + ":" + value
 }
 
 func (h *Header) ID() []byte {

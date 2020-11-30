@@ -15,7 +15,7 @@ type basicAuth struct {
 }
 
 func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
-	authError := ErrFailedAuth
+	authError := ErrAuthRequired
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Proxy-Authorization")) {
@@ -24,10 +24,10 @@ func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 	})
 
 	if authError == nil {
-        return b.user, nil
+		return b.user, nil
 	}
 
-    return "", authError
+	return "", authError
 }
 
 func (b *basicAuth) doAuth(header []byte) error {

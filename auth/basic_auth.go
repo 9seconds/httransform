@@ -58,15 +58,15 @@ func (b *basicAuth) doAuth(header []byte) int {
 	toCompare := header[pos:]
 	rv := basicAuthFailed
 
-    // Yes, it looks quite weird and simple basic auth implementation
-    // can be very-very simple but if we want to avoid timing attacks,
-    // we have to make it constant time. So, this is a reason why we
-    // compare and choose with subtle module. And this is a reason why
-    // we even find a user with ConstantTimeSelect which is a twist to
-    // understand.
-    //
-    // But idea is simple: negative ints mean failed auth, positive ones
-    // - indexes within an array.
+	// Yes, it looks quite weird and simple basic auth implementation
+	// can be very-very simple but if we want to avoid timing attacks,
+	// we have to make it constant time. So, this is a reason why we
+	// compare and choose with subtle module. And this is a reason why
+	// we even find a user with ConstantTimeSelect which is a twist to
+	// understand.
+	//
+	// But idea is simple: negative ints mean failed auth, positive ones
+	// - indexes within an array.
 	for i := range b.credentials {
 		compared := subtle.ConstantTimeCompare(toCompare, b.credentials[i].value)
 		rv = subtle.ConstantTimeSelect(compared, i, rv)

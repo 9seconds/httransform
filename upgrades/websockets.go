@@ -10,6 +10,10 @@ import (
 	"github.com/gobwas/ws/wsutil"
 )
 
+const (
+    WebsocketBufferSize = 10 * 1024
+)
+
 type websocketInterface struct {
 	reactor WebsocketReactor
 
@@ -82,8 +86,8 @@ func (w *websocketInterface) manage(dst io.Writer, src io.Reader, buf []byte, ca
 func NewWebsocket(reactor WebsocketReactor) Interface {
 	return &websocketInterface{
 		reactor:      reactor,
-		clientBuffer: make([]byte, TCPBufferSize),
-		netlocBuffer: make([]byte, TCPBufferSize),
+		clientBuffer: make([]byte, WebsocketBufferSize),
+		netlocBuffer: make([]byte, WebsocketBufferSize),
 	}
 }
 

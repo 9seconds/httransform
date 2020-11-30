@@ -32,6 +32,7 @@ func (c *cache) Get(key string) interface{} {
 	return nil
 }
 
+// New returns a new LRU/LFU cache based on given parameters.
 func New(ctx context.Context, size int, ttl time.Duration, callback EvictCallback) Interface {
 	return &cache{
 		ctx: ctx,

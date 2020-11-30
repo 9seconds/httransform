@@ -50,7 +50,9 @@ func main() {
 	srv, err := NewServer(ctx, ServerOpts{
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
-		Authenticator: auth.NewBasicAuth("1", "1"),
+		Authenticator: auth.NewBasicAuth(map[string]string{
+			"1": "1",
+		}),
 		Layers: []layers.Layer{
 			layers.TimeoutLayer{time.Minute},
 			&layers.HeadersLayer{

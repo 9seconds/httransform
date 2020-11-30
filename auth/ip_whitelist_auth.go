@@ -44,6 +44,9 @@ func (i *ipWhitelist) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 // values - an array of subnets which are associated with that user. So,
 // if incoming request is established from that subnet, we associate it
 // with a user.
+//
+// This authenticator is implemented to work with RequestCtx with no
+// normalization.
 func NewIPWhitelist(tags map[string][]net.IPNet) (Interface, error) {
 	instance := &ipWhitelist{
 		v4: string_tree.NewTreeV4(),

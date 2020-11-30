@@ -10,45 +10,55 @@ import (
 )
 
 type basicAuth struct {
-	user         string
-	expectedAuth []byte
+	credentials map[string][]byte
 }
 
 func (b *basicAuth) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
+	user := ""
 	authError := ErrAuthRequired
 
 	ctx.Request.Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Proxy-Authorization")) {
-			authError = b.doAuth(value)
+			user, authError = b.doAuth(value)
 		}
 	})
 
-	if authError == nil {
-		return b.user, nil
-	}
-
-	return "", authError
+	return user, authError
 }
 
-func (b *basicAuth) doAuth(header []byte) error {
+func (b *basicAuth) doAuth(header []byte) (string, error) {
 	pos := bytes.IndexByte(header, ' ')
 	if pos < 0 {
-		return ErrMalformedHeaderValue
+		return "", ErrMalformedHeaderValue
 	}
 
 	if !bytes.EqualFold(header[:pos], []byte("Basic")) {
-		return fmt.Errorf("unsupported auth schema %s", string(header[:pos]))
+		return "", fmt.Errorf("unsupported auth schema %s", string(header[:pos]))
 	}
 
 	for pos < len(header) && (header[pos] == ' ' || header[pos] == '\t') {
 		pos++
 	}
 
-	if subtle.ConstantTimeCompare(header[pos:], b.expectedAuth) != 1 {
-		return ErrFailedAuth
+	toCompare := header[pos:]
+	user := ""
+
+	var counter int32
+
+	for k, v := range b.credentials {
+		value := int32(subtle.ConstantTimeCompare(toCompare, v))
+		counter += value
+
+		if subtle.ConstantTimeEq(value, 1) == 1 {
+			user = k
+		}
 	}
 
-	return nil
+	if subtle.ConstantTimeEq(counter, 1) == 1 {
+		return user, nil
+	}
+
+	return "", ErrFailedAuth
 }
 
 // NewBasicAuth returns an implementation of authenticator which does
@@ -57,14 +67,22 @@ func (b *basicAuth) doAuth(header []byte) error {
 //
 // https://tools.ietf.org/html/rfc2617#section-2
 //
+// Parameter is a map of user to password. Key is the username, password
+// is a password.
+//
 // This authenticator is implemented to work with RequestCtx with no
 // normalization.
-func NewBasicAuth(user, password string) Interface {
-	userpassword := []byte(user + ":" + password)
-	encoded := base64.StdEncoding.EncodeToString(userpassword)
+func NewBasicAuth(credentials map[string]string) Interface {
+	processedCredentials := map[string][]byte{}
+
+	for k, v := range credentials {
+		userpassword := []byte(k + ":" + v)
+		encoded := base64.StdEncoding.EncodeToString(userpassword)
+
+		processedCredentials[k] = []byte(encoded)
+	}
 
 	return &basicAuth{
-		user:         user,
-		expectedAuth: []byte(encoded),
+		credentials: processedCredentials,
 	}
 }

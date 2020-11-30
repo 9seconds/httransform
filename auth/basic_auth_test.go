@@ -1,7 +1,6 @@
 package auth_test
 
 import (
-	"encoding/base64"
 	"net"
 	"testing"
 
@@ -13,9 +12,8 @@ import (
 type BasicAuthTestSuite struct {
 	suite.Suite
 
-	ctx          *fasthttp.RequestCtx
-	auth         auth.Interface
-	userpassword string
+	ctx  *fasthttp.RequestCtx
+	auth auth.Interface
 }
 
 func (suite *BasicAuthTestSuite) SetupTest() {
@@ -26,10 +24,11 @@ func (suite *BasicAuthTestSuite) SetupTest() {
 	req.SetRequestURI("http://example.com/image.gif")
 	req.Header.SetMethod("GET")
 
-    suite.ctx.Init(req, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000}, nil)
+	suite.ctx.Init(req, &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 9000}, nil)
 
-	suite.auth = auth.NewBasicAuth("user", "password")
-	suite.userpassword = base64.StdEncoding.EncodeToString([]byte("user:password"))
+	suite.auth = auth.NewBasicAuth(map[string]string{
+		"user": "password",
+	})
 }
 
 func (suite *BasicAuthTestSuite) TestEmpty() {
@@ -47,7 +46,7 @@ func (suite *BasicAuthTestSuite) TestIncorrectHeader() {
 }
 
 func (suite *BasicAuthTestSuite) TestUnsupportedSchema() {
-	suite.ctx.Request.Header.Add("Proxy-authorization", "Token "+suite.userpassword)
+	suite.ctx.Request.Header.Add("Proxy-authorization", "Token Mtox")
 
 	_, err := suite.auth.Authenticate(suite.ctx)
 
@@ -55,7 +54,7 @@ func (suite *BasicAuthTestSuite) TestUnsupportedSchema() {
 }
 
 func (suite *BasicAuthTestSuite) TestIncorrectValue() {
-	suite.ctx.Request.Header.Add("Proxy-authorization", "basic 111"+suite.userpassword)
+	suite.ctx.Request.Header.Add("Proxy-authorization", "basic 111")
 
 	_, err := suite.auth.Authenticate(suite.ctx)
 
@@ -63,7 +62,7 @@ func (suite *BasicAuthTestSuite) TestIncorrectValue() {
 }
 
 func (suite *BasicAuthTestSuite) TestOk() {
-	suite.ctx.Request.Header.Add("Proxy-authorization", "basic   "+suite.userpassword)
+	suite.ctx.Request.Header.Add("Proxy-authorization", "basic   dXNlcjpwYXNzd29yZA==")
 
 	user, err := suite.auth.Authenticate(suite.ctx)
 

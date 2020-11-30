@@ -90,7 +90,7 @@ func (w *websocketUpgrader) manage(dst io.Writer, src io.Reader, buf []byte, can
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
-func NewWebsocket(reactor WebsocketReactor) Upgrader {
+func NewWebsocket(reactor WebsocketReactor) Interface {
 	return &websocketUpgrader{
 		reactor:      reactor,
 		clientBuffer: make([]byte, TCPBufferSize),
@@ -104,7 +104,7 @@ var poolWebsocket = sync.Pool{
 	},
 }
 
-func AcquireWebsocket(reactor WebsocketReactor) Upgrader {
+func AcquireWebsocket(reactor WebsocketReactor) Interface {
 	rv := poolWebsocket.Get().(*websocketUpgrader)
 
 	rv.reactor = reactor
@@ -112,7 +112,7 @@ func AcquireWebsocket(reactor WebsocketReactor) Upgrader {
 	return rv
 }
 
-func ReleaseWebsocket(up Upgrader) {
+func ReleaseWebsocket(up Interface) {
 	value := up.(*websocketUpgrader)
 	value.reactor = nil
 

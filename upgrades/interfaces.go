@@ -5,6 +5,6 @@ import (
 	"net"
 )
 
-type Upgrader interface {
+type Interface interface {
 	Manage(ctx context.Context, clientConn, netlocConn net.Conn)
 }

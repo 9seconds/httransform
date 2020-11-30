@@ -36,7 +36,7 @@ func (t *tcpUpgrader) manage(src io.Reader, dst io.Writer, buf []byte, cancel co
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
-func NewTCP() Upgrader {
+func NewTCP() Interface {
 	return &tcpUpgrader{
 		clientBuffer: make([]byte, TCPBufferSize),
 		netlocBuffer: make([]byte, TCPBufferSize),
@@ -49,10 +49,10 @@ var poolTCP = sync.Pool{
 	},
 }
 
-func AcquireTCP() Upgrader {
-	return poolTCP.Get().(Upgrader)
+func AcquireTCP() Interface {
+	return poolTCP.Get().(Interface)
 }
 
-func ReleaseTCP(up Upgrader) {
+func ReleaseTCP(up Interface) {
 	poolTCP.Put(up.(*tcpUpgrader))
 }

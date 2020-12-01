@@ -7,11 +7,11 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type RequestHeaderWrapper struct {
+type requestHeaderWrapper struct {
 	ref *fasthttp.RequestHeader
 }
 
-func (r RequestHeaderWrapper) Read(rd io.Reader) error {
+func (r requestHeaderWrapper) Read(rd io.Reader) error {
 	method := append([]byte(nil), r.ref.Method()...)
 	requestURI := append([]byte(nil), r.ref.RequestURI()...)
 	host := append([]byte(nil), r.ref.Host()...)
@@ -33,23 +33,23 @@ func (r RequestHeaderWrapper) Read(rd io.Reader) error {
 	return nil
 }
 
-func (r RequestHeaderWrapper) DisableNormalizing() {
+func (r requestHeaderWrapper) DisableNormalizing() {
 	r.ref.DisableNormalizing()
 }
 
-func (r RequestHeaderWrapper) ResetConnectionClose() {
+func (r requestHeaderWrapper) ResetConnectionClose() {
 	r.ref.ResetConnectionClose()
 }
 
-func (r RequestHeaderWrapper) Headers() []byte {
+func (r requestHeaderWrapper) Headers() []byte {
 	return r.ref.RawHeaders()
 }
 
-type ResponseHeaderWrapper struct {
+type responseHeaderWrapper struct {
 	ref *fasthttp.ResponseHeader
 }
 
-func (r ResponseHeaderWrapper) Read(rd io.Reader) error {
+func (r responseHeaderWrapper) Read(rd io.Reader) error {
 	statusCode := r.ref.StatusCode()
 
 	r.ref.Reset()
@@ -67,22 +67,26 @@ func (r ResponseHeaderWrapper) Read(rd io.Reader) error {
 	return nil
 }
 
-func (r ResponseHeaderWrapper) DisableNormalizing() {
+func (r responseHeaderWrapper) DisableNormalizing() {
 	r.ref.DisableNormalizing()
 }
 
-func (r ResponseHeaderWrapper) ResetConnectionClose() {
+func (r responseHeaderWrapper) ResetConnectionClose() {
 	r.ref.ResetConnectionClose()
 }
 
-func (r ResponseHeaderWrapper) Headers() []byte {
+func (r responseHeaderWrapper) Headers() []byte {
 	return r.ref.Header()
 }
 
-func NewRequestHeaderWrapper(ref *fasthttp.RequestHeader) RequestHeaderWrapper {
-	return RequestHeaderWrapper{ref}
+// NewRequestHeaderWrapper returns a new instance of
+// requestHeaderWrapper for a given fasthttp.RequestHeader.
+func NewRequestHeaderWrapper(ref *fasthttp.RequestHeader) FastHTTPHeaderWrapper {
+	return requestHeaderWrapper{ref}
 }
 
-func NewResponseHeaderWrapper(ref *fasthttp.ResponseHeader) ResponseHeaderWrapper {
-	return ResponseHeaderWrapper{ref}
+// NewResponseHeaderWrapper returns a new instance of
+// responseHeaderWrapper for a given fasthttp.ResponseHeader.
+func NewResponseHeaderWrapper(ref *fasthttp.ResponseHeader) FastHTTPHeaderWrapper {
+	return responseHeaderWrapper{ref}
 }

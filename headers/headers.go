@@ -10,12 +10,26 @@ import (
 
 var newLineReplacer = strings.NewReplacer("\r\n", "\r\n\t")
 
+// Headers present a list of Header with some convenient optimized
+// shorthand operations. It also has a binding to corresponding fasthttp
+// Header interface for synchronisation.
+//
+// Once you instantiate a new Headers instance with either
+// AcquireHeaderSet or simple headers.Headers{}, you need to fill it
+// with values. Use Init function to do that. Each operation is not
+// reflected to underlying fasthttp Header. To do that, you have to
+// implicitly call Sync methods.
 type Headers struct {
+	// A list of headers. Actually, you do not need to use all
+	// operations from Headers struct to manage this list. These are
+	// shortcuts. If you like to manipulate with array, nothing really
+	// prevents you from going this way.
 	Headers []Header
 
 	original FastHTTPHeaderWrapper
 }
 
+// Strings here to comply with fmt.Stringer interface.
 func (h *Headers) String() string {
 	if len(h.Headers) == 0 {
 		return ""
@@ -33,6 +47,8 @@ func (h *Headers) String() string {
 	return builder.String()
 }
 
+// GetAll returns a list of headers where name is given in a
+// case-INSENSITIVE fashion.
 func (h *Headers) GetAll(key string) []*Header {
 	bkey := makeHeaderID(key)
 	rv := make([]*Header, 0, len(h.Headers))
@@ -46,6 +62,8 @@ func (h *Headers) GetAll(key string) []*Header {
 	return rv
 }
 
+// GetAllExact returns a list of headers where name is given in a
+// case-SENSITIVE fashion.
 func (h *Headers) GetAllExact(key string) []*Header {
 	rv := make([]*Header, 0, len(h.Headers))
 
@@ -58,6 +76,8 @@ func (h *Headers) GetAllExact(key string) []*Header {
 	return rv
 }
 
+// GetLast returns a last header (or nil) where name is
+// case-INSENSITIVE.
 func (h *Headers) GetLast(key string) *Header {
 	bkey := makeHeaderID(key)
 
@@ -70,6 +90,8 @@ func (h *Headers) GetLast(key string) *Header {
 	return nil
 }
 
+// GetLastExact returns a last header (or nil) where name is
+// case-SENSITIVE.
 func (h *Headers) GetLastExact(key string) *Header {
 	for i := len(h.Headers) - 1; i >= 0; i-- {
 		if key == h.Headers[i].name {
@@ -80,6 +102,8 @@ func (h *Headers) GetLastExact(key string) *Header {
 	return nil
 }
 
+// GetLast returns a first header (or nil) where name is
+// case-INSENSITIVE.
 func (h *Headers) GetFirst(key string) *Header {
 	bkey := makeHeaderID(key)
 
@@ -92,6 +116,8 @@ func (h *Headers) GetFirst(key string) *Header {
 	return nil
 }
 
+// GetLast returns a first header (or nil) where name is
+// case-SENSITIVE.
 func (h *Headers) GetFirstExact(key string) *Header {
 	for i := range h.Headers {
 		if key == h.Headers[i].name {
@@ -102,6 +128,9 @@ func (h *Headers) GetFirstExact(key string) *Header {
 	return nil
 }
 
+// Set sets a value for the FIRST seen header where name is
+// case-INSENSITIVE. cleanupRest parameter defines if the rest values
+// should be wiped out.
 func (h *Headers) Set(name, value string, cleanupRest bool) {
 	found := false
 	key := makeHeaderID(name)
@@ -130,6 +159,9 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 	}
 }
 
+// SetExact sets a value for the FIRST seen header where name is
+// case-SENSITIVE. cleanupRest parameter defines if the rest values
+// should be wiped out.
 func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 	found := false
 
@@ -152,6 +184,8 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 	}
 }
 
+// Remove removes all headers from the list where name is
+// case-INSENSITIVE. Order is kept.
 func (h *Headers) Remove(key string) {
 	bkey := makeHeaderID(key)
 
@@ -163,6 +197,8 @@ func (h *Headers) Remove(key string) {
 	}
 }
 
+// Remove removes all headers from the list where name is
+// case-SENSITIVE. Order is kept.
 func (h *Headers) RemoveExact(key string) {
 	for i := 0; i < len(h.Headers); i++ {
 		if key == h.Headers[i].name {
@@ -172,6 +208,7 @@ func (h *Headers) RemoveExact(key string) {
 	}
 }
 
+// Append simply appends a header to the list of headers.
 func (h *Headers) Append(name, value string) {
 	h.Headers = append(h.Headers, Header{
 		id:    makeHeaderID(name),
@@ -180,6 +217,8 @@ func (h *Headers) Append(name, value string) {
 	})
 }
 
+// Sync resets underlying fasthttp Header structure and restores it
+// based on a given header list.
 func (h *Headers) Sync() error {
 	if h.original == nil {
 		return nil
@@ -249,6 +288,8 @@ func (h *Headers) Reset() {
 	h.original = nil
 }
 
+// Init initializes a Headers datastructure based on given fasthttp
+// Header. It also binds to it so corresponding Syncs work correctly.
 func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 	h.Reset()
 
@@ -314,10 +355,15 @@ var poolHeaderSet = sync.Pool{
 	},
 }
 
+// AcquireHeaderSet takes a new Header instance from the pool. Please do
+// not remember to return it back when you are done and do not use any
+// references on that after.
 func AcquireHeaderSet() *Headers {
 	return poolHeaderSet.Get().(*Headers)
 }
 
+// ReleaseHeaderSet resets a Headers and returns it back to a pool.
+// You should not use an instance of that header after this operation.
 func ReleaseHeaderSet(set *Headers) {
 	set.Reset()
 	poolHeaderSet.Put(set)

@@ -50,7 +50,7 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 
 // NewCA generates CA instance.
 func NewCA(ctx context.Context,
-	channelEvents events.EventChannel,
+	channelEvents events.Channel,
 	certCA []byte,
 	privateKey []byte) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, privateKey)

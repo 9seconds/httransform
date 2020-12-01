@@ -20,20 +20,20 @@ const (
 )
 
 type ServerOpts struct {
-	Concurrency        uint
-	ReadBufferSize     uint
-	WriteBufferSize    uint
-	MaxRequestBodySize uint
-	ReadTimeout        time.Duration
-	WriteTimeout       time.Duration
-	TCPKeepAlivePeriod time.Duration
-	EventProcessor     events.EventProcessor
-	TLSCertCA          []byte
-	TLSPrivateKey      []byte
-	Layers             []layers.Layer
-	Executor           executor.Executor
-	Authenticator      auth.Interface
-	TLSSkipVerify      bool
+	Concurrency           uint
+	ReadBufferSize        uint
+	WriteBufferSize       uint
+	MaxRequestBodySize    uint
+	ReadTimeout           time.Duration
+	WriteTimeout          time.Duration
+	TCPKeepAlivePeriod    time.Duration
+	EventProcessorFactory events.ProcessorFactory
+	TLSCertCA             []byte
+	TLSPrivateKey         []byte
+	Layers                []layers.Layer
+	Executor              executor.Executor
+	Authenticator         auth.Interface
+	TLSSkipVerify         bool
 }
 
 func (s *ServerOpts) GetConcurrency() int {
@@ -92,12 +92,12 @@ func (s *ServerOpts) GetMaxRequestBodySize() int {
 	return int(s.MaxRequestBodySize)
 }
 
-func (s *ServerOpts) GetEventProcessor() events.EventProcessor {
-	if s.EventProcessor == nil {
-		return events.DefaultProcessor
+func (s *ServerOpts) GetEventProcessorFactory() events.ProcessorFactory {
+	if s.EventProcessorFactory == nil {
+		return events.NoopProcessorFactory
 	}
 
-	return s.EventProcessor
+	return s.EventProcessorFactory
 }
 
 func (s *ServerOpts) GetTLSCertCA() []byte {

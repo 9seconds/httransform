@@ -86,7 +86,7 @@ var poolEvent = sync.Pool{
 	},
 }
 
-func AcquireEvent(eventType EventType, value interface{}, shardKey string) *Event {
+func acquireEvent(eventType EventType, value interface{}, shardKey string) *Event {
 	evt := poolEvent.Get().(*Event)
 
 	var shardValue uint64
@@ -105,7 +105,7 @@ func AcquireEvent(eventType EventType, value interface{}, shardKey string) *Even
 	return evt
 }
 
-func ReleaseEvent(evt *Event) {
+func releaseEvent(evt *Event) {
 	evt.Reset()
 	poolEvent.Put(evt)
 }

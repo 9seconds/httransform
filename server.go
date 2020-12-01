@@ -25,7 +25,7 @@ type Server struct {
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
 	serverPool    sync.Pool
-	channelEvents events.EventChannel
+	channelEvents events.Channel
 	layers        []layers.Layer
 	authenticator auth.Interface
 	executor      executor.Executor
@@ -214,7 +214,7 @@ func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts
-	channelEvents := events.NewEventChannel(ctx, oopts.GetEventProcessor())
+	channelEvents := events.NewChannel(ctx, oopts.GetEventProcessorFactory())
 	authenticator := oopts.GetAuthenticator()
 
 	certAuth, err := ca.NewCA(ctx, channelEvents,

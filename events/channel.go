@@ -10,7 +10,19 @@ var (
 	channelShardNumberUint64 = uint64(channelShardNumber)
 )
 
-func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel {
+type Channel chan<- *Event
+
+func (c Channel) Send(ctx context.Context, eventType EventType, value interface{}, shardKey string) {
+	evt := acquireEvent(eventType, value, shardKey)
+
+	select {
+	case <-ctx.Done():
+		releaseEvent(evt)
+	case c <- evt:
+	}
+}
+
+func NewChannel(ctx context.Context, factory ProcessorFactory) Channel {
 	multiplexChannel := make(chan *Event, channelShardNumber)
 	shards := make([]chan *Event, channelShardNumber)
 
@@ -31,13 +43,15 @@ func NewEventChannel(ctx context.Context, processor EventProcessor) EventChannel
 
 	for i := range shards {
 		go func(eventChannel <-chan *Event) {
+			processor := factory()
+
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case evt := <-eventChannel:
-					processor(evt)
-					ReleaseEvent(evt)
+					processor.Process(evt)
+					releaseEvent(evt)
 				}
 			}
 		}(shards[i])

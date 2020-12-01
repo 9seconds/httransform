@@ -29,7 +29,7 @@ type worker struct {
 	ca              tls.Certificate
 	ctx             context.Context
 	cache           cache.Interface
-	channelEvents   events.EventChannel
+	channelEvents   events.Channel
 	channelRequests chan workerRequest
 }
 

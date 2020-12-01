@@ -17,13 +17,20 @@ type Headers struct {
 }
 
 func (h *Headers) String() string {
-	headers := make([]string, len(h.Headers))
-
-	for i := range h.Headers {
-		headers[i] = h.Headers[i].String()
+	if len(h.Headers) == 0 {
+		return ""
 	}
 
-	return strings.Join(headers, ", ")
+	builder := strings.Builder{}
+
+	h.Headers[0].writeString(&builder)
+
+	for i := 1; i < len(h.Headers); i++ {
+		builder.WriteString(", ")
+		h.Headers[i].writeString(&builder)
+	}
+
+	return builder.String()
 }
 
 func (h *Headers) GetAll(key string) []*Header {
@@ -31,7 +38,7 @@ func (h *Headers) GetAll(key string) []*Header {
 	rv := make([]*Header, 0, len(h.Headers))
 
 	for i := range h.Headers {
-		if bytes.Equal(bkey, h.Headers[i].ID()) {
+		if bytes.Equal(bkey, h.Headers[i].id) {
 			rv = append(rv, &h.Headers[i])
 		}
 	}
@@ -55,7 +62,7 @@ func (h *Headers) GetLast(key string) *Header {
 	bkey := makeHeaderID(key)
 
 	for i := len(h.Headers) - 1; i >= 0; i-- {
-		if bytes.Equal(bkey, h.Headers[i].ID()) {
+		if bytes.Equal(bkey, h.Headers[i].id) {
 			return &h.Headers[i]
 		}
 	}
@@ -77,7 +84,7 @@ func (h *Headers) GetFirst(key string) *Header {
 	bkey := makeHeaderID(key)
 
 	for i := range h.Headers {
-		if bytes.Equal(bkey, h.Headers[i].ID()) {
+		if bytes.Equal(bkey, h.Headers[i].id) {
 			return &h.Headers[i]
 		}
 	}
@@ -100,7 +107,7 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 	key := makeHeaderID(name)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if !bytes.Equal(key, h.Headers[i].ID()) {
+		if !bytes.Equal(key, h.Headers[i].id) {
 			continue
 		}
 
@@ -113,7 +120,7 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 
 			if name != h.Headers[i].name {
 				h.Headers[i].name = name
-				h.Headers[i].id = makeHeaderID(name)
+				h.Headers[i].id = key
 			}
 		}
 	}
@@ -149,7 +156,7 @@ func (h *Headers) Remove(key string) {
 	bkey := makeHeaderID(key)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if bytes.Equal(bkey, h.Headers[i].ID()) {
+		if bytes.Equal(bkey, h.Headers[i].id) {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
@@ -166,7 +173,11 @@ func (h *Headers) RemoveExact(key string) {
 }
 
 func (h *Headers) Append(name, value string) {
-	h.Headers = append(h.Headers, NewHeader(name, value))
+	h.Headers = append(h.Headers, Header{
+		id:    makeHeaderID(name),
+		name:  name,
+		value: value,
+	})
 }
 
 func (h *Headers) Sync() error {

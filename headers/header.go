@@ -1,7 +1,9 @@
 package headers
 
 import (
+	"io"
 	"net/textproto"
+	"strings"
 )
 
 type Header struct {
@@ -11,17 +13,23 @@ type Header struct {
 }
 
 func (h *Header) String() string {
-	name := h.Name()
-	if name == "" {
-		name = "{empty}"
+	builder := strings.Builder{}
+
+	h.writeString(&builder)
+
+	return builder.String()
+}
+
+func (h *Header) writeString(writer io.StringWriter) {
+	if h == nil {
+		writer.WriteString("{no-key}:{no-value}") // nolint: errcheck
+
+		return
 	}
 
-	value := h.Value()
-	if value == "" {
-		value = "{empty}"
-	}
-
-	return name + ":" + value
+	writer.WriteString(h.name)  // nolint: errcheck
+	writer.WriteString(":")     // nolint: errcheck
+	writer.WriteString(h.value) // nolint: errcheck
 }
 
 func (h *Header) ID() []byte {
@@ -29,11 +37,19 @@ func (h *Header) ID() []byte {
 		return nil
 	}
 
-	if h.id == nil {
-		h.id = makeHeaderID(h.Name())
+	return h.id
+}
+
+func (h *Header) Name() string {
+	if h == nil {
+		return ""
 	}
 
-	return h.id
+	return h.name
+}
+
+func (h *Header) CanonicalName() string {
+	return textproto.CanonicalMIMEHeaderKey(h.Name())
 }
 
 func (h *Header) Value() string {
@@ -48,16 +64,36 @@ func (h *Header) Values() []string {
 	return Values(h.Value())
 }
 
-func (h *Header) Name() string {
-	if h == nil {
-		return ""
+func (h *Header) WithName(name string) Header {
+	var value string
+
+	if h != nil {
+		value = h.value
 	}
 
-	return h.name
+	return Header{
+		id:    makeHeaderID(name),
+		name:  name,
+		value: value,
+	}
 }
 
-func (h *Header) CanonicalName() string {
-	return textproto.CanonicalMIMEHeaderKey(h.Name())
+func (h *Header) WithValue(value string) Header {
+	var (
+		name string
+		id   []byte
+	)
+
+	if h != nil {
+		name = h.name
+		id = h.id
+	}
+
+	return Header{
+		id:    id,
+		name:  name,
+		value: value,
+	}
 }
 
 func NewHeader(name, value string) Header {

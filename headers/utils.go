@@ -6,6 +6,10 @@ import (
 )
 
 func makeHeaderID(name string) []byte {
+	if name == "" {
+		return nil
+	}
+
 	return []byte(strings.ToLower(strings.TrimSpace(name)))
 }
 

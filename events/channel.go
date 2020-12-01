@@ -44,6 +44,7 @@ func NewChannel(ctx context.Context, factory ProcessorFactory) Channel {
 	for i := range shards {
 		go func(eventChannel <-chan *Event) {
 			processor := factory()
+			defer processor.Shutdown()
 
 			for {
 				select {

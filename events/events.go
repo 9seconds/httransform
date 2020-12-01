@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,30 @@ const (
 	EventTypeTraffic                          // value - trafficMeta
 	EventTypeUserValues                       // fake value
 )
+
+func (e EventType) String() string {
+	switch e {
+	case EventTypeNotSet:
+		return "NOT_SET"
+	case EventTypeNewCertificate:
+		return "NEW_CERTIFICATE"
+	case EventTypeDropCertificate:
+		return "DROP_CERTIFICATE"
+	case EventTypeFailedAuth:
+		return "FAILED_AUTH"
+	case EventTypeStartRequest:
+		return "START_REQUEST"
+	case EventTypeFailedRequest:
+		return "FAILED_REQUEST"
+	case EventTypeFinishRequest:
+		return "FINISH_REQUEST"
+	case EventTypeTraffic:
+		return "TRAFFIC"
+	case EventTypeUserValues:
+	}
+
+	return fmt.Sprintf("USER_VALUE(%d)", e-EventTypeUserValues)
+}
 
 type Event struct {
 	id        EventType
@@ -47,6 +72,10 @@ func (e *Event) Reset() {
 	*e = Event{
 		id: EventTypeNotSet,
 	}
+}
+
+func (e *Event) String() string {
+	return fmt.Sprintf("%v %v -> %v", e.id, e.timestamp, e.value)
 }
 
 var poolEvent = sync.Pool{

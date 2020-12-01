@@ -148,7 +148,7 @@ func (s *Server) main(ctx *layers.Context) {
 	if err != nil {
 		errorMeta := &events.ErrorMeta{
 			RequestID: ctx.RequestID,
-			Error:     err,
+			Err:       err,
 		}
 
 		s.channelEvents.Send(ctx, events.EventTypeFailedRequest, errorMeta, ctx.RequestID)

@@ -14,15 +14,29 @@ import (
 )
 
 const (
+	// CACacheSize defines a size of LFU cache to use. Each hostname
+	// corresponds to a certain entry in this cache and each hostname is
+	// responsible for a single generated certificate.
+	//
+	// It may sound scary but scales well on practice. Usually you do
+	// not need to alter this parameter. Please remember we talk about
+	// LFU cache.
 	CACacheSize = 1024
-	CACacheTTL  = 7 * 24 * time.Hour
+
+	// CACacheTTL defines TTL for each generated TLS certificate.
+	// Actually, this parameter can be up to 3 months but it will be
+	// better to regenerate it more frequently.
+	CACacheTTL = 7 * 24 * time.Hour
 )
 
+// CA defines an authority which generates TLS certificates for given
+// hostnames.
 type CA struct {
 	workers    []worker
 	lenWorkers uint64
 }
 
+// Get returns tls.Config instance for the given hostname.
 func (c *CA) Get(host string) (*tls.Config, error) {
 	chosenWorker := xxhash.ChecksumString64(host) % c.lenWorkers
 
@@ -34,6 +48,7 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 	return conf, nil
 }
 
+// NewCA generates CA instance.
 func NewCA(ctx context.Context,
 	channelEvents events.EventChannel,
 	certCA []byte,

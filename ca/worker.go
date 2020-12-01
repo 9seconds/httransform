@@ -15,6 +15,9 @@ import (
 	"github.com/9seconds/httransform/v2/events"
 )
 
+// RSAKeyLength defines a bit length of generated RSA key. This is a
+// good default for fake certificates, you usually do not need anything
+// more than that.
 const RSAKeyLength = 2048
 
 type workerRequest struct {

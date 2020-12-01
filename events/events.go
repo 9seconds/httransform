@@ -1,12 +1,14 @@
 package events
 
 import (
-	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/OneOfOne/xxhash"
 )
+
+var eventCounter uint64
 
 type EventType byte
 
@@ -58,18 +60,18 @@ var poolEvent = sync.Pool{
 func AcquireEvent(eventType EventType, value interface{}, shardKey string) *Event {
 	evt := poolEvent.Get().(*Event)
 
-	var shard int
+	var shardValue uint64
 
 	if shardKey == "" {
-		shard = rand.Intn(channelShardNumber) // nolint: gosec
+		shardValue = atomic.AddUint64(&eventCounter, 1)
 	} else {
-		shard = int(xxhash.ChecksumString64(shardKey) % channelShardNumberUint64)
+		shardValue = xxhash.Checksum64([]byte(shardKey))
 	}
 
 	evt.id = eventType
 	evt.timestamp = time.Now()
 	evt.value = value
-	evt.shard = shard
+	evt.shard = int(shardValue % channelShardNumberUint64)
 
 	return evt
 }

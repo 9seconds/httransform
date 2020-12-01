@@ -24,7 +24,7 @@ func (suite *ValuesTestSuite) TestMany() {
 }
 
 func (suite *ValuesTestSuite) TestManySpace() {
-	suite.Equal([]string{"value   ", "hello"}, headers.Values("value  , hello"))
+	suite.Equal([]string{"value   ", "hello"}, headers.Values("value   , hello"))
 }
 
 func TestValues(t *testing.T) {

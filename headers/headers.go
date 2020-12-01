@@ -140,17 +140,17 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 			continue
 		}
 
-		if cleanupRest && found {
+		switch {
+		case cleanupRest && found:
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
-		} else if !found {
+		case cleanupRest && !found:
+			h.Headers[i].value = value
 			found = true
+		case !found:
 			h.Headers[i].value = value
 
-			if name != h.Headers[i].name {
-				h.Headers[i].name = name
-				h.Headers[i].id = key
-			}
+			return
 		}
 	}
 
@@ -170,12 +170,17 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 			continue
 		}
 
-		if cleanupRest && found {
+		switch {
+		case cleanupRest && found:
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
-		} else if !found {
+		case cleanupRest && !found:
 			h.Headers[i].value = value
 			found = true
+		case !found:
+			h.Headers[i].value = value
+
+			return
 		}
 	}
 
@@ -195,6 +200,12 @@ func (h *Headers) Remove(key string) {
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
 	}
+
+	length := len(h.Headers)
+
+	if length > 0 && bytes.Equal(bkey, h.Headers[length-1].id) {
+		h.Headers = h.Headers[:length-1]
+	}
 }
 
 // Remove removes all headers from the list where name is
@@ -205,6 +216,12 @@ func (h *Headers) RemoveExact(key string) {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
+	}
+
+	length := len(h.Headers)
+
+	if length > 0 && key == h.Headers[length-1].name {
+		h.Headers = h.Headers[:length-1]
 	}
 }
 

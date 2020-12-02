@@ -76,9 +76,11 @@ type RequestMeta struct {
 
 // String conforms fmt.Stringer interface.
 func (r *RequestMeta) String() string {
-	return fmt.Sprintf("<%s(method=%s uri=%s; params=%v)>",
+	return fmt.Sprintf("<%s(method=%s, user=%s, remote_addr=%v, uri=%s, params=%v)>",
 		r.RequestID,
 		r.Method,
+		r.User,
+		r.Addr,
 		r.URI.String(),
 		r.RequestType)
 }

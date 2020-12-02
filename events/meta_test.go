@@ -66,10 +66,29 @@ func (suite *RequestMetaTestSuite) TestString() {
 	suite.Contains(value, "http://example.com/image.gif")
 }
 
+type ResponseMetaTestSuite struct {
+	suite.Suite
+}
+
+func (suite *ResponseMetaTestSuite) TestString() {
+	meta := events.ResponseMeta{
+		RequestID:  "reqid",
+		StatusCode: 404,
+	}
+    value := meta.String()
+
+    suite.Contains(value, "reqid")
+    suite.Contains(value, "404")
+}
+
 func TestRequestType(t *testing.T) {
 	suite.Run(t, &RequestTypeTestSuite{})
 }
 
 func TestRequestMeta(t *testing.T) {
 	suite.Run(t, &RequestMetaTestSuite{})
+}
+
+func TestResponseMeta(t *testing.T) {
+	suite.Run(t, &ResponseMetaTestSuite{})
 }

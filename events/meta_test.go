@@ -125,6 +125,52 @@ func (suite *ErrorMetaTestSuite) TestError() {
 	suite.Contains(value, "TEST")
 }
 
+type CommonErrorMetaTestSuite struct {
+	suite.Suite
+
+	err *events.CommonErrorMeta
+}
+
+func (suite *CommonErrorMetaTestSuite) SetupTest() {
+	err := &os.PathError{
+		Op:  "TEST",
+		Err: io.EOF,
+	}
+	suite.err = &events.CommonErrorMeta{
+		Method: "POST",
+		Addr:   &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 6001},
+		Err:    err,
+	}
+
+	suite.NoError(suite.err.URI.Parse(nil, []byte("http://example.com/image.gif")))
+}
+
+func (suite *CommonErrorMetaTestSuite) TestInterface() {
+	suite.Implements((*error)(nil), suite.err)
+}
+
+func (suite *CommonErrorMetaTestSuite) TestInterfaceIs() {
+	suite.err.Err = io.EOF
+
+	suite.True(errors.Is(suite.err, io.EOF))
+}
+
+func (suite *CommonErrorMetaTestSuite) TestInterfaceAs() {
+	var err *os.PathError
+
+	suite.True(errors.As(suite.err, &err))
+	suite.Equal("TEST", err.Op)
+}
+
+func (suite *CommonErrorMetaTestSuite) TestError() {
+	value := suite.err.Error()
+
+	suite.Contains(value, "TEST")
+	suite.Contains(value, "http://example.com/image.gif")
+	suite.Contains(value, "POST")
+	suite.Contains(value, "127.0.0.1:6001")
+}
+
 func TestRequestType(t *testing.T) {
 	suite.Run(t, &RequestTypeTestSuite{})
 }
@@ -139,4 +185,8 @@ func TestResponseMeta(t *testing.T) {
 
 func TestErrorMeta(t *testing.T) {
 	suite.Run(t, &ErrorMetaTestSuite{})
+}
+
+func TestCommonErrorMeta(t *testing.T) {
+	suite.Run(t, &CommonErrorMetaTestSuite{})
 }

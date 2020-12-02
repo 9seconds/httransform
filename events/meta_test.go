@@ -171,6 +171,25 @@ func (suite *CommonErrorMetaTestSuite) TestError() {
 	suite.Contains(value, "127.0.0.1:6001")
 }
 
+type TrafficMetaTestSuite struct {
+	suite.Suite
+}
+
+func (suite *TrafficMetaTestSuite) TestString() {
+	meta := events.TrafficMeta{
+		ID:           "reqid",
+		Addr:         &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 6002},
+		ReadBytes:    603,
+		WrittenBytes: 500,
+	}
+	value := meta.String()
+
+	suite.Contains(value, "reqid")
+	suite.Contains(value, "127.0.0.1:6002")
+	suite.Contains(value, "603")
+	suite.Contains(value, "500")
+}
+
 func TestRequestType(t *testing.T) {
 	suite.Run(t, &RequestTypeTestSuite{})
 }
@@ -189,4 +208,8 @@ func TestErrorMeta(t *testing.T) {
 
 func TestCommonErrorMeta(t *testing.T) {
 	suite.Run(t, &CommonErrorMetaTestSuite{})
+}
+
+func TestTrafficMeta(t *testing.T) {
+	suite.Run(t, &TrafficMetaTestSuite{})
 }

@@ -111,7 +111,7 @@ type ErrorMeta struct {
 
 // Error conforms an error interface.
 func (e *ErrorMeta) Error() string {
-	return fmt.Sprintf("%s: %v", e.RequestID, e.Err)
+    return e.RequestID + ": " + e.Err.Error()
 }
 
 // Unwrap conforms go1.13 error interface.

@@ -1,7 +1,10 @@
 package events_test
 
 import (
+	"errors"
+	"io"
 	"net"
+	"os"
 	"testing"
 
 	"github.com/9seconds/httransform/v2/events"
@@ -75,10 +78,51 @@ func (suite *ResponseMetaTestSuite) TestString() {
 		RequestID:  "reqid",
 		StatusCode: 404,
 	}
-    value := meta.String()
+	value := meta.String()
 
-    suite.Contains(value, "reqid")
-    suite.Contains(value, "404")
+	suite.Contains(value, "reqid")
+	suite.Contains(value, "404")
+}
+
+type ErrorMetaTestSuite struct {
+	suite.Suite
+
+	err *events.ErrorMeta
+}
+
+func (suite *ErrorMetaTestSuite) SetupTest() {
+	err := &os.PathError{
+		Op:  "TEST",
+		Err: io.EOF,
+	}
+	suite.err = &events.ErrorMeta{
+		RequestID: "reqid",
+		Err:       err,
+	}
+}
+
+func (suite *ErrorMetaTestSuite) TestInterface() {
+	suite.Implements((*error)(nil), suite.err)
+}
+
+func (suite *ErrorMetaTestSuite) TestInterfaceIs() {
+	suite.err.Err = io.EOF
+
+	suite.True(errors.Is(suite.err, io.EOF))
+}
+
+func (suite *ErrorMetaTestSuite) TestInterfaceAs() {
+	var err *os.PathError
+
+	suite.True(errors.As(suite.err, &err))
+	suite.Equal("TEST", err.Op)
+}
+
+func (suite *ErrorMetaTestSuite) TestError() {
+	value := suite.err.Error()
+
+	suite.Contains(value, "reqid")
+	suite.Contains(value, "TEST")
 }
 
 func TestRequestType(t *testing.T) {
@@ -91,4 +135,8 @@ func TestRequestMeta(t *testing.T) {
 
 func TestResponseMeta(t *testing.T) {
 	suite.Run(t, &ResponseMetaTestSuite{})
+}
+
+func TestErrorMeta(t *testing.T) {
+	suite.Run(t, &ErrorMetaTestSuite{})
 }

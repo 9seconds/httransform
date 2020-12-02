@@ -20,7 +20,7 @@ type Context struct {
 	ConnectTo       string
 	RequestID       string
 	User            string
-	Events          events.Channel
+	Events          *events.Channel
 	RequestHeaders  headers.Headers
 	ResponseHeaders headers.Headers
 
@@ -77,7 +77,7 @@ func (c *Context) Hijacked() bool {
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
-	channelEvents events.Channel,
+	channelEvents *events.Channel,
 	user string,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)

@@ -35,7 +35,7 @@ type TrafficConn struct {
 	ID string
 
 	// A channel for httransform event stream.
-	Events events.Channel
+	Events *events.Channel
 
 	readBytes      uint64
 	writtenBytes   uint64

@@ -25,7 +25,7 @@ type Server struct {
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
 	serverPool    sync.Pool
-	channelEvents events.Channel
+	channelEvents *events.Channel
 	layers        []layers.Layer
 	authenticator auth.Interface
 	executor      executor.Executor
@@ -181,6 +181,8 @@ func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
 	meta := &events.RequestMeta{
 		RequestID: ctx.RequestID,
 		Method:    string(bytes.ToUpper(request.Header.Method())),
+		User:      ctx.User,
+		Addr:      ctx.RemoteAddr(),
 	}
 
 	uri.CopyTo(&meta.URI)
@@ -261,6 +263,16 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 					NoDefaultDate:                 true,
 					DisablePreParseMultipartForm:  true,
 					KeepHijackedConns:             true,
+					ErrorHandler: func(cctx *fasthttp.RequestCtx, err error) {
+						meta := &events.CommonErrorMeta{
+							Method: string(bytes.ToUpper(cctx.Method())),
+							Addr:   cctx.RemoteAddr(),
+							Err:    err,
+						}
+
+						cctx.URI().CopyTo(&meta.URI)
+						channelEvents.Send(ctx, events.EventTypeCommonError, meta, "")
+					},
 				}
 			},
 		},

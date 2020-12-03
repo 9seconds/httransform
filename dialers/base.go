@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	BaseDialerTLSConfigCacheSize = 512
-	BaseDialerTLSConfigTTL       = 10 * time.Minute
+	TLSConfigCacheSize = 512
+	TLSConfigTTL       = 10 * time.Minute
 )
 
 type base struct {
@@ -113,8 +113,8 @@ func NewBase(opt Opts) Dialer {
 			Timeout: opt.GetTimeout(),
 			Control: reuseport.Control,
 		},
-		tlsConfigs: cache.New(BaseDialerTLSConfigCacheSize,
-			BaseDialerTLSConfigTTL,
+		tlsConfigs: cache.New(TLSConfigCacheSize,
+			TLSConfigTTL,
 			cache.NoopEvictCallback),
 		tlsSkipVerify: opt.GetTLSSkipVerify(),
 	}

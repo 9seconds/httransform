@@ -53,26 +53,26 @@ func (p *ProcessorMockFactory) Assert(t *testing.T) {
 	}
 }
 
-type ChannelTestSuite struct {
+type EventStreamTestSuite struct {
 	suite.Suite
 
 	factory *ProcessorMockFactory
 	cancel  context.CancelFunc
-	channel *events.Channel
+	stream  events.Stream
 }
 
-func (suite *ChannelTestSuite) SetupTest() {
+func (suite *EventStreamTestSuite) SetupTest() {
 	ctx, cancel := context.WithCancel(context.Background())
 	suite.cancel = cancel
 	suite.factory = &ProcessorMockFactory{
 		All: []*ProcessorMock{},
 	}
-	suite.channel = events.NewChannel(ctx, suite.factory.Make)
+    suite.stream = events.NewStream(ctx, suite.factory.Make)
 
 	sleep()
 }
 
-func (suite *ChannelTestSuite) TearDownTest() {
+func (suite *EventStreamTestSuite) TearDownTest() {
 	suite.cancel()
 
 	sleep()
@@ -80,7 +80,7 @@ func (suite *ChannelTestSuite) TearDownTest() {
 	suite.factory.Assert(suite.T())
 }
 
-func (suite *ChannelTestSuite) TestDefaultSharding() {
+func (suite *EventStreamTestSuite) TestDefaultSharding() {
 	if runtime.NumCPU() == 1 {
 		return
 	}
@@ -93,7 +93,7 @@ func (suite *ChannelTestSuite) TestDefaultSharding() {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		suite.channel.Send(ctx, events.EventTypeStartRequest, nil, "")
+		suite.stream.Send(ctx, events.EventTypeStartRequest, nil, "")
 	}
 
 	sleep()
@@ -101,7 +101,7 @@ func (suite *ChannelTestSuite) TestDefaultSharding() {
 	suite.Greater(len(suite.factory.CalledMocks()), 1)
 }
 
-func (suite *ChannelTestSuite) TestRouteToTheSameShard() {
+func (suite *EventStreamTestSuite) TestRouteToTheSameShard() {
 	for _, v := range suite.factory.All {
 		v.On("Process", mock.Anything).Maybe()
 		v.On("Shutdown").Once()
@@ -110,7 +110,7 @@ func (suite *ChannelTestSuite) TestRouteToTheSameShard() {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		suite.channel.Send(ctx, events.EventTypeStartRequest, nil, "hello")
+		suite.stream.Send(ctx, events.EventTypeStartRequest, nil, "hello")
 	}
 
 	sleep()
@@ -122,7 +122,7 @@ func (suite *ChannelTestSuite) TestRouteToTheSameShard() {
 	mocked.AssertNumberOfCalls(suite.T(), "Process", 10)
 }
 
-func (suite *ChannelTestSuite) TestProcessEvent() {
+func (suite *EventStreamTestSuite) TestProcessEvent() {
 	for _, v := range suite.factory.All {
 		v.On("Shutdown").Once()
 		v.On("Process", mock.Anything).Maybe().Run(func(args mock.Arguments) {
@@ -136,15 +136,15 @@ func (suite *ChannelTestSuite) TestProcessEvent() {
 
 	ctx := context.Background()
 
-	suite.channel.Send(ctx, events.EventTypeNewCertificate, 111, "hello")
+	suite.stream.Send(ctx, events.EventTypeNewCertificate, 111, "hello")
 
 	sleep()
 
 	suite.Len(suite.factory.CalledMocks(), 1)
 }
 
-func TestChannel(t *testing.T) {
-	suite.Run(t, &ChannelTestSuite{})
+func TestEventStream(t *testing.T) {
+	suite.Run(t, &EventStreamTestSuite{})
 }
 
 func sleep() {

@@ -1,5 +1,7 @@
 package events
 
+import "context"
+
 // Processor defines an interface for structs which process events.
 // These structs are not passed in any function and it is guaranteed
 // that messages with the same shardKey are going to be routed to the
@@ -19,3 +21,10 @@ type Processor interface {
 
 // ProcessorFactory defines how to generate new Processor instances.
 type ProcessorFactory func() Processor
+
+// Stream defines an interface to event stream.
+type Stream interface {
+	// Send sends EventType and interface to the stream respecting a
+	// given interface and sharding key.
+	Send(context.Context, EventType, interface{}, string)
+}

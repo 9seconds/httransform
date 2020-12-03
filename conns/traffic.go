@@ -35,7 +35,7 @@ type TrafficConn struct {
 	ID string
 
 	// A channel for httransform event stream.
-	Events *events.Channel
+	EventStream events.Stream
 
 	readBytes      uint64
 	writtenBytes   uint64
@@ -87,5 +87,5 @@ func (t *TrafficConn) doClose() {
 		WrittenBytes: t.writtenBytes,
 	}
 
-	t.Events.Send(t.Context, events.EventTypeTraffic, meta, t.ID)
+	t.EventStream.Send(t.Context, events.EventTypeTraffic, meta, t.ID)
 }

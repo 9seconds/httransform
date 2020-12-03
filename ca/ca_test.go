@@ -6,6 +6,7 @@ import (
 
 	"github.com/9seconds/httransform/v2/ca"
 	"github.com/9seconds/httransform/v2/events"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -42,19 +43,31 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 4J45NsSQjuuAAWs=
 -----END PRIVATE KEY-----`)
 
+type EventChannelMock struct {
+	mock.Mock
+}
+
+func (e *EventChannelMock) Send(ctx context.Context, eventType events.EventType, value interface{}, shardKey string) {
+	e.Called(ctx, eventType, value, shardKey)
+}
+
 type CATestSuite struct {
 	suite.Suite
 
-	ca            *ca.CA
-	channelEvents chan *events.Event
-	cancel        context.CancelFunc
+	ca                 *ca.CA
+	mockedEventChannel *EventChannelMock
+	cancel             context.CancelFunc
 }
 
 func (suite *CATestSuite) SetupTest() {
 	ctx, cancel := context.WithCancel(context.Background())
 	suite.cancel = cancel
-	suite.channelEvents = make(chan *events.Event, 1)
-	suite.ca, _ = ca.NewCA(ctx, suite.channelEvents, CACert, PrivateKey)
+	suite.mockedEventChannel = &EventChannelMock{}
+	suite.ca, _ = ca.NewCA(ctx, suite.mockedEventChannel, CACert, PrivateKey)
+}
+
+func (suite *CATestSuite) TearDownTest() {
+	suite.mockedEventChannel.AssertExpectations(suite.T())
 }
 
 func (suite *CATestSuite) TestDoubleGet() {

@@ -20,7 +20,7 @@ type Context struct {
 	ConnectTo       string
 	RequestID       string
 	User            string
-	Events          *events.Channel
+	EventStream     events.Stream
 	RequestHeaders  headers.Headers
 	ResponseHeaders headers.Headers
 
@@ -77,13 +77,13 @@ func (c *Context) Hijacked() bool {
 
 func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
-	channelEvents *events.Channel,
+	eventStream events.Stream,
 	user string,
 	isTLS bool) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.RequestID = uuid.Must(uuid.NewV4()).String()
-	c.Events = channelEvents
+	c.EventStream = eventStream
 	c.ConnectTo = connectTo
 	c.User = user
 
@@ -106,7 +106,7 @@ func (c Context) Reset() {
 	c.ctxCancel = nil
 
 	c.RequestID = ""
-	c.Events = nil
+	c.EventStream = nil
 	c.ConnectTo = ""
 	c.User = ""
 

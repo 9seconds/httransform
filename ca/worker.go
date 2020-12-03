@@ -29,7 +29,7 @@ type worker struct {
 	ca              tls.Certificate
 	ctx             context.Context
 	cache           cache.Interface
-	channelEvents   *events.Channel
+	eventStream     events.Stream
 	channelRequests chan workerRequest
 }
 
@@ -66,7 +66,7 @@ func (w *worker) Run() {
 				conf = w.process(req.host)
 				w.cache.Add(req.host, conf)
 
-				w.channelEvents.Send(w.ctx, events.EventTypeNewCertificate, req.host, req.host)
+				w.eventStream.Send(w.ctx, events.EventTypeNewCertificate, req.host, req.host)
 			}
 
 			req.response <- conf

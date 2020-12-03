@@ -121,5 +121,5 @@ func (e *Event) String() string {
 
 // IsUser is a shortcut for evt.Type.IsUser.
 func (e *Event) IsUser() bool {
-    return e.Type.IsUser()
+	return e.Type.IsUser()
 }

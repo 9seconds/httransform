@@ -50,7 +50,7 @@ func (c *CA) Get(host string) (*tls.Config, error) {
 
 // NewCA generates CA instance.
 func NewCA(ctx context.Context,
-	channelEvents *events.Channel,
+	eventStream events.Stream,
 	certCA []byte,
 	privateKey []byte) (*CA, error) {
 	ca, err := tls.X509KeyPair(certCA, privateKey)
@@ -67,14 +67,14 @@ func NewCA(ctx context.Context,
 		lenWorkers: uint64(runtime.NumCPU()),
 	}
 	cacheIf := cache.New(CACacheSize, CACacheTTL, func(key string, _ interface{}) {
-		channelEvents.Send(ctx, events.EventTypeDropCertificate, key, key)
+		eventStream.Send(ctx, events.EventTypeDropCertificate, key, key)
 	})
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wrk := worker{
 			ca:              ca,
 			ctx:             ctx,
-			channelEvents:   channelEvents,
+			eventStream:     eventStream,
 			cache:           cacheIf,
 			channelRequests: make(chan workerRequest),
 		}

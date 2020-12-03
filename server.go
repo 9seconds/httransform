@@ -25,7 +25,7 @@ type Server struct {
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
 	serverPool    sync.Pool
-	channelEvents *events.Channel
+	eventStream   events.Stream
 	layers        []layers.Layer
 	authenticator auth.Interface
 	executor      executor.Executor
@@ -47,7 +47,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	user, err := s.authenticator.Authenticate(ctx)
 	if err != nil {
 		ctx.Error(fmt.Sprintf("authenication is failed: %v", err), fasthttp.StatusProxyAuthRequired)
-		s.channelEvents.Send(ctx, events.EventTypeFailedAuth, nil, "")
+		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
 		return
 	}
@@ -76,7 +76,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
 
-	ownCtx.Init(ctx, address, s.channelEvents, user, false)
+	ownCtx.Init(ctx, address, s.eventStream, user, false)
 	s.main(ownCtx)
 }
 
@@ -103,7 +103,7 @@ func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 			ownCtx := layers.AcquireContext()
 			defer layers.ReleaseContext(ownCtx)
 
-			ownCtx.Init(ctx, address, s.channelEvents, user, true)
+			ownCtx.Init(ctx, address, s.eventStream, user, true)
 			s.main(ownCtx)
 
 			needToClose = !ownCtx.Hijacked()
@@ -118,7 +118,7 @@ func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 func (s *Server) main(ctx *layers.Context) {
 	requestMeta := s.getRequestMeta(ctx)
 
-	s.channelEvents.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
+	s.eventStream.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
 
 	defer func() {
 		responseMeta := &events.ResponseMeta{
@@ -126,7 +126,7 @@ func (s *Server) main(ctx *layers.Context) {
 			StatusCode: ctx.Response().StatusCode(),
 		}
 
-		s.channelEvents.Send(s.ctx, events.EventTypeFinishRequest, responseMeta, ctx.RequestID)
+		s.eventStream.Send(s.ctx, events.EventTypeFinishRequest, responseMeta, ctx.RequestID)
 	}()
 
 	currentLayer := 0
@@ -151,7 +151,7 @@ func (s *Server) main(ctx *layers.Context) {
 			Err:       err,
 		}
 
-		s.channelEvents.Send(ctx, events.EventTypeFailedRequest, errorMeta, ctx.RequestID)
+		s.eventStream.Send(ctx, events.EventTypeFailedRequest, errorMeta, ctx.RequestID)
 		ctx.Error(err)
 	}
 }
@@ -216,10 +216,11 @@ func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts
-	channelEvents := events.NewChannel(ctx, oopts.GetEventProcessorFactory())
+	eventStream := events.NewStream(ctx, oopts.GetEventProcessorFactory())
 	authenticator := oopts.GetAuthenticator()
 
-	certAuth, err := ca.NewCA(ctx, channelEvents,
+	certAuth, err := ca.NewCA(ctx,
+		eventStream,
 		oopts.GetTLSCertCA(),
 		oopts.GetTLSPrivateKey())
 	if err != nil {
@@ -240,7 +241,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 	srv := &Server{
 		ctx:           ctx,
 		ctxCancel:     cancel,
-		channelEvents: channelEvents,
+		eventStream:   eventStream,
 		ca:            certAuth,
 		layers:        oopts.GetLayers(),
 		authenticator: authenticator,
@@ -271,7 +272,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 						}
 
 						cctx.URI().CopyTo(&meta.URI)
-						channelEvents.Send(ctx, events.EventTypeCommonError, meta, "")
+						eventStream.Send(ctx, events.EventTypeCommonError, meta, "")
 					},
 				}
 			},

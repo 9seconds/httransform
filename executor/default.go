@@ -46,10 +46,10 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 	}
 
 	conn = &conns.TrafficConn{
-		Conn:    conn,
-		Context: ctx,
-		ID:      ctx.RequestID,
-		Events:  ctx.Events,
+		Conn:        conn,
+		Context:     ctx,
+		ID:          ctx.RequestID,
+		EventStream: ctx.EventStream,
 	}
 
 	if bytes.EqualFold(ctx.Request().URI().Scheme(), []byte("http")) {

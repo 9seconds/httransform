@@ -13,7 +13,7 @@ type NoopProcessorFactoryTestSuite struct {
 
 func (suite *NoopProcessorFactoryTestSuite) TestOk() {
 	proc := events.NoopProcessorFactory()
-	proc.Process(nil)
+	proc.Process(events.Event{})
 	proc.Shutdown()
 }
 

@@ -8,12 +8,8 @@ package events
 // It is possible that httransform will create many instances. Each
 // instance is going to work independently from each other.
 type Processor interface {
-	// Process should process an incoming event. It is crucial that
-	// nothing should refer to an event once processing is finished.
-	//
-	// All events are pooled so referencing them after processing can
-	// lead to undefined behaviour.
-	Process(*Event)
+	// Process should process an incoming event.
+	Process(Event)
 
 	// Shutdown is executed when httransform is going to terminate this
 	// processor. No events are going to be passed to this processor

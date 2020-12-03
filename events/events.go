@@ -2,14 +2,8 @@ package events
 
 import (
 	"fmt"
-	"sync"
-	"sync/atomic"
 	"time"
-
-	"github.com/OneOfOne/xxhash"
 )
-
-var eventCounter uint64
 
 // EventType is a unique identifier of the event type. There is a set of
 // predefined events which are raised by httransform itself + users can
@@ -110,66 +104,22 @@ func (e EventType) String() string {
 
 // Event defines event information.
 type Event struct {
-	id        EventType
-	timestamp time.Time
-	shard     int
-	value     interface{}
-}
+	// Type defines a type of the event.
+	Type EventType
 
-// Type returns identifier of the event type.
-func (e *Event) Type() EventType {
-	return e.id
-}
+	// Time defines a time when this event was generated.
+	Time time.Time
 
-// Time returns a timestamp when event was GENERATED.
-func (e *Event) Time() time.Time {
-	return e.timestamp
-}
-
-// Value returns an attached event value.
-func (e *Event) Value() interface{} {
-	return e.value
-}
-
-func (e *Event) reset() {
-	*e = Event{
-		id: EventTypeNotSet,
-	}
+	// Value defines an attached value with additional information.
+	Value interface{}
 }
 
 // String conforms fmt.Stringer interface.
 func (e *Event) String() string {
-	return fmt.Sprintf("%v %v -> %v", e.id, e.timestamp, e.value)
+	return fmt.Sprintf("%v %v -> %v", e.Type, e.Time, e.Value)
 }
 
-var poolEvent = sync.Pool{
-	New: func() interface{} {
-		return &Event{
-			id: EventTypeNotSet,
-		}
-	},
-}
-
-func acquireEvent(eventType EventType, value interface{}, shardKey string) *Event {
-	evt := poolEvent.Get().(*Event)
-
-	var shardValue uint64
-
-	if shardKey == "" {
-		shardValue = atomic.AddUint64(&eventCounter, 1)
-	} else {
-		shardValue = xxhash.Checksum64([]byte(shardKey))
-	}
-
-	evt.id = eventType
-	evt.timestamp = time.Now()
-	evt.value = value
-	evt.shard = int(shardValue % channelShardNumberUint64)
-
-	return evt
-}
-
-func releaseEvent(evt *Event) {
-	evt.reset()
-	poolEvent.Put(evt)
+// IsUser is a shortcut for evt.Type.IsUser.
+func (e *Event) IsUser() bool {
+    return e.Type.IsUser()
 }

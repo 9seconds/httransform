@@ -71,6 +71,14 @@ func (suite *CATestSuite) TearDownTest() {
 }
 
 func (suite *CATestSuite) TestDoubleGet() {
+	suite.mockedEventChannel.On("Send",
+		mock.Anything,
+		events.EventTypeNewCertificate,
+		"hostname.com",
+		"hostname.com",
+		mock.Anything,
+	).Once()
+
 	conf1, err := suite.ca.Get("hostname.com")
 
 	suite.NoError(err)
@@ -81,13 +89,6 @@ func (suite *CATestSuite) TestDoubleGet() {
 	suite.NoError(err)
 	suite.NotNil(conf2)
 
-	select {
-	case <-suite.channelEvents:
-	default:
-		suite.Fail("Channel events is empty")
-	}
-
-	suite.Empty(suite.channelEvents)
 	suite.Equal(conf1.Certificates[0].PrivateKey, conf2.Certificates[0].PrivateKey)
 	suite.Equal(conf1.Certificates[0].Certificate[0], conf2.Certificates[0].Certificate[0])
 	suite.Equal(conf1.ServerName, conf2.ServerName)

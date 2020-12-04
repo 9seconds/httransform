@@ -21,6 +21,7 @@ type Context struct {
 	RequestID       string
 	User            string
 	EventStream     events.Stream
+	RequestType     events.RequestType
 	RequestHeaders  headers.Headers
 	ResponseHeaders headers.Headers
 
@@ -79,10 +80,11 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
 	eventStream events.Stream,
 	user string,
-	isTLS bool) {
+	requestType events.RequestType) {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.RequestID = uuid.Must(uuid.NewV4()).String()
+	c.RequestType = requestType
 	c.EventStream = eventStream
 	c.ConnectTo = connectTo
 	c.User = user
@@ -93,7 +95,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 
 	uri := fasthttpCtx.Request.URI()
 
-	if isTLS {
+	if requestType.IsTLS() {
 		uri.SetScheme("https")
 	} else {
 		uri.SetScheme("http")
@@ -106,6 +108,7 @@ func (c Context) Reset() {
 	c.ctxCancel = nil
 
 	c.RequestID = ""
+	c.RequestType = 0
 	c.EventStream = nil
 	c.ConnectTo = ""
 	c.User = ""

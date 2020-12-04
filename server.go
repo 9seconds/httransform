@@ -52,7 +52,11 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
+	var requestType events.RequestType
+
 	if ctx.IsConnect() {
+		requestType |= events.RequestTypeTunneled
+
 		address, err := s.extractAddress(string(ctx.RequestURI()), true)
 		if err != nil {
 			ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
@@ -60,7 +64,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 			return
 		}
 
-		ctx.Hijack(s.upgradeToTLS(user, address))
+		ctx.Hijack(s.upgradeToTLS(requestType, user, address))
 		ctx.Success("", nil)
 
 		return
@@ -76,11 +80,12 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
 
-	ownCtx.Init(ctx, address, s.eventStream, user, false)
+	ownCtx.Init(ctx, address, s.eventStream, user, requestType)
+	s.completeRequestType(ownCtx)
 	s.main(ownCtx)
 }
 
-func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
+func (s *Server) upgradeToTLS(requestType events.RequestType, user, address string) fasthttp.HijackHandler {
 	host, _, _ := net.SplitHostPort(address)
 
 	return conns.FixHijackHandler(func(conn net.Conn) bool {
@@ -89,9 +94,19 @@ func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 			return true
 		}
 
-		tlsConn := tls.Server(conn, conf)
-		if err := tlsConn.Handshake(); err != nil {
+		uConn := conns.NewUnreadConn(conn)
+		tlsErr := tls.RecordHeaderError{}
+		tlsConn := tls.Server(uConn, conf)
+		err = tlsConn.Handshake()
+
+		switch {
+		case errors.As(err, &tlsErr):
+			uConn.Unread()
+		case err != nil:
 			return true
+		default:
+			requestType |= events.RequestTypeTLS
+			uConn.Seal()
 		}
 
 		srv := s.serverPool.Get().(*fasthttp.Server)
@@ -103,7 +118,8 @@ func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 			ownCtx := layers.AcquireContext()
 			defer layers.ReleaseContext(ownCtx)
 
-			ownCtx.Init(ctx, address, s.eventStream, user, true)
+			ownCtx.Init(ctx, address, s.eventStream, user, requestType)
+			s.completeRequestType(ownCtx)
 			s.main(ownCtx)
 
 			needToClose = !ownCtx.Hijacked()
@@ -116,8 +132,15 @@ func (s *Server) upgradeToTLS(user, address string) fasthttp.HijackHandler {
 }
 
 func (s *Server) main(ctx *layers.Context) {
-	requestMeta := s.getRequestMeta(ctx)
+	requestMeta := &events.RequestMeta{
+		RequestID:   ctx.RequestID,
+		RequestType: ctx.RequestType,
+		Method:      string(bytes.ToUpper(ctx.Request().Header.Method())),
+		User:        ctx.User,
+		Addr:        ctx.RemoteAddr(),
+	}
 
+	ctx.Request().URI().CopyTo(&requestMeta.URI)
 	s.eventStream.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
 
 	defer func() {
@@ -175,42 +198,19 @@ func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
 	return hostport, nil
 }
 
-func (s *Server) getRequestMeta(ctx *layers.Context) *events.RequestMeta {
-	request := ctx.Request()
-	uri := request.URI()
-	meta := &events.RequestMeta{
-		RequestID: ctx.RequestID,
-		Method:    string(bytes.ToUpper(request.Header.Method())),
-		User:      ctx.User,
-		Addr:      ctx.RemoteAddr(),
-	}
-
-	uri.CopyTo(&meta.URI)
-
-	if bytes.EqualFold(uri.Scheme(), []byte("http")) {
-		meta.RequestType |= events.RequestTypePlain
-	} else {
-		meta.RequestType |= events.RequestTypeTLS
-	}
-
-	request.Header.VisitAll(func(key, value []byte) {
+func (s *Server) completeRequestType(ctx *layers.Context) {
+	ctx.Request().Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Connection")) {
 			values := headers.Values(string(value))
-			meta.RequestType &^= events.RequestTypeUpgraded
+			ctx.RequestType &^= events.RequestTypeUpgraded
 
 			for i := range values {
 				if strings.EqualFold(values[i], "Upgrade") {
-					meta.RequestType |= events.RequestTypeUpgraded
+					ctx.RequestType |= events.RequestTypeUpgraded
 				}
 			}
 		}
 	})
-
-	if meta.RequestType&events.RequestTypeUpgraded == 0 {
-		meta.RequestType |= events.RequestTypeHTTP
-	}
-
-	return meta
 }
 
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen

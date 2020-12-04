@@ -3,7 +3,6 @@ package events
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/valyala/fasthttp"
 )
@@ -13,42 +12,42 @@ import (
 type RequestType byte
 
 const (
-	// RequestTypePlain defines that request is plain HTTP one.
-	RequestTypePlain RequestType = 1 << iota
-
-	// RequestTypeTLS defines that request was done via CONNECT + TLS.
+	RequestTypeTunneled RequestType = 1 << iota
 	RequestTypeTLS
-
-	// RequestTypeHTTP defines that request is simply HTTP one. Not a
-	// websocket or any other upgrade.
-	RequestTypeHTTP
-
-	// RequestTypeUpgraded defines that request requires Upgrade
-	// of HTTP connection to TCP tunnel. Like websockets.
 	RequestTypeUpgraded
 )
 
+func (r RequestType) IsTunneled() bool {
+	return r&RequestTypeTunneled != 0
+}
+
+func (r RequestType) IsTLS() bool {
+	return r&RequestTypeTLS != 0
+}
+
+func (r RequestType) IsUpgraded() bool {
+	return r&RequestTypeUpgraded != 0
+}
+
 // String conforms fmt.Stringer interface.
 func (r RequestType) String() string {
-	params := make([]string, 0, 2)
+	tunneled := "tunneled:no"
+	tls := "tls:no"
+	upgraded := "upgraded:no"
 
-	if r&RequestTypePlain != 0 {
-		params = append(params, "plain")
+	if r.IsTunneled() {
+		tunneled = "tunneled:yes"
 	}
 
-	if r&RequestTypeTLS != 0 {
-		params = append(params, "tls")
+	if r.IsTLS() {
+		tls = "tls:yes"
 	}
 
-	if r&RequestTypeHTTP != 0 {
-		params = append(params, "http")
+	if r.IsUpgraded() {
+		upgraded = "upgraded:yes"
 	}
 
-	if r&RequestTypeUpgraded != 0 {
-		params = append(params, "upgraded")
-	}
-
-	return strings.Join(params, " | ")
+	return tunneled + " | " + tls + " | " + upgraded
 }
 
 // RequestMeta defines a metadata related to a request.

@@ -26,7 +26,9 @@ func (s *socksProxy) PatchHTTPRequest(req *fasthttp.Request) {
 	s.baseDialer.PatchHTTPRequest(req)
 }
 
-func NewSocks(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
+// NewSocks5 returns a dialer which can connect to SOCKS5 proxies. It
+// uses a base dialer under the hood.
+func NewSocks5(opt Opts, proxyAuth ProxyAuth) (Dialer, error) {
 	baseDialer := NewBase(opt).(*base)
 
 	var auth *proxy.Auth

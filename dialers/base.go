@@ -17,8 +17,12 @@ import (
 )
 
 const (
+	// TLSConfigCacheSize defines a size of LRU cache which is used by base
+	// dialer.
 	TLSConfigCacheSize = 512
-	TLSConfigTTL       = 10 * time.Minute
+
+	// TLSConfigTTL defines a TTL for each tls.Config we generate.
+	TLSConfigTTL = 10 * time.Minute
 )
 
 type base struct {
@@ -59,7 +63,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 }
 
 func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (net.Conn, error) {
-	ownCtx, cancel := context.WithCancel(ctx)
+	ownCtx, cancel := context.WithTimeout(ctx, b.netDialer.Timeout)
 	defer cancel()
 
 	go func() {
@@ -107,6 +111,18 @@ func (b *base) getTLSConfig(host string) *tls.Config {
 	return conf
 }
 
+// NewBase returns a base dialer which connects to a target website and
+// does only those operations which are required:
+//
+// 1. Dial establishes a TCP connection to a target netloc
+//
+// 2. UpgradeToTLS upgrades this TCP connection to secured one.
+//
+// 3. PatchHTTPRequest does processing which makes sense only to adjust
+// with fasthttp specific logic.
+//
+// Apart from that, it sets timeouts, uses SO_REUSEADDR socket option,
+// uses DNS cache and reuses tls.Config instances when possible.
 func NewBase(opt Opts) Dialer {
 	rv := &base{
 		netDialer: net.Dialer{
@@ -131,7 +147,7 @@ func NewBase(opt Opts) Dialer {
 				rv.dnsCache.Refresh(true)
 			}
 		}
-	}(opt.GetContext(), opt.GetCleanupDNSEvery())
+	}(opt.GetContext(), opt.GetDNSUpdateEvery())
 
 	return rv
 }

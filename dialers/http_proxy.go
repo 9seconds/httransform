@@ -77,6 +77,8 @@ func (h *httpProxy) releaseBufioReader(reader *bufio.Reader) {
 	h.bufioReaderPool.Put(reader)
 }
 
+// NewHTTPProxy returns a dialer which dials using HTTP proxies It uses.
+// a base dialer under the hood so you get all its niceties there      .
 func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) Dialer {
 	connectRequest := fmt.Sprintf("CONNECT %s HTTP/1.1\r\n", proxyAuth.Address)
 

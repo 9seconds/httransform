@@ -6,6 +6,22 @@ import (
 	"strings"
 )
 
+// DialerFromURL construct a dialer based on given URI. You
+// can think about this function as a factory to make dialers.
+//
+// Examples:
+//
+//   DialerFromURL(opt, "http://user:password@myhost:3561")
+//   DialerFromURL(opt, "https://user:password@myhost:3561")
+//
+// will make dialers which treat myhost as HTTP proxy.
+//
+//   DialerFromURL(opt, "socks5://user:password@myhost:441")
+//
+// will make dialer which treat myhost as SOCKS5 proxy.
+//
+// Please pay attention that host part HAS TO HAVE port. As with
+// NewProxyAuth, there is no any implicit guessing.
 func DialerFromURL(opt Opts, proxyURL string) (Dialer, error) {
 	parsed, err := url.Parse(proxyURL)
 	if err != nil {
@@ -27,7 +43,7 @@ func DialerFromURL(opt Opts, proxyURL string) (Dialer, error) {
 
 	switch strings.ToLower(parsed.Scheme) {
 	case "socks5":
-		return NewSocks(opt, proxyAuth)
+		return NewSocks5(opt, proxyAuth)
 	case "http", "https":
 		return NewHTTPProxy(opt, proxyAuth), nil
 	}

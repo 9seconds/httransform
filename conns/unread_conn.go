@@ -7,49 +7,58 @@ import (
 	"sync"
 )
 
+// UnreadConn can 'unread' bytes which were already read from the
+// connection. It has 3 modes: exploring, unreading and sealed.
+//
+// By default UnreadConn starts in exploring mode. Each byte which is
+// read from underlying conn is stored in a buffer.
+//
+// When you tranfer UnreadConn into unreading mode, it flushes this
+// internal buffer first and continue to read from the connection.
+// Effectively it means that you re-read same bytes.
+//
+// Sealed means that internal buffer is flushed and we read from the
+// connection directly.
 type UnreadConn struct {
 	net.Conn
 
-	mutex           sync.RWMutex
-	buf             bytes.Buffer
-	exploringReader io.Reader
-	sealedReader    io.Reader
-	exploring       bool
+	mutex  sync.RWMutex
+	buf    bytes.Buffer
+	reader io.Reader
 }
 
+// Read to conform io.Reader interface.
 func (u *UnreadConn) Read(p []byte) (int, error) {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
 
-	if u.exploring {
-		return u.exploringReader.Read(p)
-	}
-
-	return u.sealedReader.Read(p)
+	return u.reader.Read(p)
 }
 
+// Unread transitions UnreadConn into 'unreading' state.
 func (u *UnreadConn) Unread() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 
-	u.sealedReader = u.Conn
-	u.exploring = false
+	u.reader = io.MultiReader(&u.buf, u.Conn)
 }
 
+// Seal transitions UnreadConn into 'sealed' state.
 func (u *UnreadConn) Seal() {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
 
-	u.exploring = false
+	u.buf.Reset()
+	u.reader = u.Conn
 }
 
+// NewUnreadConn creates a new UnreadConn based on given net.Conn
+// instance.
 func NewUnreadConn(conn net.Conn) *UnreadConn {
 	rv := &UnreadConn{
-		Conn:      conn,
-		exploring: true,
+		Conn: conn,
 	}
-	rv.sealedReader = io.TeeReader(conn, &rv.buf)
-	rv.exploringReader = io.MultiReader(&rv.buf, conn)
+	rv.reader = io.TeeReader(conn, &rv.buf)
 
 	return rv
 }

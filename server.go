@@ -100,7 +100,7 @@ func (s *Server) upgradeToTLS(requestType events.RequestType, user, address stri
 		err = tlsConn.Handshake()
 
 		switch {
-		case errors.As(err, &tlsErr):
+		case errors.As(err, &tlsErr) && tlsErr.Conn != nil:
 			uConn.Unread()
 		case err != nil:
 			return true

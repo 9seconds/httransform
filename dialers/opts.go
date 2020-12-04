@@ -1,7 +1,6 @@
 package dialers
 
 import (
-	"context"
 	"time"
 )
 
@@ -20,10 +19,6 @@ const (
 // is just to avoid a huge method signature and boilerplate code about
 // default values for each and every dialer.
 type Opts struct {
-	// Context defines a parent context for the dialer. If this context
-	// is canceled, dialer should perform a required actions to cleanup.
-	Context context.Context
-
 	// Timeout defines a timeout which use to establish TCP connections to
 	// target netlocs. It is also a timeout on UpgradeToTLS operations.
 	Timeout time.Duration
@@ -40,16 +35,6 @@ type Opts struct {
 	//
 	// You was warned.
 	TLSSkipVerify bool
-}
-
-// GetContext returns a parent context (or fallbacks to a default empty
-// one).
-func (o *Opts) GetContext() context.Context {
-	if o.Context == nil {
-		return context.Background()
-	}
-
-	return o.Context
 }
 
 // GetTimeout returns a timeout value or fallbacks to default one.

@@ -232,7 +232,6 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 	exec := oopts.GetExecutor()
 	if exec == nil {
 		dialer := dialers.NewBase(dialers.Opts{
-			Context:       ctx,
 			TLSSkipVerify: oopts.GetTLSSkipVerify(),
 		})
 		exec = executor.MakeDefaultExecutor(dialer)

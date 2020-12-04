@@ -61,12 +61,17 @@ func (p *ProxyAuth) String() string {
 // NewProxyAuth return a new ProxyAuth instance according to given
 // parameters.
 func NewProxyAuth(address, username, password string) (ProxyAuth, error) {
-	if _, _, err := net.SplitHostPort(address); err != nil {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
 		return ProxyAuth{}, fmt.Errorf("incorrect proxy address: %w", err)
 	}
 
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
 	return ProxyAuth{
-		Address:  address,
+		Address:  net.JoinHostPort(host, port),
 		Username: username,
 		Password: password,
 	}, nil

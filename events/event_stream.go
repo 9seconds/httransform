@@ -18,7 +18,7 @@ func (e *eventStream) Send(ctx context.Context, eventType EventType, value inter
 	var shard int
 
 	if shardKey == "" {
-        shard = int(fastrand.Uint32n(uint32(len(e.shards))))
+		shard = int(fastrand.Uint32n(uint32(len(e.shards))))
 	} else {
 		shard = int(xxhash.ChecksumString64(shardKey) % uint64(len(e.shards)))
 	}

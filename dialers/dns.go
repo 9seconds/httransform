@@ -37,7 +37,7 @@ func (d *dnsCache) doLookup(ctx context.Context, hostname string) ([]string, err
 
 	addrs, err := d.resolver.LookupIPAddr(ctx, hostname)
 	if err != nil {
-		return nil, err
+		return nil, err // nolint: wrapcheck
 	}
 
 	hostnames := make([]string, len(addrs))
@@ -50,7 +50,7 @@ func (d *dnsCache) doLookup(ctx context.Context, hostname string) ([]string, err
 }
 
 func (d *dnsCache) shuffle(in []string) []string {
-	if len(in) < 2 {
+	if len(in) < 2 { // nolint: gomnd
 		return in
 	}
 
@@ -59,9 +59,11 @@ func (d *dnsCache) shuffle(in []string) []string {
 
 	for i := range in {
 		j := int(fastrand.Uint32n(uint32(i + 1)))
+
 		if j != i {
 			out[i] = out[j]
 		}
+
 		out[j] = in[i]
 	}
 

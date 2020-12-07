@@ -82,8 +82,8 @@ func (w *worker) process(host string) *tls.Config {
 		SerialNumber:          &big.Int{},
 		Issuer:                w.ca.Leaf.Subject,
 		Subject:               pkix.Name{},
-		NotBefore:             now.AddDate(0, 0, -1),
-		NotAfter:              now.AddDate(0, 3, 0),
+		NotBefore:             now.AddDate(0, 0, -1), // 1 day before
+		NotAfter:              now.AddDate(0, 3, 0),  // 3 months after
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,

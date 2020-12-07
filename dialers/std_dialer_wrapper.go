@@ -9,7 +9,7 @@ import (
 // StdDialerWrapper just wraps a Dialer of this package into net.Dialer
 // interface.
 type StdDialerWrapper struct {
-	wrapped Dialer
+	Dialer Dialer
 }
 
 // DialContext is to conform DialContext method of net.Dialer.
@@ -25,7 +25,7 @@ func (s StdDialerWrapper) DialContext(ctx context.Context, network, address stri
 		return nil, fmt.Errorf("incorrect address: %w", err)
 	}
 
-	return s.wrapped.Dial(ctx, host, port)
+	return s.Dialer.Dial(ctx, host, port)
 }
 
 // Dial is to conform Dial method of net.Dialer.

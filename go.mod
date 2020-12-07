@@ -12,6 +12,7 @@ require (
 	github.com/kentik/patricia v0.0.0-20200128193914-c35d94c5e02f
 	github.com/klauspost/compress v1.11.3 // indirect
 	github.com/libp2p/go-reuseport v0.0.2
+	github.com/mccutchen/go-httpbin v1.1.1
 	github.com/stretchr/testify v1.5.1
 	github.com/valyala/fasthttp v1.17.0
 	github.com/valyala/fastrand v1.0.0

@@ -71,7 +71,7 @@ func (suite *Socks5TestSuite) TestUpgradeToTLS() {
 
 	defer conn.Close()
 
-	conn, err = suite.dialer.UpgradeToTLS(context.Background(), conn, host)
+	conn, err = suite.dialer.UpgradeToTLS(context.Background(), conn, host, port)
 
 	suite.NoError(err)
 
@@ -94,7 +94,7 @@ func (suite *Socks5TestSuite) TestCannotUpgradeToTLS() {
 
 	defer conn.Close()
 
-	_, err = suite.dialer.UpgradeToTLS(context.Background(), conn, host)
+	_, err = suite.dialer.UpgradeToTLS(context.Background(), conn, host, port)
 
 	suite.Error(err)
 }

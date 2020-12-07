@@ -107,7 +107,6 @@ func (b *base) getTLSConfig(host string) *tls.Config {
 
 	conf := &tls.Config{
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
-		ServerName:         host,
 		InsecureSkipVerify: b.tlsSkipVerify, // nolint: gosec
 	}
 

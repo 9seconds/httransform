@@ -33,6 +33,8 @@ func (suite *HttpProxyTestSuite) SetupSuite() {
 
 	go srv.Serve(suite.proxyListener)
 
+	time.Sleep(50 * time.Millisecond)
+
 	auth, _ := dialers.NewProxyAuth(suite.proxyListener.Addr().String(), "", "")
 	opts := dialers.Opts{TLSSkipVerify: true, Timeout: 5 * time.Second}
 

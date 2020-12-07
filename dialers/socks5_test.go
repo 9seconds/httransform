@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/9seconds/httransform/v2/dialers"
 	"github.com/armon/go-socks5"
@@ -41,6 +42,8 @@ func (suite *Socks5TestSuite) SetupSuite() {
 	suite.dialer = dialer
 
 	go socksServer.Serve(suite.socksListener)
+
+	time.Sleep(50 * time.Millisecond)
 }
 
 func (suite *Socks5TestSuite) TestNeedToUpgradeToTLS() {

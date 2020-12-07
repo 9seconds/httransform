@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -31,8 +30,8 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string
 	defer cancel()
 
 	go func() {
-		timer := time.NewTimer(h.baseDialer.netDialer.Timeout)
-		defer timer.Stop()
+		timer := fasthttp.AcquireTimer(h.baseDialer.netDialer.Timeout)
+		defer fasthttp.ReleaseTimer(timer)
 
 		select {
 		case <-ownCtx.Done():

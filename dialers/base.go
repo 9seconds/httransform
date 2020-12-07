@@ -67,8 +67,8 @@ func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (ne
 	defer cancel()
 
 	go func() {
-		timer := time.NewTimer(b.netDialer.Timeout)
-		defer timer.Stop()
+		timer := fasthttp.AcquireTimer(b.netDialer.Timeout)
+		defer fasthttp.ReleaseTimer(timer)
 
 		select {
 		case <-ownCtx.Done():

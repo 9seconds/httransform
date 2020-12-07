@@ -1,5 +1,5 @@
 [run]
-concurrency = 4
+concurrency = 8
 deadline = "2m"
 tests = false
 skip-dirs = ["vendor"]

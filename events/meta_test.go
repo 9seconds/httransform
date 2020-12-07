@@ -16,33 +16,9 @@ type RequestTypeTestSuite struct {
 }
 
 func (suite *RequestTypeTestSuite) TestString() {
-	r := events.RequestTypePlain
-
-	suite.Contains(r.String(), "plain")
-	suite.NotContains(r.String(), "tls")
-	suite.NotContains(r.String(), "http")
-	suite.NotContains(r.String(), "upgraded")
-
-	r |= events.RequestTypeTLS
-
-	suite.Contains(r.String(), "plain")
-	suite.Contains(r.String(), "tls")
-	suite.NotContains(r.String(), "http")
-	suite.NotContains(r.String(), "upgraded")
-
-	r |= events.RequestTypeHTTP
-
-	suite.Contains(r.String(), "plain")
-	suite.Contains(r.String(), "tls")
-	suite.Contains(r.String(), "http")
-	suite.NotContains(r.String(), "upgraded")
-
-	r |= events.RequestTypeUpgraded
-
-	suite.Contains(r.String(), "plain")
-	suite.Contains(r.String(), "tls")
-	suite.Contains(r.String(), "http")
-	suite.Contains(r.String(), "upgraded")
+	suite.Contains(events.RequestTypeTunneled.String(), "tunneled:yes")
+	suite.Contains(events.RequestTypeTLS.String(), "tls:yes")
+	suite.Contains(events.RequestTypeUpgraded.String(), "upgraded:yes")
 }
 
 type RequestMetaTestSuite struct {
@@ -55,7 +31,7 @@ func (suite *RequestMetaTestSuite) TestString() {
 		User:        "user",
 		Method:      "GET",
 		Addr:        &net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 6000},
-		RequestType: events.RequestTypeHTTP | events.RequestTypeTLS,
+		RequestType: events.RequestTypeUpgraded,
 	}
 
 	suite.NoError(meta.URI.Parse(nil, []byte("http://example.com/image.gif")))

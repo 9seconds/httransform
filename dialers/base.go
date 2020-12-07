@@ -63,13 +63,18 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 }
 
 func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (net.Conn, error) {
-	ownCtx, cancel := context.WithTimeout(ctx, b.netDialer.Timeout)
+	ownCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
+		timer := time.NewTimer(b.netDialer.Timeout)
+		defer timer.Stop()
+
 		select {
 		case <-ownCtx.Done():
 		case <-ctx.Done():
+			conn.Close()
+		case <-timer.C:
 			conn.Close()
 		}
 	}()

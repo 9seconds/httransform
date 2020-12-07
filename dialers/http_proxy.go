@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -30,9 +31,14 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string
 	defer cancel()
 
 	go func() {
+		timer := time.NewTimer(h.baseDialer.netDialer.Timeout)
+		defer timer.Stop()
+
 		select {
 		case <-ownCtx.Done():
 		case <-ctx.Done():
+			conn.Close()
+		case <-timer.C:
 			conn.Close()
 		}
 	}()
@@ -43,6 +49,8 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string
 
 	response := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(response)
+
+	response.SkipBody = true
 
 	bufReader := h.acquireBufioReader(conn)
 	defer h.releaseBufioReader(bufReader)
@@ -80,7 +88,10 @@ func (h *httpProxy) releaseBufioReader(reader *bufio.Reader) {
 // NewHTTPProxy returns a dialer which dials using HTTP proxies It uses.
 // a base dialer under the hood so you get all its niceties there      .
 func NewHTTPProxy(opt Opts, proxyAuth ProxyAuth) Dialer {
-	connectRequest := fmt.Sprintf("CONNECT %s HTTP/1.1\r\n", proxyAuth.Address)
+	connectRequest := fmt.Sprintf(
+		"CONNECT %s HTTP/1.1\r\nHost: %s\r\n",
+		proxyAuth.Address,
+		proxyAuth.Address)
 
 	if proxyAuth.HasCredentials() {
 		rawLine := proxyAuth.Username + ":" + proxyAuth.Password

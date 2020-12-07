@@ -11,7 +11,7 @@ type cache struct {
 }
 
 func (c *cache) Add(key string, value interface{}) {
-	c.cache.Set(tlru.Entry{
+	c.cache.Set(tlru.Entry{ // nolint: errcheck
 		Key:   key,
 		Value: value,
 	})

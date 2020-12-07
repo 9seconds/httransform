@@ -62,7 +62,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 	return nil, fmt.Errorf("cannot dial to %s: %w", host, err)
 }
 
-func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (net.Conn, error) {
+func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) (net.Conn, error) {
 	ownCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

@@ -19,7 +19,7 @@ type Dialer interface {
 	// UpgradeToTLS transforms a plain TCP connection to secured one.
 	// Hostname is a hostname we connect to. Sometimes we can reuse cached
 	// TLS sessions based on this parameter, for example.
-	UpgradeToTLS(ctx context.Context, tcpConn net.Conn, hostname string) (net.Conn, error)
+	UpgradeToTLS(ctx context.Context, tcpConn net.Conn, host, port string) (net.Conn, error)
 
 	// PatchHTTPRequest has to patch HTTP request so it can be passed
 	// down to a socket. Sometimes you want to do something special with

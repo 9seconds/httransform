@@ -18,8 +18,8 @@ func (s *socksProxy) Dial(ctx context.Context, host, port string) (net.Conn, err
 	return s.proxy.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 }
 
-func (s *socksProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host string) (net.Conn, error) {
-	return s.baseDialer.UpgradeToTLS(ctx, conn, host)
+func (s *socksProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port string) (net.Conn, error) {
+	return s.baseDialer.UpgradeToTLS(ctx, conn, host, port)
 }
 
 func (s *socksProxy) PatchHTTPRequest(req *fasthttp.Request) {

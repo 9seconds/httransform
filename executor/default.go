@@ -56,7 +56,7 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 		return conn, nil
 	}
 
-	tlsConn, err := dialer.UpgradeToTLS(ctx, conn, host)
+	tlsConn, err := dialer.UpgradeToTLS(ctx, conn, host, port)
 	if err != nil {
 		conn.Close()
 

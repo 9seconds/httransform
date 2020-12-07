@@ -4,6 +4,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.8
 	github.com/PumpkinSeed/errors v0.0.0-20200109211314-b1164795ee80
 	github.com/andybalholm/brotli v1.0.1 // indirect
+	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
 	github.com/bluele/gcache v0.0.0-20190518031135-bc40bd653833
 	github.com/gobwas/httphead v0.0.0-20200921212729-da3d93bc3c58 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect

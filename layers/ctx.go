@@ -2,6 +2,7 @@ package layers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -71,22 +72,38 @@ type Context struct {
 
 // Request returns a pointer to the original fasthttp.Request.
 func (c *Context) Request() *fasthttp.Request {
-	return &c.originalCtx.Request
+	if c.originalCtx != nil {
+		return &c.originalCtx.Request
+	}
+
+	return nil
 }
 
 // Response returns a pointer to the original fasthttp.Response.
 func (c *Context) Response() *fasthttp.Response {
-	return &c.originalCtx.Response
+	if c.originalCtx != nil {
+		return &c.originalCtx.Response
+	}
+
+	return nil
 }
 
 // RemoteAddr returns an instance of remote address of the client.
 func (c *Context) RemoteAddr() net.Addr {
-	return c.originalCtx.RemoteAddr()
+	if c.originalCtx != nil {
+		return c.originalCtx.RemoteAddr()
+	}
+
+	return nil
 }
 
 // LocalAddr returns an instance of local address of the client.
 func (c *Context) LocalAddr() net.Addr {
-	return c.originalCtx.LocalAddr()
+	if c.originalCtx != nil {
+		return c.originalCtx.LocalAddr()
+	}
+
+	return nil
 }
 
 // Respond is just a shortcut for the fast response. This response is
@@ -102,6 +119,14 @@ func (c *Context) Respond(msg string, statusCode int) {
 
 // Error is a shortcut for the fast response about given error.
 func (c *Context) Error(err error) {
+	var customErr *Error
+
+	if errors.As(err, &customErr) {
+		c.Respond(customErr.Error(), customErr.GetStatusCode())
+
+		return
+	}
+
 	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()),
 		fasthttp.StatusInternalServerError)
 }

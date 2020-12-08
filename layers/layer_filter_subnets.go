@@ -8,6 +8,7 @@ import (
 	"github.com/9seconds/httransform/v2/dns"
 	"github.com/kentik/patricia"
 	"github.com/kentik/patricia/bool_tree"
+	"github.com/valyala/fasthttp"
 )
 
 var ErrSubnetFiltered = errors.New("request was filtered because of the accessed subnet")
@@ -28,7 +29,11 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 
 	for _, v := range resolved {
 		if f.filterIP(net.ParseIP(v)) {
-			return ErrSubnetFiltered
+			return &Error{
+				StatusCode: fasthttp.StatusForbidden,
+				Message:    fmt.Sprintf("host %s has banned IP %s", host, v),
+				Err:        ErrSubnetFiltered,
+			}
 		}
 	}
 
@@ -69,6 +74,13 @@ func (f *filterSubnetsLayer) OnResponse(ctx *Context, err error) error {
 	return err
 }
 
+// NewFilterSubnetsLayer filters out requests which should not be passed
+// further. You can use it to protect an access to your private networks.
+//
+// For example, you can block requests to 127.0.0.1/8, 10.0.0.0/8.
+//
+// This layer does DNS queries and uses their results to understand if
+// it worth to proceed or not.
 func NewFilterSubnetsLayer(subnets []net.IPNet) (Layer, error) {
 	instance := &filterSubnetsLayer{
 		v4: bool_tree.NewTreeV4(),

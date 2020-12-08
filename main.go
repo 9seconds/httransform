@@ -47,6 +47,9 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 
 func main() {
 	ctx := context.Background()
+	l, _ := layers.NewFilterSubnetsLayer([]net.IPNet{
+		{IP: net.ParseIP("127.0.0.1"), Mask: net.CIDRMask(24, 32)},
+	})
 	srv, err := NewServer(ctx, ServerOpts{
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
@@ -58,6 +61,7 @@ func main() {
 			&layers.HeadersLayer{
 				RequestSet: []headers.Header{headers.NewHeader("X-Crawlera-IP", "desktop")},
 			},
+			l,
 		},
 	})
 	if err != nil {

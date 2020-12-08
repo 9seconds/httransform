@@ -5,12 +5,12 @@ import (
 	"unicode"
 )
 
-func makeHeaderID(name string) []byte {
+func makeHeaderID(name string) string {
 	if name == "" {
-		return nil
+		return ""
 	}
 
-	return []byte(strings.ToLower(strings.TrimSpace(name)))
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 // Values splits comma-delimited list of values and returns it as a

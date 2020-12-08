@@ -40,7 +40,7 @@ func (h *Headers) String() string {
 	h.Headers[0].writeString(&builder)
 
 	for i := 1; i < len(h.Headers); i++ {
-		builder.WriteString(", ")
+		builder.WriteRune('\n')
 		h.Headers[i].writeString(&builder)
 	}
 
@@ -50,11 +50,11 @@ func (h *Headers) String() string {
 // GetAll returns a list of headers where name is given in a
 // case-INSENSITIVE fashion.
 func (h *Headers) GetAll(key string) []*Header {
-	bkey := makeHeaderID(key)
+	keyID := makeHeaderID(key)
 	rv := make([]*Header, 0, len(h.Headers))
 
 	for i := range h.Headers {
-		if bytes.Equal(bkey, h.Headers[i].id) {
+		if h.Headers[i].id == keyID {
 			rv = append(rv, &h.Headers[i])
 		}
 	}
@@ -79,10 +79,10 @@ func (h *Headers) GetAllExact(key string) []*Header {
 // GetLast returns a last header (or nil) where name is
 // case-INSENSITIVE.
 func (h *Headers) GetLast(key string) *Header {
-	bkey := makeHeaderID(key)
+	keyID := makeHeaderID(key)
 
 	for i := len(h.Headers) - 1; i >= 0; i-- {
-		if bytes.Equal(bkey, h.Headers[i].id) {
+		if h.Headers[i].id == keyID {
 			return &h.Headers[i]
 		}
 	}
@@ -105,10 +105,10 @@ func (h *Headers) GetLastExact(key string) *Header {
 // GetLast returns a first header (or nil) where name is
 // case-INSENSITIVE.
 func (h *Headers) GetFirst(key string) *Header {
-	bkey := makeHeaderID(key)
+	keyID := makeHeaderID(key)
 
 	for i := range h.Headers {
-		if bytes.Equal(bkey, h.Headers[i].id) {
+		if h.Headers[i].id == keyID {
 			return &h.Headers[i]
 		}
 	}
@@ -136,7 +136,7 @@ func (h *Headers) Set(name, value string, cleanupRest bool) {
 	key := makeHeaderID(name)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if !bytes.Equal(key, h.Headers[i].id) {
+		if h.Headers[i].id != key {
 			continue
 		}
 
@@ -192,10 +192,10 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 // Remove removes all headers from the list where name is
 // case-INSENSITIVE. Order is kept.
 func (h *Headers) Remove(key string) {
-	bkey := makeHeaderID(key)
+	keyID := makeHeaderID(key)
 
 	for i := 0; i < len(h.Headers); i++ {
-		if bytes.Equal(bkey, h.Headers[i].id) {
+		if h.Headers[i].id == keyID {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
 		}
@@ -203,7 +203,7 @@ func (h *Headers) Remove(key string) {
 
 	length := len(h.Headers)
 
-	if length > 0 && bytes.Equal(bkey, h.Headers[length-1].id) {
+	if length > 0 && keyID == h.Headers[length-1].id {
 		h.Headers = h.Headers[:length-1]
 	}
 }

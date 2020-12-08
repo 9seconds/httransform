@@ -10,7 +10,7 @@ import (
 // Nothing is explicitly exposed because we do some additional actions
 // to speedup some operations.
 type Header struct {
-	id    []byte
+	id    string
 	value string
 	name  string
 }
@@ -24,11 +24,10 @@ func (h *Header) String() string {
 	return builder.String()
 }
 
-// ID returns a unique identifier of the header. You should not modify a
-// returned byte array.
-func (h *Header) ID() []byte {
+// ID returns a unique identifier of the header.
+func (h *Header) ID() string {
 	if h == nil {
-		return nil
+		return ""
 	}
 
 	return h.id
@@ -88,7 +87,7 @@ func (h *Header) WithName(name string) Header {
 func (h *Header) WithValue(value string) Header {
 	var (
 		name string
-		id   []byte
+		id   string
 	)
 
 	if h != nil {

@@ -165,7 +165,13 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 func (c *Context) Reset() {
 	c.Cancel()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cancel()
+
 	c.originalCtx = nil
+	c.ctx = ctx
+	c.ctxCancel = cancel
 
 	c.RequestID = ""
 	c.RequestType = 0

@@ -1,20 +1,23 @@
-package dialers
+package dns
 
 import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/9seconds/httransform/v2/cache"
 	"github.com/valyala/fastrand"
 )
 
-type dnsCache struct {
+// DNS is a caching resolver.
+type DNS struct {
 	resolver net.Resolver
 	cache    cache.Interface
 }
 
-func (d *dnsCache) Lookup(ctx context.Context, hostname string) (hosts []string, err error) {
+// Lookup to conform Interface.
+func (d *DNS) Lookup(ctx context.Context, hostname string) (hosts []string, err error) {
 	if hh := d.cache.Get(hostname); hh != nil {
 		hosts = hh.([]string)
 	} else {
@@ -30,7 +33,7 @@ func (d *dnsCache) Lookup(ctx context.Context, hostname string) (hosts []string,
 	return d.shuffle(hosts), nil
 }
 
-func (d *dnsCache) doLookup(ctx context.Context, hostname string) ([]string, error) {
+func (d *DNS) doLookup(ctx context.Context, hostname string) ([]string, error) {
 	if net.ParseIP(hostname) == nil {
 		return d.resolver.LookupHost(ctx, hostname)
 	}
@@ -49,7 +52,7 @@ func (d *dnsCache) doLookup(ctx context.Context, hostname string) ([]string, err
 	return hostnames, nil
 }
 
-func (d *dnsCache) shuffle(in []string) []string {
+func (d *DNS) shuffle(in []string) []string {
 	if len(in) < 2 { // nolint: gomnd
 		return in
 	}
@@ -68,4 +71,11 @@ func (d *dnsCache) shuffle(in []string) []string {
 	}
 
 	return out
+}
+
+// New returns a new instance of DNS cache.
+func New(cacheSize int, cacheTTL time.Duration, evictCallback cache.EvictCallback) Interface {
+	return &DNS{
+		cache: cache.New(cacheSize, cacheTTL, evictCallback),
+	}
 }

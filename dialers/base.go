@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/9seconds/httransform/v2/cache"
+	"github.com/9seconds/httransform/v2/dns"
 	"github.com/libp2p/go-reuseport"
 	"github.com/valyala/fasthttp"
 )
@@ -21,17 +22,10 @@ const (
 
 	// TLSConfigTTL defines a TTL for each tls.Config we generate.
 	TLSConfigTTL = 10 * time.Minute
-
-	// DNSCacheSize defines a size of cache for DNS entries.
-	DNSCacheSize = 512
-
-	// DNSCacheTTL defines a TTL for each DNS entry.
-	DNSCacheTTL = 5 * time.Minute
 )
 
 type base struct {
 	netDialer      net.Dialer
-	dns            dnsCache
 	tlsConfigsLock sync.Mutex
 	tlsConfigs     cache.Interface
 	tlsSkipVerify  bool
@@ -41,7 +35,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, b.netDialer.Timeout)
 	defer cancel()
 
-	ips, err := b.dns.Lookup(ctx, host)
+	ips, err := dns.Default.Lookup(ctx, host)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve IPs: %w", err)
 	}
@@ -141,9 +135,6 @@ func NewBase(opt Opts) Dialer {
 		netDialer: net.Dialer{
 			Timeout: opt.GetTimeout(),
 			Control: reuseport.Control,
-		},
-		dns: dnsCache{
-			cache: cache.New(DNSCacheSize, DNSCacheTTL, cache.NoopEvictCallback),
 		},
 		tlsConfigs: cache.New(TLSConfigCacheSize,
 			TLSConfigTTL,

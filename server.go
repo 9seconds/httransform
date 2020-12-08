@@ -47,6 +47,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	user, err := s.authenticator.Authenticate(ctx)
 	if err != nil {
 		ctx.Error(fmt.Sprintf("authenication is failed: %v", err), fasthttp.StatusProxyAuthRequired)
+		ctx.Response.Header.Add("Proxy-Authenticate", "Basic")
 		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
 		return

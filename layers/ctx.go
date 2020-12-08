@@ -125,7 +125,7 @@ func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
 
 // Hijacked checks if given context was hijacked or not.
 func (c *Context) Hijacked() bool {
-	return c.originalCtx.Hijacked()
+	return c.originalCtx != nil && c.originalCtx.Hijacked()
 }
 
 // Init initializes a Context based on given parameters.
@@ -162,14 +162,10 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 
 // Reset resets a state of the given context. It also cancels it if
 // necessary.
-func (c Context) Reset() {
-    if c.ctxCancel != nil {
-        c.ctxCancel()
-    }
+func (c *Context) Reset() {
+	c.Cancel()
 
 	c.originalCtx = nil
-	c.ctx = nil
-	c.ctxCancel = nil
 
 	c.RequestID = ""
 	c.RequestType = 0
@@ -187,7 +183,9 @@ func (c Context) Reset() {
 
 // Cancel cancels a given context.
 func (c *Context) Cancel() {
-	c.ctxCancel()
+	if !c.Hijacked() {
+		c.ctxCancel()
+	}
 }
 
 // Deadline conforms a context.Context interface.
@@ -215,7 +213,7 @@ func (c *Context) Set(key string, value interface{}) {
 	c.values[key] = value
 }
 
-// Get gets a value from internal storage
+// Get gets a value from internal storage.
 func (c *Context) Get(key string) (interface{}, bool) {
 	value, ok := c.values[key]
 
@@ -229,7 +227,13 @@ func (c *Context) Delete(key string) {
 
 var poolContext = sync.Pool{
 	New: func() interface{} {
+		ctx, cancel := context.WithCancel(context.Background())
+
+		cancel()
+
 		return &Context{
+			ctx:       ctx,
+			ctxCancel: cancel,
 			RequestHeaders: headers.Headers{
 				Headers: []headers.Header{},
 			},

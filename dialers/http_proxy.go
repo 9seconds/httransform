@@ -27,7 +27,7 @@ func (h *httpProxy) Dial(ctx context.Context, host, port string) (net.Conn, erro
 }
 
 func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port string) (net.Conn, error) {
-	ownCtx, cancel := context.WithCancel(ctx)
+	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
@@ -35,11 +35,19 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port 
 		defer fasthttp.ReleaseTimer(timer)
 
 		select {
-		case <-ownCtx.Done():
+		case <-subCtx.Done():
 		case <-ctx.Done():
-			conn.Close()
+			select {
+			case <-subCtx.Done():
+			default:
+				conn.Close()
+			}
 		case <-timer.C:
-			conn.Close()
+			select {
+			case <-subCtx.Done():
+			default:
+				conn.Close()
+			}
 		}
 	}()
 
@@ -71,7 +79,7 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port 
 		return nil, fmt.Errorf("proxy has responsed with %d status code", response.StatusCode())
 	}
 
-	return h.baseDialer.UpgradeToTLS(ownCtx, conn, host, port)
+	return h.baseDialer.UpgradeToTLS(subCtx, conn, host, port)
 }
 
 func (h *httpProxy) PatchHTTPRequest(req *fasthttp.Request) {

@@ -2,7 +2,6 @@ package executor
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -67,8 +66,8 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 }
 
 func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error {
-	if err := http.Execute(ctx, conn, ctx.Request(), ctx.Response(), http.NoopResponseCallback); err != nil {
-		return fmt.Errorf("cannot send http request: %w", err)
+	if err := defaultExecutorHTTPRequest(ctx, conn); err != nil {
+		return fmt.Errorf("cannot upgrade a connection: %w", err)
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
@@ -82,12 +81,11 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 }
 
 func defaultExecutorHTTPRequest(ctx *layers.Context, conn io.ReadWriteCloser) error {
-	ownCtx, cancel := context.WithCancel(ctx)
-
-	go func() {
-		<-ownCtx.Done()
+	if err := http.Execute(ctx, conn, ctx.Request(), ctx.Response()); err != nil {
 		conn.Close()
-	}()
 
-	return http.Execute(ownCtx, conn, ctx.Request(), ctx.Response(), func() { cancel() })
+		return fmt.Errorf("cannot send http request: %w", err)
+	}
+
+	return nil
 }

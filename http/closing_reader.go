@@ -1,12 +1,13 @@
 package http
 
 import (
+	"bufio"
 	"io"
 	"sync"
 )
 
 type closingReader struct {
-	bufReader *bufferedReader
+	bufReader *bufio.Reader
 	reader    io.Reader
 	closeOnce sync.Once
 }
@@ -27,6 +28,5 @@ func (c *closingReader) Close() error {
 }
 
 func (c *closingReader) doClose() {
-	c.bufReader.callback()
-	releaseBufferedReader(c.bufReader)
+	releaseBufioReader(c.bufReader)
 }

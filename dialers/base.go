@@ -63,7 +63,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 }
 
 func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) (net.Conn, error) {
-	ownCtx, cancel := context.WithCancel(ctx)
+	subCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
@@ -71,11 +71,19 @@ func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) 
 		defer fasthttp.ReleaseTimer(timer)
 
 		select {
-		case <-ownCtx.Done():
+		case <-subCtx.Done():
 		case <-ctx.Done():
-			conn.Close()
+			select {
+			case <-subCtx.Done():
+			default:
+				conn.Close()
+			}
 		case <-timer.C:
-			conn.Close()
+			select {
+			case <-subCtx.Done():
+			default:
+				conn.Close()
+			}
 		}
 	}()
 
@@ -107,6 +115,7 @@ func (b *base) getTLSConfig(host string) *tls.Config {
 
 	conf := &tls.Config{
 		ClientSessionCache: tls.NewLRUClientSessionCache(0),
+		ServerName:         host,
 		InsecureSkipVerify: b.tlsSkipVerify, // nolint: gosec
 	}
 

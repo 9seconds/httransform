@@ -10,37 +10,21 @@ const (
 	BufferedReaderSize = 32 * 1024
 )
 
-type bufferedReader struct {
-	reader   *bufio.Reader
-	callback ResponseCallback
-}
-
-func (b *bufferedReader) Read(p []byte) (int, error) {
-	return b.reader.Read(p)
-}
-
-func (b *bufferedReader) Reset(rd io.Reader, callback ResponseCallback) {
-	b.reader.Reset(rd)
-	b.callback = callback
-}
-
-var poolBufferedConn = sync.Pool{
+var poolBufioReader = sync.Pool{
 	New: func() interface{} {
-		return &bufferedReader{
-			reader: bufio.NewReaderSize(nil, BufferedReaderSize),
-		}
+		return bufio.NewReaderSize(nil, BufferedReaderSize)
 	},
 }
 
-func acquireBufferedReader(rd io.Reader, callback ResponseCallback) *bufferedReader {
-	reader := poolBufferedConn.Get().(*bufferedReader)
+func acquireBufioReader(rd io.Reader) *bufio.Reader {
+	reader := poolBufioReader.Get().(*bufio.Reader)
 
-	reader.Reset(rd, callback)
+	reader.Reset(rd)
 
 	return reader
 }
 
-func releaseBufferedReader(conn *bufferedReader) {
-	conn.Reset(nil, nil)
-	poolBufferedConn.Put(conn)
+func releaseBufioReader(rd *bufio.Reader) {
+	rd.Reset(nil)
+	poolBufioReader.Put(rd)
 }

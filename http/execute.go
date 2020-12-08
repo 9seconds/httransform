@@ -10,29 +10,36 @@ import (
 )
 
 func Execute(ctx context.Context,
-	conn io.ReadWriter,
+	conn io.ReadWriteCloser,
 	request *fasthttp.Request,
-	response *fasthttp.Response,
-	responseCallback ResponseCallback) error {
-	if responseCallback == nil {
-		responseCallback = NoopResponseCallback
-	}
+	response *fasthttp.Response) error {
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		select {
+		case <-subCtx.Done():
+		case <-ctx.Done():
+			select {
+			case <-subCtx.Done():
+			default:
+				conn.Close()
+			}
+		}
+	}()
 
 	if _, err := request.WriteTo(conn); err != nil {
-		responseCallback()
-
 		return fmt.Errorf("cannot send a request: %w", err)
 	}
 
 	response.Reset()
 	response.Header.DisableNormalizing()
 
-	bufReader := acquireBufferedReader(conn, responseCallback)
+	bufReader := acquireBufioReader(conn)
 
 	for code := fasthttp.StatusContinue; code == fasthttp.StatusContinue; code = response.Header.StatusCode() {
-		if err := response.Header.Read(bufReader.reader); err != nil {
-			releaseBufferedReader(bufReader)
-			responseCallback()
+		if err := response.Header.Read(bufReader); err != nil {
+			releaseBufioReader(bufReader)
 
 			return fmt.Errorf("cannot read response headers: %w", err)
 		}

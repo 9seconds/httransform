@@ -12,7 +12,10 @@ func (t TimeoutLayer) OnRequest(ctx *Context) error {
 	timer := time.AfterFunc(t.Timeout, ctx.Cancel)
 	ctx.Set(TimeoutLayerKeyCancel, func() {
 		if !timer.Stop() {
-			<-timer.C
+			select {
+			case <-timer.C:
+			default:
+			}
 		}
 	})
 

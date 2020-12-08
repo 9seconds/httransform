@@ -31,7 +31,7 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 		if f.filterIP(net.ParseIP(v)) {
 			return &Error{
 				StatusCode: fasthttp.StatusForbidden,
-				Message:    fmt.Sprintf("host %s has banned IP %s", host, v),
+				Details:    fmt.Sprintf("host %s has filtered IP %s", host, v),
 				Err:        ErrSubnetFiltered,
 			}
 		}

@@ -3,13 +3,14 @@ package layers
 import "github.com/valyala/fasthttp"
 
 type Error struct {
-	StatusCode int
-	Message    string
-	Err        error
+	StatusCode  int
+	ContentType string
+	Details     string
+	Err         error
 }
 
 func (e *Error) Error() string {
-	return e.Err.Error() + ": " + e.Message
+	return e.Err.Error() + ": " + e.Details
 }
 
 func (e *Error) Unwrap() error {
@@ -22,4 +23,12 @@ func (e *Error) GetStatusCode() int {
 	}
 
 	return e.StatusCode
+}
+
+func (e *Error) GetContentType() string {
+	if e.ContentType == "" {
+		return "text/plain"
+	}
+
+	return e.ContentType
 }

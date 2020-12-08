@@ -3,7 +3,6 @@ package layers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -121,14 +120,17 @@ func (c *Context) Respond(msg string, statusCode int) {
 func (c *Context) Error(err error) {
 	var customErr *Error
 
+	c.originalCtx.Response.Reset()
+	c.originalCtx.Response.Header.DisableNormalizing()
+	c.originalCtx.Response.Header.SetContentType("text/plain")
+	c.originalCtx.Response.SetBodyString(err.Error())
+	c.originalCtx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+	c.originalCtx.Response.Header.SetContentType("text/plain")
+
 	if errors.As(err, &customErr) {
-		c.Respond(customErr.Error(), customErr.GetStatusCode())
-
-		return
+		c.originalCtx.Response.SetStatusCode(customErr.GetStatusCode())
+		c.originalCtx.Response.Header.SetContentType(customErr.GetContentType())
 	}
-
-	c.Respond(fmt.Sprintf("Request has failed: %s", err.Error()),
-		fasthttp.StatusInternalServerError)
 }
 
 // Hijack setups a hijacker for the request if necessary. Usually

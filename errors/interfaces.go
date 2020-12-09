@@ -15,5 +15,6 @@ type ErrorJSON interface {
 type ErrorRenderer interface {
 	error
 
+	// WriteTo dumps a contents of the error into fasthttp request context.
 	WriteTo(*fasthttp.RequestCtx)
 }

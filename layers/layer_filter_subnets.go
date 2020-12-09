@@ -1,7 +1,6 @@
 package layers
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
@@ -10,10 +9,6 @@ import (
 	"github.com/kentik/patricia/bool_tree"
 	"github.com/valyala/fasthttp"
 )
-
-// ErrSubnetFiltered is a type of error which is returned if request is
-// filtered by FilterSubnetsLayer.
-var ErrSubnetFiltered = errors.New("request was filtered because of the accessed subnet")
 
 type filterSubnetsLayer struct {
 	v4 *bool_tree.TreeV4
@@ -34,7 +29,7 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 			return &Error{
 				StatusCode: fasthttp.StatusForbidden,
 				Details:    fmt.Sprintf("host %s has filtered IP %s", host, v),
-				Err:        ErrSubnetFiltered,
+				ErrorCode:  ErrorCodeSubnetFiltered,
 			}
 		}
 	}

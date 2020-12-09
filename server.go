@@ -163,6 +163,9 @@ func (s *Server) main(ctx *layers.Context) {
 
 	if err == nil {
 		err = s.executor(ctx)
+		if err != nil {
+			err = layers.WrapError(layers.ErrorCodeExecutor, err)
+		}
 	}
 
 	for currentLayer--; currentLayer >= 0; currentLayer-- {

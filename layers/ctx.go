@@ -120,17 +120,16 @@ func (c *Context) Respond(msg string, statusCode int) {
 func (c *Context) Error(err error) {
 	var customErr *Error
 
+	if !errors.As(err, &customErr) {
+		customErr = WrapError(ErrorCodeGenericError, err)
+	}
+
 	c.originalCtx.Response.Reset()
 	c.originalCtx.Response.Header.DisableNormalizing()
-	c.originalCtx.Response.Header.SetContentType("text/plain")
-	c.originalCtx.Response.SetBodyString(err.Error())
-	c.originalCtx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
-	c.originalCtx.Response.Header.SetContentType("text/plain")
-
-	if errors.As(err, &customErr) {
-		c.originalCtx.Response.SetStatusCode(customErr.GetStatusCode())
-		c.originalCtx.Response.Header.SetContentType(customErr.GetContentType())
-	}
+	c.originalCtx.Response.Header.SetContentType("application/json")
+	c.originalCtx.SetConnectionClose()
+	c.originalCtx.Response.SetStatusCode(customErr.GetStatusCode())
+	c.originalCtx.Response.SetBodyString(customErr.AsJSON())
 }
 
 // Hijack setups a hijacker for the request if necessary. Usually

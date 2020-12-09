@@ -10,6 +10,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/valyala/fasthttp"
 )
 
@@ -60,7 +61,7 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port 
 	buf.Write(h.connectRequestSuffix)
 
 	if _, err := conn.Write(buf.Bytes()); err != nil {
-		return nil, fmt.Errorf("cannot send a connect request: %w", err)
+		return nil, errors.Annotate(err, "cannot send a connect request", "http_proxy_dial", 0)
 	}
 
 	response := fasthttp.AcquireResponse()
@@ -72,11 +73,14 @@ func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port 
 	defer h.releaseBufioReader(bufReader)
 
 	if err := response.Read(bufReader); err != nil {
-		return nil, fmt.Errorf("cannot read http response: %w", err)
+		return nil, errors.Annotate(err, "cannot read http response", "http_proxy_dial", 0)
 	}
 
 	if response.StatusCode() != fasthttp.StatusOK {
-		return nil, fmt.Errorf("proxy has responsed with %d status code", response.StatusCode())
+		return nil, &errors.Error{
+			Message: fmt.Sprintf("proxy has responded with %d status code", response.StatusCode()),
+			Code:    "http_proxy_dial",
+		}
 	}
 
 	return h.baseDialer.UpgradeToTLS(subCtx, conn, host, port)

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/9seconds/httransform/v2/cache"
 	"github.com/9seconds/httransform/v2/dns"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/libp2p/go-reuseport"
 	"github.com/valyala/fasthttp"
 )
@@ -37,7 +37,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 
 	ips, err := dns.Default.Lookup(ctx, host)
 	if err != nil {
-		return nil, fmt.Errorf("cannot resolve IPs: %w", err)
+		return nil, errors.Annotate(err, "cannot resolve IPs", "dns_no_ips", 0)
 	}
 
 	if len(ips) == 0 {
@@ -53,7 +53,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("cannot dial to %s: %w", host, err)
+	return nil, errors.Annotate(err, "cannot dial to "+host, "cannot_dial", 0)
 }
 
 func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) (net.Conn, error) {
@@ -83,7 +83,7 @@ func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) 
 
 	tlsConn := tls.Client(conn, b.getTLSConfig(host))
 	if err := tlsConn.Handshake(); err != nil {
-		return nil, fmt.Errorf("cannot perform TLS handshake: %w", err)
+		return nil, errors.Annotate(err, "cannot perform TLS handshake", "tls_handshake", 0)
 	}
 
 	return tlsConn, nil

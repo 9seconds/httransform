@@ -2,11 +2,11 @@ package dns
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"time"
 
 	"github.com/9seconds/httransform/v2/cache"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/valyala/fastrand"
 )
 
@@ -24,7 +24,7 @@ func (d *DNS) Lookup(ctx context.Context, hostname string) (hosts []string, err 
 		hosts, err = d.doLookup(ctx, hostname)
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot resolve dns for hostname: %w", err)
+            return nil, errors.Annotate(err, "cannot resolve dns", "dns_lookup", 0)
 		}
 
 		d.cache.Add(hostname, hosts)

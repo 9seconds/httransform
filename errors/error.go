@@ -86,7 +86,7 @@ func (e *Error) GetChainCode() string {
 		}
 	}
 
-	return ""
+	return "internal_error"
 }
 
 func (e *Error) ErrorJSON() string {

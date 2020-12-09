@@ -46,13 +46,13 @@ func (s *Server) Close() error {
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	user, err := s.authenticator.Authenticate(ctx)
 	if err != nil {
-		ownErr := &errors.Error{
-			StatusCode: fasthttp.StatusProxyAuthRequired,
-			Code:       "bad_auth",
-			Message:    "authenication is failed",
-			Err:        err,
+		var customErr *errors.Error
+
+		if !errors.As(err, &customErr) {
+			customErr = errors.Annotate(err, "authenication is failed", "bad_auth", fasthttp.StatusProxyAuthRequired)
 		}
-		ownErr.WriteTo(ctx)
+
+		customErr.WriteTo(ctx)
 		ctx.Response.Header.Add("Proxy-Authenticate", "Basic")
 		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
 

@@ -5,6 +5,7 @@ import (
 	"net"
 
 	"github.com/9seconds/httransform/v2/dns"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/kentik/patricia"
 	"github.com/kentik/patricia/bool_tree"
 	"github.com/valyala/fasthttp"
@@ -26,10 +27,10 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 
 	for _, v := range resolved {
 		if f.filterIP(net.ParseIP(v)) {
-			return &Error{
+			return &errors.Error{
 				StatusCode: fasthttp.StatusForbidden,
-				Details:    fmt.Sprintf("host %s has filtered IP %s", host, v),
-				ErrorCode:  ErrorCodeSubnetFiltered,
+				Message:    fmt.Sprintf("host %s has filtered IP %s", host, v),
+				Code:       "filtered_subnet",
 			}
 		}
 	}

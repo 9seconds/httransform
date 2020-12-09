@@ -2,12 +2,12 @@ package layers
 
 import (
 	"context"
-	"errors"
 	"net"
 	"sync"
 	"time"
 
 	"github.com/9seconds/httransform/v2/conns"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/headers"
 	"github.com/gofrs/uuid"
@@ -118,18 +118,16 @@ func (c *Context) Respond(msg string, statusCode int) {
 
 // Error is a shortcut for the fast response about given error.
 func (c *Context) Error(err error) {
-	var customErr *Error
+	var customErr *errors.Error
 
 	if !errors.As(err, &customErr) {
-		customErr = WrapError(ErrorCodeGenericError, err)
+		customErr = &errors.Error{
+			Message: err.Error(),
+			Err:     err,
+		}
 	}
 
-	c.originalCtx.Response.Reset()
-	c.originalCtx.Response.Header.DisableNormalizing()
-	c.originalCtx.Response.Header.SetContentType("application/json")
-	c.originalCtx.SetConnectionClose()
-	c.originalCtx.Response.SetStatusCode(customErr.GetStatusCode())
-	c.originalCtx.Response.SetBodyString(customErr.AsJSON())
+	customErr.WriteTo(c.originalCtx)
 }
 
 // Hijack setups a hijacker for the request if necessary. Usually

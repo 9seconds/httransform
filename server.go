@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/9seconds/httransform/v2/ca"
 	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/dialers"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/executor"
 	"github.com/9seconds/httransform/v2/headers"
@@ -46,7 +46,13 @@ func (s *Server) Close() error {
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	user, err := s.authenticator.Authenticate(ctx)
 	if err != nil {
-		ctx.Error(fmt.Sprintf("authenication is failed: %v", err), fasthttp.StatusProxyAuthRequired)
+		ownErr := &errors.Error{
+			StatusCode: fasthttp.StatusProxyAuthRequired,
+			Code:       "bad_auth",
+			Message:    "authenication is failed",
+			Err:        err,
+		}
+		ownErr.WriteTo(ctx)
 		ctx.Response.Header.Add("Proxy-Authenticate", "Basic")
 		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
@@ -164,7 +170,7 @@ func (s *Server) main(ctx *layers.Context) {
 	if err == nil {
 		err = s.executor(ctx)
 		if err != nil {
-			err = layers.WrapError(layers.ErrorCodeExecutor, err)
+			err = errors.Annotate(err, "cannot execute a request", "executor", 0)
 		}
 	}
 

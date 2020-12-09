@@ -2,13 +2,13 @@ package executor
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"strings"
 
 	"github.com/9seconds/httransform/v2/conns"
 	"github.com/9seconds/httransform/v2/dialers"
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/9seconds/httransform/v2/http"
 	"github.com/9seconds/httransform/v2/layers"
 	"github.com/9seconds/httransform/v2/upgrades"
@@ -18,7 +18,7 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 	return func(ctx *layers.Context) error {
 		conn, err := defaultExecutorDial(ctx, dialer)
 		if err != nil {
-			return fmt.Errorf("cannot dial to the netloc: %w", err)
+			return errors.Annotate(err, "cannot dial to the netloc", "", 0)
 		}
 
 		dialer.PatchHTTPRequest(ctx.Request())
@@ -36,12 +36,12 @@ func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(ctx.ConnectTo)
 	if err != nil {
-		return nil, fmt.Errorf("incorrect address format: %w", err)
+		return nil, errors.Annotate(err, "incorrect address format", "", 0)
 	}
 
 	conn, err := dialer.Dial(ctx, host, port)
 	if err != nil {
-		return nil, fmt.Errorf("cannot establish tcp connection: %w", err)
+		return nil, errors.Annotate(err, "cannot establish tcp connection", "", 0)
 	}
 
 	conn = &conns.TrafficConn{
@@ -59,7 +59,7 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 	if err != nil {
 		conn.Close()
 
-		return nil, fmt.Errorf("cannot upgrade connection to tls: %w", err)
+		return nil, errors.Annotate(err, "cannot upgrade connection to tls", "", 0)
 	}
 
 	return tlsConn, nil
@@ -67,7 +67,7 @@ func defaultExecutorDial(ctx *layers.Context, dialer dialers.Dialer) (net.Conn, 
 
 func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error {
 	if err := defaultExecutorHTTPRequest(ctx, conn); err != nil {
-		return fmt.Errorf("cannot upgrade a connection: %w", err)
+		return errors.Annotate(err, "cannot upgrade http connection", "", 0)
 	}
 
 	ctx.Hijack(conn, func(clientConn, netlocConn net.Conn) {
@@ -84,7 +84,7 @@ func defaultExecutorHTTPRequest(ctx *layers.Context, conn io.ReadWriteCloser) er
 	if err := http.Execute(ctx, conn, ctx.Request(), ctx.Response()); err != nil {
 		conn.Close()
 
-		return fmt.Errorf("cannot send http request: %w", err)
+		return errors.Annotate(err, "cannot send http request", "", 0)
 	}
 
 	return nil

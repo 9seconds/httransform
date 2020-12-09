@@ -122,7 +122,7 @@ func (c *Context) Error(err error) {
 
 	if !errors.As(err, &customErr) {
 		customErr = &errors.Error{
-			Message: err.Error(),
+			Message: "cannot execute a request",
 			Err:     err,
 		}
 	}

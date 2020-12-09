@@ -2,10 +2,11 @@ package headers
 
 import (
 	"bytes"
-	"fmt"
 	"net/textproto"
 	"strings"
 	"sync"
+
+	"github.com/9seconds/httransform/v2/errors"
 )
 
 var newLineReplacer = strings.NewReplacer("\r\n", "\r\n\t")
@@ -247,13 +248,13 @@ func (h *Headers) Sync() error {
 	defer releaseBytesBuffer(buf)
 
 	if err := h.syncWriteFirstLine(buf); err != nil {
-		return fmt.Errorf("cannot get a first line: %w", err)
+		return errors.Annotate(err, "cannot get a first line", "headers_sync", 0)
 	}
 
 	h.syncWriteHeaders(buf)
 
 	if err := h.original.Read(buf); err != nil {
-		return fmt.Errorf("cannot parse given headers: %w", err)
+		return errors.Annotate(err, "cannot parse given headers", "headers_sync", 0)
 	}
 
 	for _, v := range h.GetLast("Connection").Values() {
@@ -276,7 +277,7 @@ func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
 
 	line, err := reader.ReadLineBytes()
 	if err != nil {
-		return fmt.Errorf("cannot scan a first line: %w", err)
+		return errors.Annotate(err, "cannot scan a first line", "headers_sync", 0)
 	}
 
 	buf.Write(line)
@@ -327,7 +328,7 @@ func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 	}
 
 	if _, err := reader.ReadLineBytes(); err != nil {
-		return fmt.Errorf("cannot skip first line: %w", err)
+		return errors.Annotate(err, "cannot skip a first line", "headers_init", 0)
 	}
 
 	for {
@@ -339,14 +340,14 @@ func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 		if err != nil {
 			h.Reset()
 
-			return fmt.Errorf("cannot parse headers: %w", err)
+			return errors.Annotate(err, "cannot parse headers", "headers_init", 0)
 		}
 
 		colPosition := bytes.IndexByte(line, ':')
 		if colPosition < 0 {
 			h.Reset()
 
-			return fmt.Errorf("malformed header %s", string(line))
+			return errors.Annotate(err, "malformed header "+string(line), "headers_init", 0)
 		}
 
 		endKey := colPosition

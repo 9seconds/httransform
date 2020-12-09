@@ -24,7 +24,7 @@ func (d *DNS) Lookup(ctx context.Context, hostname string) (hosts []string, err 
 		hosts, err = d.doLookup(ctx, hostname)
 
 		if err != nil {
-            return nil, errors.Annotate(err, "cannot resolve dns", "dns_lookup", 0)
+			return nil, errors.Annotate(err, "cannot resolve dns", "dns_lookup", 0)
 		}
 
 		d.cache.Add(hostname, hosts)

@@ -1,9 +1,9 @@
 package headers
 
 import (
-	"fmt"
 	"io"
 
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/valyala/fasthttp"
 )
 
@@ -23,7 +23,7 @@ func (r requestHeaderWrapper) Read(rd io.Reader) error {
 	defer releaseBufioReader(bufReader)
 
 	if err := r.ref.Read(bufReader); err != nil {
-		return fmt.Errorf("cannot read request headers: %w", err)
+		return errors.Annotate(err, "cannot read request headers", "headers_sync", 0)
 	}
 
 	r.ref.SetHostBytes(host)
@@ -59,7 +59,7 @@ func (r responseHeaderWrapper) Read(rd io.Reader) error {
 	defer releaseBufioReader(bufReader)
 
 	if err := r.ref.Read(bufReader); err != nil {
-		return fmt.Errorf("cannot read response headers: %w", err)
+		return errors.Annotate(err, "cannot read response headers", "headers_sync", 0)
 	}
 
 	r.ref.SetStatusCode(statusCode)

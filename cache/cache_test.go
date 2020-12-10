@@ -31,12 +31,15 @@ func (suite *CacheTestSuite) TestEvict() {
 	var foundKey string
 	var foundValue interface{}
 
-	cc := cache.New(10, 200*time.Millisecond, func(key string, value interface{}) {
+	cc := cache.New(10, 50*time.Millisecond, func(key string, value interface{}) {
 		foundKey = key
 		foundValue = value
 	})
 
 	cc.Add("key", 1)
+
+	time.Sleep(200 * time.Millisecond)
+
 	suite.Eventually(func() bool {
 		return cc.Get("key") == nil
 	}, time.Second, 50*time.Millisecond)

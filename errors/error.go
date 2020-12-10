@@ -157,8 +157,7 @@ func (e *Error) GetChainCode() string {
 //
 // * message is own error message
 //
-// * stack has a list of errors (last error is initiator) with similar
-//   structure.
+// * stack has a list of errors (last error is initiator) with similar structure.
 func (e *Error) ErrorJSON() string {
 	encoder := acquireErrorEncoder()
 	defer releaseErrorEncoder(encoder)

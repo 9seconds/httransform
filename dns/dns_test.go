@@ -2,6 +2,7 @@ package dns_test
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/9seconds/httransform/v2/cache"
@@ -21,15 +22,13 @@ func (suite *DNSTestSuite) SetupTest() {
 
 func (suite *DNSTestSuite) TestResolveNames() {
 	ctx := context.Background()
-	names, err := suite.cache.Lookup(ctx, "google.com")
+	names, err := suite.cache.Lookup(ctx, "amazon.com")
 
 	suite.NoError(err)
 
-	names2, err := suite.cache.Lookup(ctx, "google.com")
+	names2, err := net.DefaultResolver.LookupHost(ctx, "amazon.com")
 
 	suite.NoError(err)
-
-	suite.NotEqual(names, names2)
 	suite.ElementsMatch(names, names2)
 }
 

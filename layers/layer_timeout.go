@@ -34,7 +34,7 @@ func (t TimeoutLayer) OnRequest(ctx *Context) error {
 
 // OnResponse conforms Layer interface.
 func (t TimeoutLayer) OnResponse(ctx *Context, err error) error {
-	if cancel, ok := ctx.Get(TimeoutLayerKeyCancel); ok {
+	if cancel := ctx.Get(TimeoutLayerKeyCancel); cancel != nil {
 		cancel.(func())()
 		ctx.Delete(TimeoutLayerKeyCancel)
 	} else {

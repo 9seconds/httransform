@@ -244,10 +244,8 @@ func (c *Context) Set(key string, value interface{}) {
 }
 
 // Get gets a value from internal storage.
-func (c *Context) Get(key string) (interface{}, bool) {
-	value, ok := c.values[key]
-
-	return value, ok
+func (c *Context) Get(key string) interface{} {
+	return c.values[key]
 }
 
 // Delete deletes a key from the internal storage.

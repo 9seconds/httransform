@@ -6,6 +6,16 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+const (
+	// DefaultChainStatusCode is used if we do not have ANY status code
+	// in correct error chain.
+	DefaultChainStatusCode = fasthttp.StatusInternalServerError
+
+	// DefaultChainErrorCode is used if we do not have ANY code in
+	// correct error chain.
+	DefaultChainErrorCode = "internal_error"
+)
+
 // Error defines a custom error which can be returned from a layer or
 // executor. This error has a stack of attached errors and can render
 // JSON. Also, it keeps a status code so if you are searching for a
@@ -77,7 +87,7 @@ func (e *Error) GetChainStatusCode() int {
 		}
 	}
 
-	return fasthttp.StatusInternalServerError
+	return DefaultChainStatusCode
 }
 
 // GetMessage returns a message of THIS error (not a chain one). It also
@@ -111,12 +121,12 @@ func (e *Error) GetCode() string {
 // "internal_error".
 func (e *Error) GetChainCode() string {
 	for current := e; current != nil; current = unwrapError(current) {
-		if e.Code != "" {
-			return e.Code
+		if current.Code != "" {
+			return current.Code
 		}
 	}
 
-	return "internal_error"
+	return DefaultChainErrorCode
 }
 
 // ErrorJSON returns a JSON encoded representation of the error.
@@ -168,7 +178,7 @@ func (e *Error) ErrorJSON() string {
 	writeErrorAsJSON(e, &builder)
 
 	value := builder.String()
-    value = value[:len(value)-1]
+	value = value[:len(value)-1]
 
 	return value
 }

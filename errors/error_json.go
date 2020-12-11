@@ -21,8 +21,9 @@ type errorJSONStackEntry struct {
 
 func writeErrorAsJSON(err *Error, writer io.Writer) {
 	obj := errorJSON{}
-    obj.Error.Code = err.GetChainCode()
-    obj.Error.Message = err.GetMessage()
+	obj.Error.Code = err.GetChainCode()
+	obj.Error.Message = err.GetMessage()
+	obj.Error.Stack = []errorJSONStackEntry{}
 	lastMessage := ""
 	foundLastMessage := false
 

@@ -10,50 +10,62 @@ import (
 
 type ErrorTestSuite struct {
 	suite.Suite
+
+    e *errors.Error
+}
+
+func (suite *ErrorTestSuite) SetupTest() {
+    suite.e = nil
 }
 
 func (suite *ErrorTestSuite) TestErrorMessage() {
-	var e *errors.Error
+	suite.Equal("", suite.e.Error())
 
-	suite.Equal("", e.Error())
-
-	e = &errors.Error{
+	suite.e = &errors.Error{
 		Err: errors.New("EOF"),
 	}
 
-	suite.Equal("EOF", e.Error())
+	suite.Equal("EOF", suite.e.Error())
 
-	e.Message = "MyMessage"
+	suite.e.Message = "MyMessage"
 
-	suite.Contains(e.Error(), "MyMessage")
-	suite.Contains(e.Error(), "EOF")
+	suite.Contains(suite.e.Error(), "MyMessage")
+	suite.Contains(suite.e.Error(), "EOF")
 
-	e = &errors.Error{
+	suite.e = &errors.Error{
 		Message: "Another",
-		Err:     e,
+		Err:     suite.e,
 	}
 
-	suite.Contains(e.Error(), "MyMessage")
-	suite.Contains(e.Error(), "EOF")
-	suite.Contains(e.Error(), "Another")
+	suite.Contains(suite.e.Error(), "MyMessage")
+	suite.Contains(suite.e.Error(), "EOF")
+	suite.Contains(suite.e.Error(), "Another")
 
-	e = &errors.Error{
+	suite.e = &errors.Error{
 		Message: "QQ",
 	}
 
-	suite.Equal("QQ", e.Error())
+	suite.Equal("QQ", suite.e.Error())
 }
 
 func (suite *ErrorTestSuite) TestUnwrap() {
-	var e *errors.Error
+	suite.Nil(suite.e.Unwrap())
 
-	suite.Nil(e.Unwrap())
-
-	e = &errors.Error{
+	suite.e = &errors.Error{
 		Err: io.EOF,
 	}
 
-	suite.True(errors.Is(e.Unwrap(), io.EOF))
+	suite.True(errors.Is(suite.e.Unwrap(), io.EOF))
+}
+
+func (suite *ErrorTestSuite) TestGetStatusCode() {
+    suite.Equal(0, suite.e.GetStatusCode())
+
+    suite.e = &errors.Error{
+        StatusCode: 1,
+    }
+
+    suite.Equal(1, suite.e.GetStatusCode())
 }
 
 func TestError(t *testing.T) {

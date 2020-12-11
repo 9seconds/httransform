@@ -108,6 +108,10 @@ func (c *Context) LocalAddr() net.Addr {
 // Respond is just a shortcut for the fast response. This response is
 // just a plain text with a status code.
 func (c *Context) Respond(msg string, statusCode int) {
+	if c.originalCtx == nil {
+		return
+	}
+
 	c.originalCtx.Response.Reset()
 	c.originalCtx.Response.Header.DisableNormalizing()
 	c.originalCtx.Response.SetStatusCode(statusCode)
@@ -118,6 +122,10 @@ func (c *Context) Respond(msg string, statusCode int) {
 
 // Error is a shortcut for the fast response about given error.
 func (c *Context) Error(err error) {
+    if c.originalCtx ==nil {
+        return
+    }
+
 	var customErr *errors.Error
 
 	if !errors.As(err, &customErr) {
@@ -137,6 +145,10 @@ func (c *Context) Error(err error) {
 // netlocConn is a connection to a target website. It is closed when you
 // exit a hijacker function.
 func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
+    if c.originalCtx == nil {
+        return
+    }
+
 	handler := conns.FixHijackHandler(func(clientConn net.Conn) bool {
 		defer netlocConn.Close()
 

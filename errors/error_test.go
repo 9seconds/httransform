@@ -1,11 +1,13 @@
 package errors_test
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
 	"github.com/9seconds/httransform/v2/errors"
 	"github.com/stretchr/testify/suite"
+	"github.com/valyala/fasthttp"
 )
 
 type ErrorTestSuite struct {
@@ -66,6 +68,38 @@ func (suite *ErrorTestSuite) TestGetStatusCode() {
     }
 
     suite.Equal(1, suite.e.GetStatusCode())
+}
+
+func (suite *ErrorTestSuite) TestGetChainStatusCode() {
+    suite.Equal(fasthttp.StatusInternalServerError, suite.e.GetChainStatusCode())
+
+    suite.e = &errors.Error{
+        StatusCode: 1,
+    }
+
+    suite.Equal(1, suite.e.GetChainStatusCode())
+
+    suite.e = &errors.Error{
+        Err: &errors.Error{
+            StatusCode: 2,
+            Err: &errors.Error{
+                StatusCode: 3,
+            },
+        },
+    }
+
+    suite.Equal(2, suite.e.GetChainStatusCode())
+
+    suite.e = &errors.Error{
+        Err: &errors.Error{
+            StatusCode: 0,
+            Err: fmt.Errorf("another error: %w", &errors.Error{
+                StatusCode: 2,
+            }),
+        },
+    }
+
+    suite.Equal(fasthttp.StatusInternalServerError, suite.e.GetChainStatusCode())
 }
 
 func TestError(t *testing.T) {

@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/valyala/fasthttp v1.17.0
 	github.com/valyala/fastrand v1.0.0
-	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b
+	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11
 	golang.org/x/sys v0.0.0-20201130072748-111129e158e2 // indirect
 )
 

@@ -1,6 +1,10 @@
 package errors
 
-import "github.com/valyala/fasthttp"
+import (
+	"strings"
+
+	"github.com/valyala/fasthttp"
+)
 
 // Error defines a custom error which can be returned from a layer or
 // executor. This error has a stack of attached errors and can render
@@ -159,34 +163,14 @@ func (e *Error) GetChainCode() string {
 //
 // * stack has a list of errors (last error is initiator) with similar structure.
 func (e *Error) ErrorJSON() string {
-	encoder := acquireErrorEncoder()
-	defer releaseErrorEncoder(encoder)
+	builder := strings.Builder{}
 
-	encoder.obj.Error.Code = e.GetChainCode()
-	encoder.obj.Error.Message = e.GetMessage()
-	lastMessage := ""
+	writeErrorAsJSON(e, &builder)
 
-	for current := e; current != nil; current = unwrapError(current) {
-		encoder.obj.Error.Stack = append(encoder.obj.Error.Stack, errorJSONStackEntry{
-			Message:    current.Message,
-			Code:       current.Code,
-			StatusCode: current.StatusCode,
-		})
+	value := builder.String()
+    value = value[:len(value)-1]
 
-		if current.Err != nil {
-			if _, ok := current.Err.(*Error); !ok { // nolint: errorlint
-				lastMessage = current.Err.Error()
-			}
-		}
-	}
-
-	if lastMessage != "" {
-		encoder.obj.Error.Stack = append(encoder.obj.Error.Stack, errorJSONStackEntry{
-			Message: lastMessage,
-		})
-	}
-
-	return encoder.Encode()
+	return value
 }
 
 // WriteTo writes this error into a given fasthttp request context.
@@ -196,7 +180,8 @@ func (e *Error) WriteTo(ctx *fasthttp.RequestCtx) {
 	ctx.Response.SetConnectionClose()
 	ctx.Response.Header.SetContentType("application/json")
 	ctx.Response.Header.SetStatusCode(e.GetChainStatusCode())
-	ctx.Response.SetBodyString(e.ErrorJSON())
+
+	writeErrorAsJSON(e, ctx.Response.BodyWriter())
 }
 
 func unwrapError(e *Error) *Error {

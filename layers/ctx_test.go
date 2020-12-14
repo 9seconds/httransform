@@ -1,7 +1,6 @@
 package layers_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net"
@@ -10,18 +9,9 @@ import (
 	"github.com/9seconds/httransform/v2/errors"
 	"github.com/9seconds/httransform/v2/events"
 	"github.com/9seconds/httransform/v2/layers"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/valyala/fasthttp"
 )
-
-type EventChannelMock struct {
-	mock.Mock
-}
-
-func (e *EventChannelMock) Send(ctx context.Context, eventType events.EventType, value interface{}, shardKey string) {
-	e.Called(ctx, eventType, value, shardKey)
-}
 
 type ContextTestSuite struct {
 	suite.Suite

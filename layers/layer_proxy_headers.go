@@ -15,7 +15,7 @@ func (p ProxyHeadersLayer) OnRequest(ctx *Context) error {
 
 // OnResponse is to conform Layer interface.
 func (p ProxyHeadersLayer) OnResponse(ctx *Context, err error) error {
-	ctx.RequestHeaders.Remove("Proxy-Connection")
+	ctx.ResponseHeaders.Remove("Proxy-Connection")
 
 	return err
 }

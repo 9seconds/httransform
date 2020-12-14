@@ -195,34 +195,26 @@ func (h *Headers) SetExact(name, value string, cleanupRest bool) {
 func (h *Headers) Remove(key string) {
 	keyID := makeHeaderID(key)
 
-	for i := 0; i < len(h.Headers); i++ {
+	for i := 0; i < len(h.Headers); {
 		if h.Headers[i].id == keyID {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
+		} else {
+			i++
 		}
-	}
-
-	length := len(h.Headers)
-
-	if length > 0 && keyID == h.Headers[length-1].id {
-		h.Headers = h.Headers[:length-1]
 	}
 }
 
 // Remove removes all headers from the list where name is
 // case-SENSITIVE. Order is kept.
 func (h *Headers) RemoveExact(key string) {
-	for i := 0; i < len(h.Headers); i++ {
+	for i := 0; i < len(h.Headers); {
 		if key == h.Headers[i].name {
 			copy(h.Headers[i:], h.Headers[i+1:])
 			h.Headers = h.Headers[:len(h.Headers)-1]
+		} else {
+			i++
 		}
-	}
-
-	length := len(h.Headers)
-
-	if length > 0 && key == h.Headers[length-1].name {
-		h.Headers = h.Headers[:length-1]
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 )
 
 const (
+	// BufferedReaderSize defines a size of buffer for reading from the
+	// socket.
 	BufferedReaderSize = 32 * 1024
 )
 

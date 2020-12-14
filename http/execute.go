@@ -9,6 +9,8 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// Execute sends an http request and assign a streaming body to the
+// given response. conn is a closable connection to the netloc.
 func Execute(ctx context.Context,
 	conn io.ReadWriteCloser,
 	request *fasthttp.Request,

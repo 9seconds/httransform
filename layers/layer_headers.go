@@ -84,7 +84,7 @@ func (h *HeadersLayer) execute(hdrs *headers.Headers,
 	}
 
 	for i := range setExact {
-		hdrs.Set(setExact[i].Name(), setExact[i].Value(), true)
+		hdrs.SetExact(setExact[i].Name(), setExact[i].Value(), true)
 	}
 
 	for i := range remove {

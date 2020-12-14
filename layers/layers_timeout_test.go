@@ -17,7 +17,7 @@ func (suite *LayerTimeoutTestSuite) SetupTest() {
 	suite.BaseLayerTestSuite.SetupTest()
 
 	suite.l = layers.TimeoutLayer{
-		Timeout: 50 * time.Millisecond,
+		Timeout: 100 * time.Millisecond,
 	}
 }
 
@@ -52,7 +52,7 @@ func (suite *LayerTimeoutTestSuite) TestFastErr() {
 func (suite *LayerTimeoutTestSuite) TestSlowOk() {
 	suite.NoError(suite.l.OnRequest(suite.ctx))
 
-	time.Sleep(80 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	suite.NoError(suite.l.OnResponse(suite.ctx, nil))
 
@@ -66,7 +66,7 @@ func (suite *LayerTimeoutTestSuite) TestSlowOk() {
 func (suite *LayerTimeoutTestSuite) TestSlowErr() {
 	suite.NoError(suite.l.OnRequest(suite.ctx))
 
-	time.Sleep(80 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	suite.Equal(io.EOF, suite.l.OnResponse(suite.ctx, io.EOF))
 

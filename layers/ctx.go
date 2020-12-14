@@ -122,9 +122,9 @@ func (c *Context) Respond(msg string, statusCode int) {
 
 // Error is a shortcut for the fast response about given error.
 func (c *Context) Error(err error) {
-    if c.originalCtx ==nil {
-        return
-    }
+	if c.originalCtx == nil {
+		return
+	}
 
 	var customErr *errors.Error
 
@@ -145,9 +145,9 @@ func (c *Context) Error(err error) {
 // netlocConn is a connection to a target website. It is closed when you
 // exit a hijacker function.
 func (c *Context) Hijack(netlocConn net.Conn, hijacker RequestHijacker) {
-    if c.originalCtx == nil {
-        return
-    }
+	if c.originalCtx == nil {
+		return
+	}
 
 	handler := conns.FixHijackHandler(func(clientConn net.Conn) bool {
 		defer netlocConn.Close()

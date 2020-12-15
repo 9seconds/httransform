@@ -39,6 +39,10 @@ func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Co
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	wg := &sync.WaitGroup{}
+
+	wg.Add(2) // nolint: gomnd
+
 	go func() {
 		<-ctx.Done()
 		clientConn.Close()
@@ -51,25 +55,30 @@ func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Co
 		t.reactor.NetlocBytes,
 		t.reactor.NetlocError,
 		t.netlocBuffer,
-		cancel)
+		wg)
 
-	t.manage(ctx,
+	go t.manage(ctx,
 		netlocConn,
 		clientConn,
 		t.reactor.ClientBytes,
 		t.reactor.ClientError,
 		t.clientBuffer,
-		cancel)
+		wg)
+
+	wg.Wait()
 }
 
 func (t *tcpInterface) manage(ctx context.Context,
-	src io.Reader,
+	src io.ReadCloser,
 	dst io.Writer,
 	onWriteBytes func(context.Context, []byte),
 	onWriteError func(context.Context, error),
 	buf []byte,
-	cancel context.CancelFunc) {
-	defer cancel()
+	wg *sync.WaitGroup) {
+	defer func() {
+		src.Close()
+		wg.Done()
+	}()
 
 	writerWrapper := &tcpWriterWrapper{
 		ctx:      ctx,

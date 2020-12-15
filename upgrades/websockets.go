@@ -25,10 +25,14 @@ type websocketInterface struct {
 
 func (w *websocketInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	wg := &sync.WaitGroup{}
+
+	wg.Add(2) // nolint: gomnd
 
 	go func() {
 		<-ctx.Done()
-		cancel()
 		clientConn.Close()
 		netlocConn.Close()
 	}()
@@ -51,9 +55,11 @@ func (w *websocketInterface) Manage(ctx context.Context, clientConn, netlocConn 
 		w.reactor.NetlocMessage,
 		w.reactor.NetlocError)
 
-	go w.manage(clientWriter, netlocConn, w.clientBuffer, cancel)
+	go w.manage(clientWriter, netlocConn, w.clientBuffer, wg)
 
-	w.manage(netlocWriter, clientConn, w.netlocBuffer, cancel)
+	go w.manage(netlocWriter, clientConn, w.netlocBuffer, wg)
+
+	wg.Wait()
 }
 
 func (w *websocketInterface) consume(ctx context.Context,
@@ -85,8 +91,14 @@ func (w *websocketInterface) consume(ctx context.Context,
 	}
 }
 
-func (w *websocketInterface) manage(dst io.Writer, src io.Reader, buf []byte, cancel context.CancelFunc) {
-	defer cancel()
+func (w *websocketInterface) manage(dst io.Writer,
+	src io.ReadCloser,
+	buf []byte,
+	wg *sync.WaitGroup) {
+	defer func() {
+		src.Close()
+		wg.Done()
+	}()
 
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }

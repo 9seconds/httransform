@@ -2,20 +2,20 @@ package http
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http/httputil"
 
+	"github.com/9seconds/httransform/v2/errors"
 	"github.com/valyala/fasthttp"
 )
 
 // Execute sends an http request and assign a streaming body to the
 // given response. conn is a closable connection to the netloc.
-func Execute(ctx context.Context,
+func Execute(ctx context.Context, // nolint: funlen
 	conn io.ReadWriteCloser,
 	request *fasthttp.Request,
 	response *fasthttp.Response) error {
-	subCtx, cancel := context.WithCancel(ctx)
+	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
@@ -31,7 +31,11 @@ func Execute(ctx context.Context,
 	}()
 
 	if _, err := request.WriteTo(conn); err != nil {
-		return fmt.Errorf("cannot send a request: %w", err)
+		return &errors.Error{
+			Message: "cannot send a request",
+			Code:    "http",
+			Err:     err,
+		}
 	}
 
 	response.Reset()
@@ -43,7 +47,11 @@ func Execute(ctx context.Context,
 		if err := response.Header.Read(bufReader); err != nil {
 			releaseBufioReader(bufReader)
 
-			return fmt.Errorf("cannot read response headers: %w", err)
+			return &errors.Error{
+				Message: "cannot read response headers",
+				Code:    "http",
+				Err:     err,
+			}
 		}
 	}
 

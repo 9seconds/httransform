@@ -11,6 +11,8 @@ import (
 )
 
 const (
+	// WebsocketBufferSize defines a size of buffers required for
+	// pumping data between peers. Websocket upgrader uses 2 buffers.
 	WebsocketBufferSize = 10 * 1024
 )
 
@@ -59,15 +61,21 @@ func (w *websocketInterface) consume(ctx context.Context,
 	state ws.State,
 	onMessage func(context.Context, wsutil.Message),
 	onError func(context.Context, error)) {
+	var err error
+
+	messages := []wsutil.Message{}
+
 	for {
+		messages = messages[:0]
+
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			messages, err := wsutil.ReadMessage(reader, state, nil)
+			messages, err = wsutil.ReadMessage(reader, state, messages)
 
-			for _, v := range messages {
-				onMessage(ctx, v)
+			for i := range messages {
+				onMessage(ctx, messages[i])
 			}
 
 			if err != nil {
@@ -83,6 +91,11 @@ func (w *websocketInterface) manage(dst io.Writer, src io.Reader, buf []byte, ca
 	io.CopyBuffer(dst, src, buf) // nolint: errcheck
 }
 
+// NewWebsocket returns a new instance of Websocket upgrader.
+//
+// Websocket upgrader works in the same fashion as TCP upgrader: it
+// pumps a data between 2 sockets. But at the same time, it reads
+// messages and unmarshal them.
 func NewWebsocket(reactor WebsocketReactor) Interface {
 	return &websocketInterface{
 		reactor:      reactor,
@@ -97,6 +110,7 @@ var poolWebsocket = sync.Pool{
 	},
 }
 
+// AcquireWebsocket returns a new Websocket upgrader from the pool.
 func AcquireWebsocket(reactor WebsocketReactor) Interface {
 	rv := poolWebsocket.Get().(*websocketInterface)
 
@@ -105,6 +119,7 @@ func AcquireWebsocket(reactor WebsocketReactor) Interface {
 	return rv
 }
 
+// ReleaseWebsocket returns Websocket back to the object pool.
 func ReleaseWebsocket(up Interface) {
 	value := up.(*websocketInterface)
 	value.reactor = nil

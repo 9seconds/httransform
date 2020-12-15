@@ -8,16 +8,23 @@ import (
 )
 
 const (
+	// TCPBufferSize defines a size of the buffer for TCP upgrader.
+	// Actually, TCP upgrader allocates 2 buffers of this size.
 	TCPBufferSize = 10 * 1024
 )
 
 type tcpWriterWrapper struct {
 	ctx      context.Context
 	callback func(context.Context, []byte)
+	buf      []byte
 }
 
-func (t tcpWriterWrapper) Write(p []byte) (int, error) {
-	t.callback(t.ctx, append([]byte(nil), p...))
+func (t *tcpWriterWrapper) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+
+	t.callback(t.ctx, t.buf)
+
+	t.buf = t.buf[:0]
 
 	return len(p), nil
 }
@@ -30,6 +37,7 @@ type tcpInterface struct {
 
 func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	go func() {
 		<-ctx.Done()
@@ -63,7 +71,7 @@ func (t *tcpInterface) manage(ctx context.Context,
 	cancel context.CancelFunc) {
 	defer cancel()
 
-	writerWrapper := tcpWriterWrapper{
+	writerWrapper := &tcpWriterWrapper{
 		ctx:      ctx,
 		callback: onWriteBytes,
 	}
@@ -74,19 +82,27 @@ func (t *tcpInterface) manage(ctx context.Context,
 	}
 }
 
-func NewTCP() Interface {
+// NewTCP returns a new instance of TCP upgrader.
+//
+// TCP upgrader is really simple and dumb: it pump data from one socket
+// to another. Given reactor just looks at what is happening there.
+// Another important consideration is that reactor cannot change a data.
+// It always gets a copy.
+func NewTCP(reactor TCPReactor) Interface {
 	return &tcpInterface{
 		clientBuffer: make([]byte, TCPBufferSize),
 		netlocBuffer: make([]byte, TCPBufferSize),
+		reactor:      reactor,
 	}
 }
 
 var poolTCP = sync.Pool{
 	New: func() interface{} {
-		return NewTCP()
+		return NewTCP(nil)
 	},
 }
 
+// AcquireTCP returns a new TCP upgrader from the pool.
 func AcquireTCP(reactor TCPReactor) Interface {
 	rv := poolTCP.Get().(*tcpInterface)
 
@@ -95,6 +111,7 @@ func AcquireTCP(reactor TCPReactor) Interface {
 	return rv
 }
 
+// ReleaseTCP returns TCP upgrader back to the object pool.
 func ReleaseTCP(up Interface) {
 	value := up.(*tcpInterface)
 	value.reactor = nil

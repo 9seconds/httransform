@@ -14,6 +14,17 @@ import (
 	"github.com/9seconds/httransform/v2/upgrades"
 )
 
+// MakeDefaultExecutor returns a default implementation of executor
+// which does bare minimum:
+//
+// 1. It sends HTTP request, reads and returns HTTP response.
+//
+// 2. If request wants to upgrade connection (Connection: Upgrade),
+// it hijacks a connection, returns a correct response and does TCP
+// proxyfying of the sockets.
+//
+// This function is created as a bare minimum to give end user the
+// example on how to implementat his/her own executor.
 func MakeDefaultExecutor(dialer dialers.Dialer) Executor {
 	return func(ctx *layers.Context) error {
 		conn, err := defaultExecutorDial(ctx, dialer)

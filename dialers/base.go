@@ -57,7 +57,7 @@ func (b *base) Dial(ctx context.Context, host, port string) (net.Conn, error) {
 }
 
 func (b *base) UpgradeToTLS(ctx context.Context, conn net.Conn, host, _ string) (net.Conn, error) {
-	subCtx, cancel := context.WithCancel(ctx)
+	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {

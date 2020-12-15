@@ -28,7 +28,7 @@ func (h *httpProxy) Dial(ctx context.Context, host, port string) (net.Conn, erro
 }
 
 func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port string) (net.Conn, error) {
-	subCtx, cancel := context.WithCancel(ctx)
+	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {

@@ -1,15 +1,14 @@
 httransform
 ===========
 
-[![Build Status](https://travis-ci.org/9seconds/httransform.svg?branch=master)](https://travis-ci.org/9seconds/httransform)
-[![CodeCov](https://codecov.io/gh/9seconds/httransform/branch/master/graph/badge.svg)](https://codecov.io/gh/9seconds/httransform)
-[![GoDoc Reference](https://camo.githubusercontent.com/7540274b4c20318e1b1f2d8abe11ba136c926233/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f76616c79616c612f66617374687474703f7374617475732e737667)](https://godoc.org/github.com/9seconds/httransform)
-[![Go Report Card](https://goreportcard.com/badge/github.com/9seconds/httransform)](https://goreportcard.com/report/github.com/9seconds/httransform)
+[![Build Status](https://github.com/9seconds/httransform/workflows/CI/badge.svg)](https://github.com/9seconds/httransform)
+[![codecov](https://codecov.io/gh/9seconds/httransform/branch/master/graph/badge.svg?token=cyMF66trUZ)](https://codecov.io/gh/9seconds/httransform)
+[![GoDoc Reference](https://camo.githubusercontent.com/7540274b4c20318e1b1f2d8abe11ba136c926233/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f76616c79616c612f66617374687474703f7374617475732e737667)](https://pkg.go.dev/github.com/9seconds/httransform)
 
 httransform is the library/framework to build your own HTTP
 proxies. It relies on high-performant and memory-efficient
 [fasthttp](https://github.com/valyala/fasthttp) library as HTTP base
-layer and can give you the ability to build a proxy where you can control 
+layer and can give you the ability to build a proxy where you can control
 every aspect.
 
 Main features of this framework:
@@ -25,9 +24,11 @@ Main features of this framework:
    HTTP responses. Allowing your proxy to fetch the data from other services,
    which are not necessarily HTTP. The executor simply converts HTTP request
    structure to HTTP response.
+6. Can support connection upgrades (this includes _websockets_) with an
+   ability to look into them.
 
 Please check the [full
-documentation](https://godoc.org/github.com/9seconds/httransform) for 
+documentation](https://pkg.go.dev/github.com/9seconds/httransform) for
 more details.
 
 Example
@@ -41,7 +42,9 @@ package main
 import (
     "net"
 
-    "github.com/9seconds/httransform"
+    "github.com/9seconds/httransform/v2"
+    "github.com/9seconds/httransform/v2/auth"
+    "github.com/9seconds/httransform/v2/layers"
 )
 
 // These are generates examples of self-signed certificates
@@ -84,21 +87,24 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	opts := ServerOpts{
-		CertCA:  caCert,
-		CertKey: caPrivateKey,
+
+    ctx := context.Background()
+
+	opts := httransform.ServerOpts{
+		TLSCertCA:  caCert,
+		TLSPrivateKey: caPrivateKey,
+        Authenticator: auth.NewBase(map[string]sring{
+            "user": "password",
+        }),
 		Layers: []Layer{
-			&ProxyAuthorizationBasicLayer{
-				User:     []byte("user"),
-				Password: []byte("password"),
-				Realm:    "test",
-			},
-			&AddRemoveHeaderLayer{
-				AbsentRequestHeaders: []string{"proxy-authorization"},
-			},
+            layers.ProxyHeadersLayer{},
+            &layers.TimeoutLayer{
+                Timeout: time.Minute,
+            }
 		},
 	}
-	srv, err := NewServer(opts)
+
+	srv, err := NewServer(ctx, opts)
 	if err != nil {
 		panic(err)
 	}
@@ -112,3 +118,16 @@ func main() {
 This will create an HTTP proxy on `127.0.0.1:3128`. It will also require
 authentication (`user` and `password`) and will remove the `Proxy-Authorization`
 header before sending the request further.
+
+
+v1 version
+----------
+
+Version 1 is not supported anymore. Please use version 2. Version 2 has
+a lot of breaking changes but which really help to maintain a package.
+
+Unfortunately, I cannot enumerate all of them and I understand that it
+is going to make your life painful in some moments. Sorry for that. v2
+was a complete rewrite and I assume that given a size of this library,
+it won't take a lot of time for you to migrate. But if you have any
+questions, feel free to open an issue. I'm happy to help.

@@ -88,9 +88,13 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 -----END PRIVATE KEY-----`)
 
 func main() {
+	// Root context is crucial here. When root context is closed, a
+	// proxy is shutdown.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// For demo purpose we are going to close by SIGINT and SIGTERM
+	// signals.
 	signals := make(chan os.Signal, 1)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -101,6 +105,8 @@ func main() {
 		}
 	}()
 
+	// Filter layer is required if you want to drop request
+	// which are made to you internal networks.
 	filterLayer, err := layers.NewFilterSubnetsLayer([]net.IPNet{
 		{IP: net.ParseIP("127.0.0.0"), Mask: net.CIDRMask(8, 32)},
 		{IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(12, 32)},
@@ -114,12 +120,17 @@ func main() {
 	opts := httransform.ServerOpts{
 		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
+		// We are going to use basic proxy authorization with username
+		// 'user' and password 'password'.
 		Authenticator: auth.NewBasicAuth(map[string]string{
 			"user": "password",
 		}),
 		Layers: []layers.Layer{
 			filterLayer,
+			// This guy will remove Proxy headers from the request.
 			layers.ProxyHeadersLayer{},
+			// This guy is going to limit request processing time to 3
+			// minutes.
 			layers.TimeoutLayer{
 				Timeout: 3 * time.Minute,
 			},
@@ -131,6 +142,7 @@ func main() {
 		panic(err)
 	}
 
+	// We bind our proxy to the port 3128 and all interfaces.
 	listener, err := net.Listen("tcp", ":3128")
 	if err != nil {
 		panic(err)

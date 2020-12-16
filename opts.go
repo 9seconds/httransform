@@ -204,7 +204,11 @@ func (s *ServerOpts) GetTLSSkipVerify() bool {
 // GetLayers returns a set of server layers to use.
 func (s *ServerOpts) GetLayers() []layers.Layer {
 	toReturn := []layers.Layer{layerStartHeaders{}}
-	toReturn = append(toReturn, s.Layers...)
+
+	if s != nil {
+		toReturn = append(toReturn, s.Layers...)
+	}
+
 	toReturn = append(toReturn, layerFinishHeaders{})
 
 	return toReturn

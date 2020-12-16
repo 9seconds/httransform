@@ -40,11 +40,16 @@ Just a small example to give you the feeling of how it all looks like:
 package main
 
 import (
-    "net"
+	"context"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-    "github.com/9seconds/httransform/v2"
-    "github.com/9seconds/httransform/v2/auth"
-    "github.com/9seconds/httransform/v2/layers"
+	"github.com/9seconds/httransform/v2"
+	"github.com/9seconds/httransform/v2/auth"
+	"github.com/9seconds/httransform/v2/layers"
 )
 
 // These are generates examples of self-signed certificates
@@ -83,33 +88,55 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 -----END PRIVATE KEY-----`)
 
 func main() {
-	ln, err := net.Listen("tcp", "127.0.0.1:3128")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	signals := make(chan os.Signal, 1)
+
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		for range signals {
+			cancel()
+		}
+	}()
+
+	filterLayer, err := layers.NewFilterSubnetsLayer([]net.IPNet{
+		{IP: net.ParseIP("127.0.0.0"), Mask: net.CIDRMask(8, 32)},
+		{IP: net.ParseIP("172.16.0.0"), Mask: net.CIDRMask(12, 32)},
+		{IP: net.ParseIP("10.0.0.0"), Mask: net.CIDRMask(8, 32)},
+		{IP: net.ParseIP("192.168.0.0"), Mask: net.CIDRMask(16, 32)},
+	})
 	if err != nil {
 		panic(err)
 	}
 
-    ctx := context.Background()
-
 	opts := httransform.ServerOpts{
-		TLSCertCA:  caCert,
+		TLSCertCA:     caCert,
 		TLSPrivateKey: caPrivateKey,
-        Authenticator: auth.NewBase(map[string]sring{
-            "user": "password",
-        }),
-		Layers: []Layer{
-            layers.ProxyHeadersLayer{},
-            &layers.TimeoutLayer{
-                Timeout: time.Minute,
-            }
+		Authenticator: auth.NewBasicAuth(map[string]string{
+			"user": "password",
+		}),
+		Layers: []layers.Layer{
+			filterLayer,
+			layers.ProxyHeadersLayer{},
+			layers.TimeoutLayer{
+				Timeout: 3 * time.Minute,
+			},
 		},
 	}
 
-	srv, err := NewServer(ctx, opts)
+	proxy, err := httransform.NewServer(ctx, opts)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := srv.Serve(ln); err != nil {
+	listener, err := net.Listen("tcp", ":3128")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := proxy.Serve(listener); err != nil {
 		panic(err)
 	}
 }

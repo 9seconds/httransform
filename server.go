@@ -21,6 +21,9 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// Server defines a MITM proxy instance. Please pay attention that it
+// has its own context. If this context is cancelled, Server starts to
+// gracefully terminate.
 type Server struct {
 	ctx           context.Context
 	ctxCancel     context.CancelFunc
@@ -33,10 +36,12 @@ type Server struct {
 	server        *fasthttp.Server
 }
 
+// Serve starts to serve on given net.Listener instance.
 func (s *Server) Serve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
+// Close stops server.
 func (s *Server) Close() error {
 	s.ctxCancel()
 
@@ -223,6 +228,8 @@ func (s *Server) completeRequestType(ctx *layers.Context) {
 	})
 }
 
+// NewServer creates a new instance of the server based on a given
+// options.
 func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen
 	ctx, cancel := context.WithCancel(ctx)
 	oopts := &opts

@@ -64,29 +64,35 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	var requestType events.RequestType
-
 	if ctx.IsConnect() {
-		requestType |= events.RequestTypeTunneled
+		s.entrypointConnect(ctx, user)
+	} else {
+		s.entrypointPlain(ctx, user)
+	}
+}
 
-		address, err := s.extractAddress(string(ctx.RequestURI()), true)
-		if err != nil {
-			errToReturn := &errors.Error{
-				Message:    "cannot extract a host for tunneled connection",
-				StatusCode: fasthttp.StatusBadGateway,
-				Err:        err,
-			}
+func (s *Server) entrypointConnect(ctx *fasthttp.RequestCtx, user string) {
+	requestType := events.RequestTypeTunneled
 
-			errToReturn.WriteTo(ctx)
-
-			return
+	address, err := s.extractAddress(string(ctx.RequestURI()), true)
+	if err != nil {
+		errToReturn := &errors.Error{
+			Message:    "cannot extract a host for tunneled connection",
+			StatusCode: fasthttp.StatusBadGateway,
+			Err:        err,
 		}
 
-		ctx.Hijack(s.upgradeToTLS(requestType, user, address))
-		ctx.Success("", nil)
+		errToReturn.WriteTo(ctx)
 
 		return
 	}
+
+	ctx.Hijack(s.upgradeToTLS(requestType, user, address))
+	ctx.Success("", nil)
+}
+
+func (s *Server) entrypointPlain(ctx *fasthttp.RequestCtx, user string) {
+	var requestType events.RequestType
 
 	address, err := s.extractAddress(string(ctx.Host()), false)
 	if err != nil {
@@ -101,12 +107,7 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	ownCtx := layers.AcquireContext()
-	defer layers.ReleaseContext(ownCtx)
-
-	ownCtx.Init(ctx, address, s.eventStream, user, requestType)
-	s.completeRequestType(ownCtx)
-	s.main(ownCtx)
+	s.runMain(ctx, address, user, requestType)
 }
 
 func (s *Server) upgradeToTLS(requestType events.RequestType, user, address string) fasthttp.HijackHandler {
@@ -139,20 +140,35 @@ func (s *Server) upgradeToTLS(requestType events.RequestType, user, address stri
 		needToClose := true
 
 		srv.Handler = func(ctx *fasthttp.RequestCtx) {
-			ownCtx := layers.AcquireContext()
-			defer layers.ReleaseContext(ownCtx)
-
-			ownCtx.Init(ctx, address, s.eventStream, user, requestType)
-			s.completeRequestType(ownCtx)
-			s.main(ownCtx)
-
-			needToClose = !ownCtx.Hijacked()
+			needToClose = !s.runMain(ctx, address, user, requestType)
 		}
 
 		srv.ServeConn(tlsConn) // nolint: errcheck
 
 		return needToClose
 	})
+}
+
+func (s *Server) runMain(ctx *fasthttp.RequestCtx, address, user string, requestType events.RequestType) bool {
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		if bytes.EqualFold(key, []byte("Connection")) {
+			values := headers.Values(string(value))
+
+			for i := range values {
+				if strings.EqualFold(values[i], "Upgrade") {
+					requestType |= events.RequestTypeUpgraded
+				}
+			}
+		}
+	})
+
+	ownCtx := layers.AcquireContext()
+	defer layers.ReleaseContext(ownCtx)
+
+	ownCtx.Init(ctx, address, s.eventStream, user, requestType)
+	s.main(ownCtx)
+
+	return ownCtx.Hijacked()
 }
 
 func (s *Server) main(ctx *layers.Context) {
@@ -223,20 +239,6 @@ func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
 	}
 
 	return hostport, nil
-}
-
-func (s *Server) completeRequestType(ctx *layers.Context) {
-	ctx.Request().Header.VisitAll(func(key, value []byte) {
-		if bytes.EqualFold(key, []byte("Connection")) {
-			values := headers.Values(string(value))
-
-			for i := range values {
-				if strings.EqualFold(values[i], "Upgrade") {
-					ctx.RequestType |= events.RequestTypeUpgraded
-				}
-			}
-		}
-	})
 }
 
 // NewServer creates a new instance of the server based on a given

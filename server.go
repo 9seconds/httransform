@@ -1,269 +1,319 @@
 package httransform
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
+	"github.com/9seconds/httransform/v2/auth"
+	"github.com/9seconds/httransform/v2/ca"
+	"github.com/9seconds/httransform/v2/conns"
+	"github.com/9seconds/httransform/v2/dialers"
+	"github.com/9seconds/httransform/v2/errors"
+	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/executor"
+	"github.com/9seconds/httransform/v2/headers"
+	"github.com/9seconds/httransform/v2/layers"
 	"github.com/valyala/fasthttp"
-	"golang.org/x/xerrors"
-
-	"github.com/9seconds/httransform/ca"
 )
 
-type fasthttpHeader interface {
-	Reset()
-	DisableNormalizing()
-	SetBytesKV([]byte, []byte)
-	ContentLength() int
-	SetContentLength(int)
-}
-
-// Server presents a HTTP proxy service.
+// Server defines a MITM proxy instance. Please pay attention that it
+// has its own context. If this context is cancelled, Server starts to
+// gracefully terminate.
 type Server struct {
-	serverPool sync.Pool
-	tracerPool *TracerPool
-	server     *fasthttp.Server
-	certs      *ca.CA
-	layers     []Layer
-	executor   Executor
-	logger     Logger
-	metrics    Metrics
+	ctx           context.Context
+	ctxCancel     context.CancelFunc
+	serverPool    sync.Pool
+	eventStream   events.Stream
+	layers        []layers.Layer
+	authenticator auth.Interface
+	executor      executor.Executor
+	ca            *ca.CA
+	server        *fasthttp.Server
 }
 
-// Serve starts to work using given listener.
+// Serve starts to serve on given net.Listener instance.
 func (s *Server) Serve(ln net.Listener) error {
 	return s.server.Serve(ln)
 }
 
-// Shutdown gracefully stops the server.
-func (s *Server) Shutdown() error {
-	defer s.certs.Close()
+// Close stops server.
+func (s *Server) Close() error {
+	s.ctxCancel()
+
 	return s.server.Shutdown()
 }
 
-func (s *Server) mainHandler(ctx *fasthttp.RequestCtx) {
-	var user, password []byte
-
-	var err error
-
-	s.metrics.NewConnection()
-	defer s.metrics.DropConnection()
-
-	method := string(ctx.Method())
-	uri := string(ctx.RequestURI())
-	reqID := ctx.ID()
-
-	proxyAuthHeaderValue := ctx.Request.Header.PeekBytes([]byte("Proxy-Authorization"))
-	if len(proxyAuthHeaderValue) > 0 {
-		user, password, err = ExtractAuthentication(proxyAuthHeaderValue)
-		if err != nil {
-			s.logDebug("[%s] (%d) %s %s: incorrect proxy-authorization header: %s",
-				ctx.RemoteAddr(), reqID, method, uri, err)
-
-			user = nil
-			password = nil
+func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
+	user, err := s.authenticator.Authenticate(ctx)
+	if err != nil {
+		errToReturn := &errors.Error{
+			Message:    "authenication is failed",
+			StatusCode: fasthttp.StatusProxyAuthRequired,
+			Err:        err,
 		}
+
+		errToReturn.WriteTo(ctx)
+		ctx.Response.Header.Add("Proxy-Authenticate", "Basic")
+		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
+
+		return
 	}
 
 	if ctx.IsConnect() {
-		s.metrics.NewConnect()
-		defer s.metrics.NewConnect()
+		s.entrypointConnect(ctx, user)
+	} else {
+		s.entrypointPlain(ctx, user)
+	}
+}
 
-		host, _, err := net.SplitHostPort(uri)
-		if err != nil {
-			s.logDebug("[%s] (%d) %s %s: cannot extract host for CONNECT: %s",
-				ctx.RemoteAddr(), reqID, method, uri, err)
-			MakeSimpleResponse(&ctx.Response, fmt.Sprintf("Cannot extract host for request URI %s", uri), fasthttp.StatusBadRequest)
+func (s *Server) entrypointConnect(ctx *fasthttp.RequestCtx, user string) {
+	requestType := events.RequestTypeTunneled
 
-			return
+	address, err := s.extractAddress(string(ctx.RequestURI()), true)
+	if err != nil {
+		errToReturn := &errors.Error{
+			Message:    "cannot extract a host for tunneled connection",
+			StatusCode: fasthttp.StatusBadGateway,
+			Err:        err,
 		}
 
-		ctx.Hijack(s.makeHijackHandler(host, reqID, user, password))
-		ctx.Success("", nil)
+		errToReturn.WriteTo(ctx)
 
 		return
 	}
 
-	s.handleRequest(ctx, false, user, password)
+	ctx.Hijack(s.upgradeToTLS(requestType, user, address))
+	ctx.Success("", nil)
 }
 
-func (s *Server) makeHijackHandler(host string, reqID uint64, user, password []byte) fasthttp.HijackHandler {
-	return func(conn net.Conn) {
-		defer conn.Close()
+func (s *Server) entrypointPlain(ctx *fasthttp.RequestCtx, user string) {
+	var requestType events.RequestType
 
-		conf, err := s.certs.Get(host)
-		if err != nil {
-			s.logWarn("[%s] (%d): cennot generate certificate for the host %s: %s",
-				conn.RemoteAddr(), reqID, host, err)
-			return
+	address, err := s.extractAddress(string(ctx.Host()), false)
+	if err != nil {
+		errToReturn := &errors.Error{
+			Message:    "cannot extract a host for tunneled connection",
+			StatusCode: fasthttp.StatusBadGateway,
+			Err:        err,
 		}
 
-		tlsConn := tls.Server(conn, conf)
-		defer tlsConn.Close()
+		errToReturn.WriteTo(ctx)
 
-		if err = tlsConn.Handshake(); err != nil {
-			s.logWarn("[%s] (%d): cennot finish TLS handshake: %s",
-				conn.RemoteAddr(), reqID, err)
-			return
+		return
+	}
+
+	s.runMain(ctx, address, user, requestType)
+}
+
+func (s *Server) upgradeToTLS(requestType events.RequestType, user, address string) fasthttp.HijackHandler {
+	host, _, _ := net.SplitHostPort(address)
+
+	return conns.FixHijackHandler(func(conn net.Conn) bool {
+		conf, err := s.ca.Get(host)
+		if err != nil {
+			return true
+		}
+
+		uConn := conns.NewUnreadConn(conn)
+		tlsErr := tls.RecordHeaderError{}
+		tlsConn := tls.Server(uConn, conf)
+		err = tlsConn.Handshake()
+
+		switch {
+		case errors.As(err, &tlsErr) && tlsErr.Conn != nil:
+			uConn.Unread()
+		case err != nil:
+			return true
+		default:
+			requestType |= events.RequestTypeTLS
+			uConn.Seal()
 		}
 
 		srv := s.serverPool.Get().(*fasthttp.Server)
-		srv.Handler = func(ctx *fasthttp.RequestCtx) {
-			s.handleRequest(ctx, true, user, password)
-		}
 		defer s.serverPool.Put(srv)
 
+		needToClose := true
+
+		srv.Handler = func(ctx *fasthttp.RequestCtx) {
+			needToClose = !s.runMain(ctx, address, user, requestType)
+		}
+
 		srv.ServeConn(tlsConn) // nolint: errcheck
-	}
+
+		return needToClose
+	})
 }
 
-func (s *Server) handleRequest(ctx *fasthttp.RequestCtx, isConnect bool, user, password []byte) { // nolint: funlen
-	var err error
+func (s *Server) runMain(ctx *fasthttp.RequestCtx, address, user string, requestType events.RequestType) bool {
+	ctx.Request.Header.VisitAll(func(key, value []byte) {
+		if bytes.EqualFold(key, []byte("Connection")) {
+			values := headers.Values(string(value))
 
-	currentLayer := 0
-	reqID := ctx.ID()
-	methodBytes := ctx.Method()
-	method := string(methodBytes)
-	uri := string(ctx.RequestURI())
+			for i := range values {
+				if strings.EqualFold(values[i], "Upgrade") {
+					requestType |= events.RequestTypeUpgraded
+				}
+			}
+		}
+	})
 
-	newMethodMetricsValue(s.metrics, methodBytes)
+	ownCtx := layers.AcquireContext()
+	defer layers.ReleaseContext(ownCtx)
 
-	requestHeaders := getHeaderSet()
-	responseHeaders := getHeaderSet()
+	ownCtx.Init(ctx, address, s.eventStream, user, requestType)
+	s.main(ownCtx)
 
-	defer func() {
-		releaseHeaderSet(requestHeaders)
-		releaseHeaderSet(responseHeaders)
-		dropMethodMetricsValue(s.metrics, methodBytes)
-	}()
+	return ownCtx.Hijacked()
+}
 
-	if err = ParseHeaders(requestHeaders, ctx.Request.Header.Header()); err != nil {
-		s.logDebug("[%s] (%d) %s %s: malformed request headers: %s",
-			ctx.RemoteAddr(), reqID, method, uri, err)
-		MakeSimpleResponse(&ctx.Response, "Malformed request headers", fasthttp.StatusBadRequest)
-
-		return
+func (s *Server) main(ctx *layers.Context) {
+	requestMeta := &events.RequestMeta{
+		RequestID:   ctx.RequestID,
+		RequestType: ctx.RequestType,
+		Method:      string(bytes.ToUpper(ctx.Request().Header.Method())),
+		User:        ctx.User,
+		Addr:        ctx.RemoteAddr(),
 	}
 
-	state := getLayerState()
-	layerTracer := s.tracerPool.acquire()
-
-	initLayerState(state, ctx, requestHeaders, responseHeaders, isConnect, user, password)
+	ctx.Request().URI().CopyTo(&requestMeta.URI)
+	s.eventStream.Send(s.ctx, events.EventTypeStartRequest, requestMeta, ctx.RequestID)
 
 	defer func() {
-		layerTracer.Dump(state, s.logger)
-		s.tracerPool.release(layerTracer)
-		releaseLayerState(state)
+		responseMeta := &events.ResponseMeta{
+			RequestID:  ctx.RequestID,
+			StatusCode: ctx.Response().StatusCode(),
+		}
+
+		s.eventStream.Send(s.ctx, events.EventTypeFinishRequest, responseMeta, ctx.RequestID)
 	}()
 
-	for ; currentLayer < len(s.layers); currentLayer++ {
-		layerTracer.StartOnRequest()
+	currentLayer := 0
 
-		err = s.layers[currentLayer].OnRequest(state)
+	var err error
 
-		layerTracer.FinishOnRequest(err)
+	for ; err == nil && currentLayer < len(s.layers); currentLayer++ {
+		err = s.layers[currentLayer].OnRequest(ctx)
+	}
 
+	if err == nil {
+		err = s.executor(ctx)
 		if err != nil {
-			MakeSimpleResponse(&ctx.Response, "Internal Server Error", fasthttp.StatusInternalServerError)
-			break
+			err = errors.Annotate(err, "cannot execute a request", "executor", 0)
 		}
 	}
 
-	if currentLayer == len(s.layers) {
-		currentLayer--
-		s.resetHeaders(&ctx.Request.Header, requestHeaders)
-		ctx.Request.Header.SetMethodBytes(methodBytes)
-		ctx.Request.Header.SetRequestURI(uri)
-
-		layerTracer.StartExecute()
-		s.executor(state)
-		layerTracer.FinishExecute()
+	for currentLayer--; currentLayer >= 0; currentLayer-- {
+		err = s.layers[currentLayer].OnResponse(ctx, err)
 	}
-
-	if err2 := ParseHeaders(responseHeaders, state.Response.Header.Header()); err2 != nil {
-		s.logDebug("[%s] (%d) %s %s: malformed response headers: %s",
-			ctx.RemoteAddr(), reqID, method, uri, err)
-		MakeSimpleResponse(&ctx.Response, "Malformed response headers", fasthttp.StatusBadRequest)
-
-		return
-	}
-
-	for ; currentLayer >= 0; currentLayer-- {
-		layerTracer.StartOnResponse()
-		s.layers[currentLayer].OnResponse(state, err)
-		layerTracer.FinishOnResponse()
-	}
-
-	responseCode := ctx.Response.Header.StatusCode()
-	s.resetHeaders(&ctx.Response.Header, responseHeaders)
-	ctx.Response.SetStatusCode(responseCode)
-}
-
-func (s *Server) resetHeaders(headers fasthttpHeader, set *HeaderSet) {
-	// Saving and resoring of Content-Length is a hack over fasthttp.
-	// Fasthttp stores some headers in structure for faster access or other
-	// purposes and sometimes we can have a strange bugs when resulting
-	// header is not the same as resp.Header.Header() content.
-	contentLength := headers.ContentLength()
-	headers.Reset()
-	headers.DisableNormalizing()
-
-	for _, v := range set.Items() {
-		headers.SetBytesKV(v.Key, v.Value)
-	}
-
-	headers.SetContentLength(contentLength)
-}
-
-func (s *Server) logWarn(msg string, args ...interface{}) {
-	s.logger.Warn(fmt.Sprintf(msg, args...))
-}
-
-func (s *Server) logDebug(msg string, args ...interface{}) {
-	s.logger.Debug(fmt.Sprintf(msg, args...))
-}
-
-// NewServer creates new instance of the Server.
-func NewServer(opts ServerOpts) (*Server, error) {
-	metrics := opts.GetMetrics()
-	certs, err := ca.NewCA(opts.GetCertCA(),
-		opts.GetCertKey(),
-		metrics,
-		opts.GetTLSCertCacheSize(),
-		[]string{opts.GetOrganizationName()})
 
 	if err != nil {
-		return nil, xerrors.Errorf("cannot create CA: %w", err)
+		errorMeta := &events.ErrorMeta{
+			RequestID: ctx.RequestID,
+			Err:       err,
+		}
+
+		s.eventStream.Send(ctx, events.EventTypeFailedRequest, errorMeta, ctx.RequestID)
+		ctx.Error(err)
+	}
+}
+
+func (s *Server) extractAddress(hostport string, isTLS bool) (string, error) {
+	_, _, err := net.SplitHostPort(hostport)
+
+	var addrError *net.AddrError
+
+	switch {
+	case errors.As(err, &addrError) && strings.Contains(addrError.Err, "missing port"):
+		if isTLS {
+			return net.JoinHostPort(hostport, "443"), nil
+		}
+
+		return net.JoinHostPort(hostport, "80"), nil
+	case err != nil:
+		return "", fmt.Errorf("incorrect host %s: %w", hostport, err)
+	}
+
+	return hostport, nil
+}
+
+// NewServer creates a new instance of the server based on a given
+// options.
+func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolint: funlen
+	ctx, cancel := context.WithCancel(ctx)
+	oopts := &opts
+	eventStream := events.NewStream(ctx, oopts.GetEventProcessorFactory())
+	authenticator := oopts.GetAuthenticator()
+
+	certAuth, err := ca.NewCA(ctx,
+		eventStream,
+		oopts.GetTLSCertCA(),
+		oopts.GetTLSPrivateKey())
+	if err != nil {
+		cancel()
+
+		return nil, fmt.Errorf("cannot make certificate authority: %w", err)
+	}
+
+	exec := oopts.GetExecutor()
+	if exec == nil {
+		dialer := dialers.NewBase(dialers.Opts{
+			TLSSkipVerify: oopts.GetTLSSkipVerify(),
+		})
+		exec = executor.MakeDefaultExecutor(dialer)
 	}
 
 	srv := &Server{
-		certs:      certs,
-		executor:   opts.GetExecutor(),
-		layers:     opts.GetLayers(),
-		logger:     opts.GetLogger(),
-		metrics:    metrics,
-		tracerPool: opts.GetTracerPool(),
-	}
-	srv.serverPool = sync.Pool{
-		New: func() interface{} {
-			return &fasthttp.Server{
-				Concurrency:                   opts.GetConcurrency(),
-				ReadBufferSize:                opts.GetReadBufferSize(),
-				WriteBufferSize:               opts.GetWriteBufferSize(),
-				ReadTimeout:                   opts.GetReadTimeout(),
-				WriteTimeout:                  opts.GetWriteTimeout(),
-				DisableKeepalive:              false,
-				TCPKeepalive:                  true,
-				DisableHeaderNamesNormalizing: true,
-				NoDefaultServerHeader:         true,
-				NoDefaultContentType:          true,
-			}
+		ctx:           ctx,
+		ctxCancel:     cancel,
+		eventStream:   eventStream,
+		ca:            certAuth,
+		layers:        oopts.GetLayers(),
+		authenticator: authenticator,
+		executor:      exec,
+		serverPool: sync.Pool{
+			New: func() interface{} {
+				return &fasthttp.Server{
+					Concurrency:                   oopts.GetConcurrency(),
+					ReadBufferSize:                oopts.GetReadBufferSize(),
+					WriteBufferSize:               oopts.GetWriteBufferSize(),
+					ReadTimeout:                   oopts.GetReadTimeout(),
+					WriteTimeout:                  oopts.GetWriteTimeout(),
+					TCPKeepalivePeriod:            oopts.GetTCPKeepAlivePeriod(),
+					MaxRequestBodySize:            oopts.GetMaxRequestBodySize(),
+					DisableKeepalive:              false,
+					TCPKeepalive:                  true,
+					DisableHeaderNamesNormalizing: true,
+					NoDefaultServerHeader:         true,
+					NoDefaultContentType:          true,
+					NoDefaultDate:                 true,
+					DisablePreParseMultipartForm:  true,
+					KeepHijackedConns:             true,
+					ErrorHandler: func(cctx *fasthttp.RequestCtx, err error) {
+						meta := &events.CommonErrorMeta{
+							Method: string(bytes.ToUpper(cctx.Method())),
+							Addr:   cctx.RemoteAddr(),
+							Err:    err,
+						}
+
+						cctx.URI().CopyTo(&meta.URI)
+						eventStream.Send(ctx, events.EventTypeCommonError, meta, "")
+					},
+				}
+			},
 		},
 	}
 	srv.server = srv.serverPool.Get().(*fasthttp.Server)
-	srv.server.Handler = srv.mainHandler
+	srv.server.Handler = srv.entrypoint
+
+	go func() {
+		<-ctx.Done()
+		srv.Close()
+	}()
 
 	return srv, nil
 }

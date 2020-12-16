@@ -3,206 +3,232 @@ package httransform
 import (
 	"time"
 
-	"github.com/valyala/fasthttp"
+	"github.com/9seconds/httransform/v2/auth"
+	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/executor"
+	"github.com/9seconds/httransform/v2/layers"
 )
 
-// Defaults for ServerOpts.
 const (
-	// DefaultConcurrency is the number of concurrent connections for the
-	// service.
-	DefaultConcurrency = fasthttp.DefaultConcurrency
+	// DefaultConcurrency defines a default number of concurrently
+	// managed requests processed by a proxy.
+	DefaultConcurrency = 65536
 
-	// DefaultReadBufferSize is default size of read buffer for the
-	// connection in bytes.
-	DefaultReadBufferSize = 4096
+	// DefaultReadBufferSize defines a default size of the buffer to use
+	// on reading client requests.
+	DefaultReadBufferSize = 16 * 1024
 
-	// DefaultWriteBufferSize is default size of write buffer for the
-	// connection in bytes.
-	DefaultWriteBufferSize = 4096
+	// DefaultWriteBufferSize defines a default size of the buffer to
+	// use on writing to client socket.
+	DefaultWriteBufferSize = 16 * 1024
 
-	// DefaultReadTimeout is the default timeout httransform uses to read
-	// from user request.
+	// DefaultReadTimeout defines a default timeout for reading of
+	// client request.
 	DefaultReadTimeout = time.Minute
 
-	// DefaultWriteTimeout is the default timeout httransform uses to write
-	// to user request.
+	// DefaultWriteTimeout defines a default timeout for writing
+	// to client.
 	DefaultWriteTimeout = time.Minute
 
-	// DefaultTLSCertCacheSize is the number of items we store in LRU cache
-	// of generated TLS certificates before starting to prune obsoletes.
-	DefaultTLSCertCacheSize = 10000
+	// DefaultTCPKeepAlivePeriod defines a default time period for TCP
+	// keepalive probes.
+	DefaultTCPKeepAlivePeriod = 30 * time.Second
+
+	// DefaultMaxRequestBodySize defines a max size of the request body.
+	DefaultMaxRequestBodySize = 1024 * 1024 * 100
 )
 
-// ServerOpts is the datastructure to configure Server instance. The
-// list of configuration options can be huge so it worth to use a
-// separate object for this purpose.
+// ServerOpts defines server options to use.
+//
+// Please pay attention that each field is optional. We do provide sane
+// defaults if you do not want to pass anything there.
 type ServerOpts struct {
-	// Concurrency is the number of concurrent connections to the service.
-	Concurrency int
+	// Concurrency defines a number of concurrently managed requests.
+	Concurrency uint
 
-	// ReadBufferSize is the size of the read buffer for server TCP
-	// connection.
-	ReadBufferSize int
+	// ReadBufferSize defines a size of the buffer allocated for reading
+	// from client socket.
+	ReadBufferSize uint
 
-	// WriteBufferSize is the size of the write buffer for server TCP
-	// connection.
-	WriteBufferSize int
+	// WriteBufferSize defines a size of the buffer allocated for
+	// writing to a client socket.
+	WriteBufferSize uint
 
-	// ReadTimeout is the timeout server uses to read from user request.
+	// MaxRequestBodySize defines a max size of the request body.
+	MaxRequestBodySize uint
+
+	// ReadTimeout defines a timeout for reading from client socket.
 	ReadTimeout time.Duration
 
-	// ReadTimeout is the timeout server uses to write to the user request.
+	// WriteTimeout defines a timeout for writing to client socket.
 	WriteTimeout time.Duration
 
-	// CertCA is CA certificate for generating TLS certificate.
-	CertCA []byte
+	// TCPKeepAlivePeriod defines a time period between 2 consecutive
+	// TCP keepalive probes.
+	TCPKeepAlivePeriod time.Duration
 
-	// CertKey is CA private key for generating TLS cerificate.
-	CertKey []byte
+	// EventProcessorFactory defines a factory method which produces
+	// event processors.
+	EventProcessorFactory events.ProcessorFactory
 
-	// OrganizationName is the name of organization which generated TLS
-	// certificate.
-	OrganizationName string
+	// TLSCertCA is a bytes which contains TLS CA certificate. This
+	// certificate is required for generating fake TLS certifiates for
+	// websites on TLS connection upgrades.
+	TLSCertCA []byte
 
-	// TLSCertCacheSize is the number of items we store in LRU cache
-	// of generated TLS certificates before starting to prune obsoletes.
-	TLSCertCacheSize int
+	// TLSPrivateKey is a bytes which contains TLS private key. This
+	// certificate is required for generating fake TLS certifiates for
+	// websites on TLS connection upgrades.
+	TLSPrivateKey []byte
 
-	// Tracer is an instance of tracer pool to use. By default pool of
-	// NoopTracers is going to be used.
-	TracerPool *TracerPool
+	// Layers defines a list of layers, middleware which should be used
+	// by proxy.
+	Layers []layers.Layer
 
-	// Layers presents a list of middleware layers used by proxy.
-	// Can be nil.
-	Layers []Layer
+	// Executor defines an executor function which should be used
+	// to terminate HTTP request and fill HTTP response.
+	Executor executor.Executor
 
-	// Executor is an instance of the Executor used by proxy. Default is
-	// HTTPExecutor.
-	Executor Executor
+	// Authenticator is an interface which is used to authenticate a
+	// request.
+	Authenticator auth.Interface
 
-	// Logger is an instance of Logger used by proxy. Default is
-	// NoopLogger.
-	Logger Logger
-
-	// Metrics is an instance of metrics client used by proxy. Default is
-	// NoopMetrics.
-	Metrics Metrics
+	// TLSSkipVerify defines if we need to verify TLS certifiates we have
+	// to deal with.
+	TLSSkipVerify bool
 }
 
-// GetConcurrency returns a number of concurrent connections for the
-// service we have to set.
+// GetConcurrency returns a concurrency paying attention to default
+// value.
 func (s *ServerOpts) GetConcurrency() int {
-	if s.Concurrency == 0 {
+	if s == nil || s.Concurrency == 0 {
 		return DefaultConcurrency
 	}
 
-	return s.Concurrency
+	return int(s.Concurrency)
 }
 
-// GetReadBufferSize returns the size of read buffer for the client
-// connection in bytes we have to set to the server.
+// GetReadBufferSize returns a read buffer size paying attention to
+// default value.
 func (s *ServerOpts) GetReadBufferSize() int {
-	if s.ReadBufferSize == 0 {
+	if s == nil || s.ReadBufferSize == 0 {
 		return DefaultReadBufferSize
 	}
 
-	return s.ReadBufferSize
+	return int(s.ReadBufferSize)
 }
 
-// GetWriteBufferSize returns the size of write buffer for the client
-// connection in bytes we have to set to the server.
+// GetWriteBufferSize returns a write buffer size paying attention to
+// default value.
 func (s *ServerOpts) GetWriteBufferSize() int {
-	if s.WriteBufferSize == 0 {
+	if s == nil || s.WriteBufferSize == 0 {
 		return DefaultWriteBufferSize
 	}
 
-	return s.WriteBufferSize
+	return int(s.WriteBufferSize)
 }
 
-// GetReadTimeout is the timeout server has to use to read from user
-// request.
+// GetReadTimeout returns a read timeout paying attention to default
+// value.
 func (s *ServerOpts) GetReadTimeout() time.Duration {
-	if s.ReadTimeout == 0 {
+	if s == nil || s.ReadTimeout == 0 {
 		return DefaultReadTimeout
 	}
 
 	return s.ReadTimeout
 }
 
-// GetWriteTimeout is the timeout server has to use to write to user.
+// GetWriteTimeout returns a write timeout paying attention to default
+// value.
 func (s *ServerOpts) GetWriteTimeout() time.Duration {
-	if s.WriteTimeout == 0 {
+	if s == nil || s.WriteTimeout == 0 {
 		return DefaultWriteTimeout
 	}
 
 	return s.WriteTimeout
 }
 
-// GetCertCA returns a CA certificate which should be used to generate
-// TLS certificates.
-func (s *ServerOpts) GetCertCA() []byte {
-	return s.CertCA
-}
-
-// GetCertKey returns a CA private key which should be used to generate
-// TLS certificates.
-func (s *ServerOpts) GetCertKey() []byte {
-	return s.CertKey
-}
-
-// GetOrganizationName returns a name of the organization which should
-// issue TLS certificates.
-func (s *ServerOpts) GetOrganizationName() string {
-	return s.OrganizationName
-}
-
-// GetTLSCertCacheSize returns the number of items to store in LRU cache
-// of generated TLS certificates before starting to prune obsoletes.
-func (s *ServerOpts) GetTLSCertCacheSize() int {
-	if s.TLSCertCacheSize == 0 {
-		return DefaultTLSCertCacheSize
+// GetTCPKeepAlivePeriod returns a period for TCP keepalive probes
+// paying attention to default value.
+func (s *ServerOpts) GetTCPKeepAlivePeriod() time.Duration {
+	if s == nil || s.TCPKeepAlivePeriod == 0 {
+		return DefaultTCPKeepAlivePeriod
 	}
 
-	return s.TLSCertCacheSize
+	return s.TCPKeepAlivePeriod
 }
 
-// GetTracerPool returns a tracer pool to use.
-func (s *ServerOpts) GetTracerPool() *TracerPool {
-	if s.TracerPool == nil {
-		return defaultNoopTracerPool
+// GetMaxRequestBodySize returns max request body size paying attention
+// to default value.
+func (s *ServerOpts) GetMaxRequestBodySize() int {
+	if s == nil || s.MaxRequestBodySize == 0 {
+		return DefaultMaxRequestBodySize
 	}
 
-	return s.TracerPool
+	return int(s.MaxRequestBodySize)
 }
 
-// GetExecutor returns executor to use.
-func (s *ServerOpts) GetExecutor() Executor {
-	if s.Executor == nil {
-		return HTTPExecutor
+// GetEventProcessorFactory returns an event factory paying attention to
+// default value.
+func (s *ServerOpts) GetEventProcessorFactory() events.ProcessorFactory {
+	if s == nil || s.EventProcessorFactory == nil {
+		return events.NoopProcessorFactory
+	}
+
+	return s.EventProcessorFactory
+}
+
+// GetTLSCertCA returns a given TLS CA certificate.
+func (s *ServerOpts) GetTLSCertCA() []byte {
+	if s == nil {
+		return nil
+	}
+
+	return s.TLSCertCA
+}
+
+// GetTLSPrivateKey returns a given TLS private key.
+func (s *ServerOpts) GetTLSPrivateKey() []byte {
+	if s == nil {
+		return nil
+	}
+
+	return s.TLSPrivateKey
+}
+
+// GetTLSSkipVerify returns a sign if we need to skip TLS verification.
+func (s *ServerOpts) GetTLSSkipVerify() bool {
+	return s != nil && s.TLSSkipVerify
+}
+
+// GetLayers returns a set of server layers to use.
+func (s *ServerOpts) GetLayers() []layers.Layer {
+	toReturn := []layers.Layer{layerStartHeaders{}}
+
+	if s != nil {
+		toReturn = append(toReturn, s.Layers...)
+	}
+
+	toReturn = append(toReturn, layerFinishHeaders{})
+
+	return toReturn
+}
+
+// GetLayers returns an authenticator instance to use paying attention
+// to default value (no auth).
+func (s *ServerOpts) GetAuthenticator() auth.Interface {
+	if s == nil || s.Authenticator == nil {
+		return auth.NoopAuth{}
+	}
+
+	return s.Authenticator
+}
+
+// GetExecutor returns an instance of executor to use.
+func (s *ServerOpts) GetExecutor() executor.Executor {
+	if s == nil {
+		return nil
 	}
 
 	return s.Executor
-}
-
-// GetLayers returns a list of middleware layers to use.
-func (s *ServerOpts) GetLayers() []Layer {
-	return s.Layers
-}
-
-// GetLogger returns logger to use within proxy.
-func (s *ServerOpts) GetLogger() Logger {
-	if s.Logger == nil {
-		return &NoopLogger{}
-	}
-
-	return s.Logger
-}
-
-// GetMetrics returns metrics client to use within proxy.
-func (s *ServerOpts) GetMetrics() Metrics {
-	if s.Metrics == nil {
-		return &NoopMetrics{}
-	}
-
-	return s.Metrics
 }

@@ -4,101 +4,84 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"hash/fnv"
+	"fmt"
 	"runtime"
-	"sync"
+	"time"
 
-	lru "github.com/hashicorp/golang-lru"
-	"golang.org/x/xerrors"
+	"github.com/9seconds/httransform/v2/cache"
+	"github.com/9seconds/httransform/v2/events"
+	"github.com/OneOfOne/xxhash"
 )
 
-// CertificateMetrics is a subset of the main Metrics interface which
-// provides callbacks for certificates.
-type CertificateMetrics interface {
-	NewCertificate()
-	DropCertificate()
-}
+const (
+	// CACacheSize defines a size of LFU cache to use. Each hostname
+	// corresponds to a certain entry in this cache and each hostname is
+	// responsible for a single generated certificate.
+	//
+	// It may sound scary but scales well on practice. Usually you do
+	// not need to alter this parameter. Please remember we talk about
+	// LFU cache.
+	CACacheSize = 1024
 
-// DefaultMaxSize defines a default value for TLS certificates to store
-// in LRU cache.
-const DefaultMaxSize = 1024
+	// CACacheTTL defines TTL for each generated TLS certificate.
+	// Actually, this parameter can be up to 3 months but it will be
+	// better to regenerate it more frequently.
+	CACacheTTL = 7 * 24 * time.Hour
+)
 
-// CA is a datastructure which presents TLS CA (certificate authority).
-// The main purpose of this type is to generate TLS certificates
-// on-the-fly, using given CA certificate and private key.
-//
-// CA generates certificates concurrently but in thread-safe way. The
-// number of concurrently generated certificates is equal to the number
-// of CPUs.
+// CA defines an authority which generates TLS certificates for given
+// hostnames.
 type CA struct {
-	cache   *lru.Cache
-	cancel  context.CancelFunc
-	workers []worker
-	wg      sync.WaitGroup
+	workers    []worker
+	lenWorkers uint64
 }
 
+// Get returns tls.Config instance for the given hostname.
 func (c *CA) Get(host string) (*tls.Config, error) {
-	if item, ok := c.cache.Get(host); ok {
-		return item.(*tls.Config), nil
+	chosenWorker := xxhash.ChecksumString64(host) % c.lenWorkers
+
+	conf, err := c.workers[int(chosenWorker)].Get(host)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get tls config for host: %w", err)
 	}
 
-	hashFunc := fnv.New32a()
-	hashFunc.Write([]byte(host)) // nolint: errcheck
-
-	num := int(hashFunc.Sum32() % uint32(len(c.workers)))
-
-	return c.workers[num].get(host)
+	return conf, nil
 }
 
-// Close stops CA instance. This includes all signing workers and LRU
-// cache.
-func (c *CA) Close() {
-	c.cancel()
-	c.wg.Wait()
-	c.cache.Purge()
-}
-
-func NewCA(certCA, certKey []byte, metrics CertificateMetrics, maxSize int, orgNames []string) (*CA, error) {
-	ca, err := tls.X509KeyPair(certCA, certKey)
+// NewCA generates CA instance.
+func NewCA(ctx context.Context,
+	eventStream events.Stream,
+	certCA []byte,
+	privateKey []byte) (*CA, error) {
+	ca, err := tls.X509KeyPair(certCA, privateKey)
 	if err != nil {
-		return nil, xerrors.Errorf("invalid certificates: %w", err)
+		return nil, fmt.Errorf("cannot make a x509 keypair: %w", err)
 	}
 
 	if ca.Leaf, err = x509.ParseCertificate(ca.Certificate[0]); err != nil {
-		return nil, xerrors.Errorf("invalid certificates: %w", err)
+		return nil, fmt.Errorf("invalid certificates: %w", err)
 	}
 
-	if maxSize <= 0 {
-		maxSize = DefaultMaxSize
-	}
-
-	cache, err := lru.NewWithEvict(maxSize, func(_, _ interface{}) {
-		metrics.DropCertificate()
-	})
-	if err != nil {
-		return nil, xerrors.Errorf("cannot make a new cache: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
 	obj := &CA{
-		cache:   cache,
-		workers: make([]worker, runtime.NumCPU()),
-		cancel:  cancel,
+		workers:    make([]worker, 0, runtime.NumCPU()),
+		lenWorkers: uint64(runtime.NumCPU()),
 	}
+	cacheIf := cache.New(CACacheSize, CACacheTTL, func(key string, _ interface{}) {
+		eventStream.Send(ctx, events.EventTypeDropCertificate, key, key)
+	})
 
-	obj.wg.Add(len(obj.workers))
-
-	for i := range obj.workers {
-		obj.workers[i] = worker{
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wrk := worker{
 			ca:              ca,
-			cache:           cache,
-			orgNames:        orgNames,
-			secret:          certKey,
 			ctx:             ctx,
-			metrics:         metrics,
+			eventStream:     eventStream,
+			cache:           cacheIf,
 			channelRequests: make(chan workerRequest),
 		}
-		go obj.workers[i].run(&obj.wg)
+
+		go wrk.Run()
+
+		obj.workers = append(obj.workers, wrk)
 	}
 
 	return obj, nil

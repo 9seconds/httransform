@@ -2,31 +2,22 @@ package ca
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/md5" // nolint: gosec
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"math/big"
 	"net"
-	"sync"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/9seconds/httransform/v2/cache"
+	"github.com/9seconds/httransform/v2/events"
 )
 
-var (
-	bigBangTime = time.Unix(0, 0)
-
-	DefaultTLSConfig = &tls.Config{
-		InsecureSkipVerify: true, // nolint: gosec
-	}
-)
-
-// RSAKeyLength defines a length of the key to generate
+// RSAKeyLength defines a bit length of generated RSA key. This is a
+// good default for fake certificates, you usually do not need anything
+// more than that.
 const RSAKeyLength = 2048
 
 type workerRequest struct {
@@ -35,37 +26,18 @@ type workerRequest struct {
 }
 
 type worker struct {
-	ca       tls.Certificate
-	cache    *lru.Cache
-	orgNames []string
-	secret   []byte
-	ctx      context.Context
-	metrics  CertificateMetrics
-
+	ca              tls.Certificate
+	ctx             context.Context
+	cache           cache.Interface
+	eventStream     events.Stream
 	channelRequests chan workerRequest
 }
 
-func (w *worker) run(wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	for {
-		select {
-		case <-w.ctx.Done():
-			return
-		case req := <-w.channelRequests:
-			item, ok := w.cache.Get(req.host)
-			if !ok {
-				item = w.makeConfig(req.host)
-				w.cache.Add(req.host, item)
-			}
-
-			req.response <- item.(*tls.Config)
-			close(req.response)
-		}
+func (w *worker) Get(host string) (*tls.Config, error) {
+	if cert := w.cache.Get(host); cert != nil {
+		return cert.(*tls.Config), nil
 	}
-}
 
-func (w *worker) get(host string) (*tls.Config, error) {
 	response := make(chan *tls.Config)
 	req := workerRequest{
 		host:     host,
@@ -73,20 +45,45 @@ func (w *worker) get(host string) (*tls.Config, error) {
 	}
 
 	select {
+	case <-w.ctx.Done():
+		return nil, ErrContextClosed
 	case w.channelRequests <- req:
 		return <-response, nil
-	case <-w.ctx.Done():
-		return nil, errors.New("context is closed")
 	}
 }
 
-func (w *worker) makeConfig(host string) *tls.Config {
+func (w *worker) Run() {
+	for {
+		select {
+		case <-w.ctx.Done():
+			return
+		case req := <-w.channelRequests:
+			var conf *tls.Config
+
+			if cert := w.cache.Get(req.host); cert != nil {
+				conf = cert.(*tls.Config)
+			} else {
+				conf = w.process(req.host)
+				w.cache.Add(req.host, conf)
+
+				w.eventStream.Send(w.ctx, events.EventTypeNewCertificate, req.host, req.host)
+			}
+
+			req.response <- conf
+			close(req.response)
+		}
+	}
+}
+
+func (w *worker) process(host string) *tls.Config {
+	now := time.Now()
+
 	template := x509.Certificate{
 		SerialNumber:          &big.Int{},
 		Issuer:                w.ca.Leaf.Subject,
-		Subject:               pkix.Name{Organization: w.orgNames},
-		NotBefore:             bigBangTime,
-		NotAfter:              timeNotAfter(),
+		Subject:               pkix.Name{},
+		NotBefore:             now.AddDate(0, 0, -1), // 1 day before
+		NotAfter:              now.AddDate(0, 3, 0),  // 3 months after
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -99,10 +96,9 @@ func (w *worker) makeConfig(host string) *tls.Config {
 		template.Subject.CommonName = host
 	}
 
-	hash := hmac.New(md5.New, w.secret)
-	hash.Write([]byte(host)) // nolint: errcheck
-
-	template.SerialNumber.SetBytes(hash.Sum(nil))
+	randBytes := make([]byte, 64)
+	rand.Read(randBytes) // nolint: errcheck
+	template.SerialNumber.SetBytes(randBytes)
 
 	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)
 	if err != nil {
@@ -119,15 +115,10 @@ func (w *worker) makeConfig(host string) *tls.Config {
 		Certificate: [][]byte{derBytes, w.ca.Certificate[0]},
 		PrivateKey:  certPriv,
 	}
-	config := DefaultTLSConfig.Clone()
-	config.Certificates = append(config.Certificates, certificate)
 
-	w.metrics.NewCertificate()
-
-	return config
-}
-
-func timeNotAfter() time.Time {
-	now := time.Now()
-	return time.Date(now.Year()+10, now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	return &tls.Config{
+		ServerName:         host,
+		InsecureSkipVerify: true, // nolint: gosec
+		Certificates:       []tls.Certificate{certificate},
+	}
 }

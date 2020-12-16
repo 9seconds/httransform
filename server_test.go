@@ -1,21 +1,26 @@
-package httransform
+package httransform_test
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/mock"
+	"github.com/9seconds/httransform/v2"
+	"github.com/9seconds/httransform/v2/auth"
+	"github.com/9seconds/httransform/v2/layers"
+	"github.com/mccutchen/go-httpbin/httpbin"
 	"github.com/stretchr/testify/suite"
-	"github.com/valyala/fasthttp"
-	"golang.org/x/xerrors"
 )
 
-var testServerCACert = []byte(`-----BEGIN CERTIFICATE-----
+var caCert = []byte(`-----BEGIN CERTIFICATE-----
 MIICWzCCAcSgAwIBAgIJAJ34yk7oiKv5MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 aWRnaXRzIFB0eSBMdGQwHhcNMTgxMjAyMTQyNTAyWhcNMjgxMTI5MTQyNTAyWjBF
@@ -31,7 +36,7 @@ s7P0wJ8ON8ieEJe4pAfACpL6IyhZ5YK/C/hip+czxdvZHc5zngVwHP2vsIcHKBTr
 rMk/LWMzH/S6bLcsAm0GfVIrUNfg0eF0ZVIjxINBVA==
 -----END CERTIFICATE-----`)
 
-var testServerPrivateKey = []byte(`-----BEGIN PRIVATE KEY-----
+var caPrivateKey = []byte(`-----BEGIN PRIVATE KEY-----
 MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAMvsfN+bHvF8VZNG
 bbq3+UuwJnA6uLpUjOnZ1gzkenR1XhdRn6rrScRsfA3dSysYoAr9Gyv0JpqbcDXx
 SmfaXLr1PKvb2RUr4+Ww6BJIJScBhypPXrr+PbTmfcIY0ss4+1Ap8BP+Ifd08E5t
@@ -48,376 +53,173 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 4J45NsSQjuuAAWs=
 -----END PRIVATE KEY-----`)
 
-func testServerExecutor(state *LayerState) {
-	state.Response.SetStatusCode(fasthttp.StatusNotFound)
-	state.Response.SetBodyString("Not found!")
-}
-
-type Handler struct {
-	callback func(http.ResponseWriter, *http.Request)
-}
-
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.callback(w, r)
-}
-
-type MockLayer struct {
-	mock.Mock
-}
-
-func (m *MockLayer) OnRequest(state *LayerState) error {
-	args := m.Called(state)
-	return args.Error(0)
-}
-
-func (m *MockLayer) OnResponse(state *LayerState, err error) {
-	args := m.Called(state, err)
-	state.ResponseHeaders.SetString("X-Test", args.Get(0).(string))
-}
-
-type MockMetrics struct {
-	mock.Mock
-}
-
-func (m *MockMetrics) NewConnection()   { m.Called() }
-func (m *MockMetrics) DropConnection()  { m.Called() }
-func (m *MockMetrics) NewGet()          { m.Called() }
-func (m *MockMetrics) NewHead()         { m.Called() }
-func (m *MockMetrics) NewPost()         { m.Called() }
-func (m *MockMetrics) NewPut()          { m.Called() }
-func (m *MockMetrics) NewDelete()       { m.Called() }
-func (m *MockMetrics) NewConnect()      { m.Called() }
-func (m *MockMetrics) NewOptions()      { m.Called() }
-func (m *MockMetrics) NewTrace()        { m.Called() }
-func (m *MockMetrics) NewPatch()        { m.Called() }
-func (m *MockMetrics) NewOther()        { m.Called() }
-func (m *MockMetrics) DropGet()         { m.Called() }
-func (m *MockMetrics) DropHead()        { m.Called() }
-func (m *MockMetrics) DropPost()        { m.Called() }
-func (m *MockMetrics) DropPut()         { m.Called() }
-func (m *MockMetrics) DropDelete()      { m.Called() }
-func (m *MockMetrics) DropConnect()     { m.Called() }
-func (m *MockMetrics) DropOptions()     { m.Called() }
-func (m *MockMetrics) DropTrace()       { m.Called() }
-func (m *MockMetrics) DropPatch()       { m.Called() }
-func (m *MockMetrics) DropOther()       { m.Called() }
-func (m *MockMetrics) NewCertificate()  { m.Called() }
-func (m *MockMetrics) DropCertificate() { m.Called() }
-
-type BaseServerTestSuite struct {
+type ServerTestSuite struct {
 	suite.Suite
 
-	ln      net.Listener
-	client  *http.Client
-	opts    ServerOpts
-	metrics *MockMetrics
+	httpEndpoint *httptest.Server
+	tlsEndpoint  *httptest.Server
+	proxy        *httransform.Server
+	ln           net.Listener
+	ctx          context.Context
+	ctxCancel    context.CancelFunc
+	http         *http.Client
 }
 
-func (suite *BaseServerTestSuite) SetupTest() {
-	suite.metrics = &MockMetrics{}
+func (suite *ServerTestSuite) SetupSuite() {
+	httpbinApp := httpbin.NewHTTPBin()
+	mux := http.NewServeMux()
 
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		panic(err)
-	}
+	mux.HandleFunc("/ip", httpbinApp.IP)
 
-	suite.ln = ln
-	suite.opts = ServerOpts{
-		CertCA:   testServerCACert,
-		CertKey:  testServerPrivateKey,
-		Executor: testServerExecutor,
-		Metrics:  suite.metrics,
-	}
-
-	proxyURL := &url.URL{
-		Host:   ln.Addr().String(),
-		Scheme: "http",
-	}
-	suite.client = &http.Client{
-		Transport: &http.Transport{
-			Proxy:           http.ProxyURL(proxyURL),
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // nolint: gosec
-		},
-	}
+	suite.httpEndpoint = httptest.NewServer(mux)
+	suite.tlsEndpoint = httptest.NewTLSServer(mux)
 }
 
-func (suite *BaseServerTestSuite) TearDownTest() {
-	suite.ln.Close()
-}
-
-type ServerTestSuite struct {
-	BaseServerTestSuite
-
-	srv *Server
+func (suite *ServerTestSuite) TearDownSuite() {
+	suite.httpEndpoint.Close()
+	suite.tlsEndpoint.Close()
 }
 
 func (suite *ServerTestSuite) SetupTest() {
-	suite.BaseServerTestSuite.SetupTest()
+	suite.ctx, suite.ctxCancel = context.WithCancel(context.Background())
 
-	srv, err := NewServer(suite.opts)
-	if err != nil {
-		panic(err)
-	}
-
-	suite.srv = srv
-
-	go srv.Serve(suite.ln) // nolint: errcheck
-}
-
-func (suite *ServerTestSuite) TestHTTPRequest() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
-
-	resp, err := suite.client.Get("http://example.com")
-
-	suite.Equal(resp.StatusCode, http.StatusNotFound)
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	suite.Nil(err)
-	suite.Equal(body, []byte("Not found!"))
-}
-
-func (suite *ServerTestSuite) TestHTTPSRequest() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("NewConnect")
-	suite.metrics.On("NewCertificate")
-	suite.metrics.On("DropGet")
-	suite.metrics.On("DropConnect")
-	suite.metrics.On("DropCertificate")
-
-	resp, err := suite.client.Get("https://example.com")
-
-	suite.Equal(resp.StatusCode, http.StatusNotFound)
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	suite.Nil(err)
-	suite.Equal(body, []byte("Not found!"))
-}
-
-func (suite *ServerTestSuite) TestLayerNoError() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
-
-	mocked := &MockLayer{}
-	mocked.On("OnRequest", mock.Anything).Return(nil)
-	mocked.On("OnResponse", mock.Anything, nil).Return("value")
-
-	suite.srv.layers = append(suite.srv.layers, mocked)
-
-	resp, err := suite.client.Get("http://example.com")
-
-	suite.Equal(resp.StatusCode, http.StatusNotFound)
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	suite.Nil(err)
-	suite.Equal(body, []byte("Not found!"))
-
-	suite.Equal(resp.Header.Get("x-test"), "value")
-}
-
-func (suite *ServerTestSuite) TestLayerError() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
-
-	err := xerrors.New("Some error")
-	mocked := &MockLayer{}
-	mocked.On("OnRequest", mock.Anything).Return(err)
-	mocked.On("OnResponse", mock.Anything, err).Return("value")
-
-	suite.srv.layers = append(suite.srv.layers, mocked)
-
-	resp, err := suite.client.Get("http://example.com")
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	suite.Equal(resp.StatusCode, http.StatusInternalServerError)
-
-	suite.Equal(resp.Header.Get("x-test"), "value")
-}
-
-type ServerProxyChainTestSuite struct {
-	BaseServerTestSuite
-
-	status      int
-	endSrv      *http.Server
-	endListener net.Listener
-}
-
-func (suite *ServerProxyChainTestSuite) SetupTest() {
-	suite.BaseServerTestSuite.SetupTest()
-
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-
-	if err != nil {
-		panic(err)
-	}
-
-	suite.endListener = ln
-
-	proxyURL := &url.URL{
-		Scheme: "http",
-		Host:   suite.endListener.Addr().String(),
-	}
-	executor, err := MakeProxyChainExecutor(proxyURL)
-	suite.Nil(err)
-	suite.opts.Executor = executor
-
-	srv, err := NewServer(suite.opts)
-	suite.Nil(err)
-
-	go srv.Serve(suite.ln) // nolint: errcheck
-
-	suite.status = http.StatusOK
-	suite.endSrv = &http.Server{
-		Handler: &Handler{
-			callback: func(w http.ResponseWriter, req *http.Request) {
-				w.WriteHeader(suite.status)
+	opts := httransform.ServerOpts{
+		Authenticator: auth.NewBasicAuth(map[string]string{
+			"user": "password",
+		}),
+		TLSCertCA:     caCert,
+		TLSPrivateKey: caPrivateKey,
+		Layers: []layers.Layer{
+			layers.TimeoutLayer{
+				Timeout: 10 * time.Second,
 			},
 		},
 	}
+
+	suite.proxy, _ = httransform.NewServer(suite.ctx, opts)
+	suite.ln, _ = net.Listen("tcp", "127.0.0.1:0")
+
+	go suite.proxy.Serve(suite.ln)
+
+	httpProxyURL, _ := url.Parse("http://" + suite.ln.Addr().String())
+	httpProxyURL.User = url.UserPassword("user", "password")
+
+	suite.http = &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(httpProxyURL),
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+		Timeout: time.Second,
+	}
 }
 
-func (suite *ServerProxyChainTestSuite) TearDownTest() {
-	suite.BaseServerTestSuite.TearDownTest()
-
-	suite.endListener.Close()
+func (suite *ServerTestSuite) TearDownTest() {
+	suite.ctxCancel()
+	suite.proxy.Close()
+	suite.ln.Close()
 }
 
-func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTP() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
+func (suite *ServerTestSuite) TestIncorrectCACert() {
+	opts := httransform.ServerOpts{
+		TLSCertCA:     []byte{1, 2, 3},
+		TLSPrivateKey: caPrivateKey,
+	}
 
-	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
+	_, err := httransform.NewServer(suite.ctx, opts)
 
-	suite.status = http.StatusProxyAuthRequired
-	resp, err := suite.client.Get("http://example.com")
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	suite.Equal(resp.StatusCode, http.StatusProxyAuthRequired)
-
-	suite.status = http.StatusNotFound
-	resp, err = suite.client.Get("http://example.com")
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	suite.Equal(resp.StatusCode, http.StatusNotFound)
+	suite.Error(err)
 }
 
-func (suite *ServerProxyChainTestSuite) TestChainDropsConnectOnHTTPSErrors() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewConnect")
-	suite.metrics.On("DropConnect")
-	suite.metrics.On("NewCertificate")
-	suite.metrics.On("DropCertificate")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
+func (suite *ServerTestSuite) TestIncorrectPrivateKey() {
+	opts := httransform.ServerOpts{
+		TLSCertCA:     caCert,
+		TLSPrivateKey: []byte{1, 2, 3},
+	}
 
-	go suite.endSrv.Serve(suite.endListener) // nolint: errcheck
+	_, err := httransform.NewServer(suite.ctx, opts)
 
-	suite.status = http.StatusProxyAuthRequired
-	resp, err := suite.client.Get("https://example.com")
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	suite.Equal(resp.StatusCode, http.StatusBadGateway)
-
-	suite.status = http.StatusOK
-	resp, err = suite.client.Get("https://example.com")
-	suite.Nil(err)
-
-	defer resp.Body.Close()
-
-	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
+	suite.Error(err)
 }
 
-func (suite *ServerProxyChainTestSuite) TestChainConnectOnHTTPS() {
-	suite.metrics.On("NewConnection")
-	suite.metrics.On("DropConnection")
-	suite.metrics.On("NewConnect")
-	suite.metrics.On("DropConnect")
-	suite.metrics.On("NewCertificate")
-	suite.metrics.On("DropCertificate")
-	suite.metrics.On("NewGet")
-	suite.metrics.On("DropGet")
+func (suite *ServerTestSuite) TestHTTPRequest() {
+	resp, err := suite.http.Get(suite.httpEndpoint.URL + "/ip")
 
-	certFile, err := ioutil.TempFile("", "")
-	if err != nil {
-		panic(err)
-	}
+	defer func() {
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
 
-	defer os.Remove(certFile.Name())
+	suite.NoError(err)
 
-	if _, err = certFile.Write(testServerCACert); err != nil {
-		panic(err)
-	}
+	data, err := ioutil.ReadAll(resp.Body)
 
-	if err = certFile.Sync(); err != nil {
-		panic(err)
-	}
+	suite.NoError(err)
 
-	certKey, err := ioutil.TempFile("", "")
-	if err != nil {
-		panic(err)
-	}
+	v := map[string]interface{}{}
 
-	defer os.Remove(certKey.Name())
+	suite.NoError(json.Unmarshal(data, &v))
+}
 
-	if _, err = certKey.Write(testServerPrivateKey); err != nil {
-		panic(err)
-	}
+func (suite *ServerTestSuite) TestHTTPSRequest() {
+	resp, err := suite.http.Get(suite.tlsEndpoint.URL + "/ip")
 
-	if err = certKey.Sync(); err != nil {
-		panic(err)
-	}
+	defer func() {
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
 
-	go suite.endSrv.ServeTLS(suite.endListener, certFile.Name(), certKey.Name()) // nolint: errcheck
+	suite.NoError(err)
 
-	suite.status = http.StatusProxyAuthRequired
-	resp, err := suite.client.Get("https://example.com")
-	suite.Nil(err)
+	data, err := ioutil.ReadAll(resp.Body)
 
-	defer resp.Body.Close()
+	suite.NoError(err)
 
-	suite.Equal(resp.StatusCode, http.StatusBadGateway)
+	v := map[string]interface{}{}
 
-	suite.status = http.StatusOK
-	resp, err = suite.client.Get("https://example.com")
-	suite.Nil(err)
+	suite.NoError(json.Unmarshal(data, &v))
+}
 
-	defer resp.Body.Close()
+func (suite *ServerTestSuite) TestHTTPAuthRequired() {
+	httpProxyURL, _ := url.Parse("http://" + suite.ln.Addr().String())
 
-	suite.Equal(resp.StatusCode, http.StatusBadGateway) // TLS response
+	suite.http.Transport.(*http.Transport).Proxy = http.ProxyURL(httpProxyURL)
+
+	resp, err := suite.http.Get(suite.httpEndpoint.URL + "/ip")
+
+	defer func() {
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	suite.NoError(err)
+	suite.Equal(http.StatusProxyAuthRequired, resp.StatusCode)
+}
+
+func (suite *ServerTestSuite) TestHTTPSAuthRequired() {
+	httpProxyURL, _ := url.Parse("http://" + suite.ln.Addr().String())
+
+	suite.http.Transport.(*http.Transport).Proxy = http.ProxyURL(httpProxyURL)
+
+	resp, err := suite.http.Get(suite.tlsEndpoint.URL + "/ip")
+
+	defer func() {
+		if resp != nil {
+			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	suite.Error(err)
 }
 
 func TestServer(t *testing.T) {
 	suite.Run(t, &ServerTestSuite{})
-}
-
-func TestServerProxyChain(t *testing.T) {
-	suite.Run(t, &ServerProxyChainTestSuite{})
 }

@@ -1,4 +1,4 @@
-// Package httransform is the framework to build HTTP proxies in Go.
+// httransform is a framework to build a various MITM proxies.
 //
 // This framework is built using fasthttp
 // (https://github.com/valyala/fasthttp) library to provide fast
@@ -11,7 +11,8 @@
 // This framework provides features to build robust high-performant HTTP
 // and HTTPS proxies (with the support of the CONNECT method and TLS
 // certificate generation on-the-fly), it supports middleware layers and
-// custom executors.
+// custom executors. It is also able to correctly process different http
+// connection upgrades like websocket support.
 //
 // Layers are middlewares which do preprocess of the requests or
 // postprocessing of the response. The thing about layers is that you
@@ -28,45 +29,43 @@
 // can convert the request to JSON, send it somewhere, get ProtoBuf back
 // and convert it to HTTP response. Or you can play with NATS. Or 0mq.
 // Or RabbitMQ. You got the idea. Executor defines the function which
-// converts HTTP request to HTTP response.
+// converts HTTP request to HTTP response. If connection upgrade is
+// required, this is a responsibility of the executor to make it.
 //
 // If any of your layers creates an error, executor won't be called.
 // HTTP response will be converted to 500 response and error would be
 // propagated by the chain of layers back.
 //
-// One scheme worth 1000 words:
+// A Mental Scheme of the Request
 //
-//            HTTP interface            Layer 1             Layer 2
-//          +----------------+      **************      **************
-//          |                |      *            *      *            *       ==============
-//     ---> |  HTTP request  | ===> *  OnRequest * ===> *  OnRequest * ===>  =            =
-//          |                |      *            *      *            *       =            =
-//          +----------------+      **************      **************       =  Executor  =
-//          |                |      *            *      *            *       =            =
-//     <--- |  HTTP response | <=== * OnResponse * <=== * OnResponse * <===  =            =
-//          |                |      *            *      *            *       ==============
-//          +----------------+      **************      **************
+// Just take a look here:
+//
+//           HTTP interface            Layer 1             Layer 2
+//        +----------------+      **************      **************
+//        |                |      *            *      *            *       ==============
+//   ---> |  HTTP request  | ===> *  OnRequest * ===> *  OnRequest * ===>  =            =
+//        |                |      *            *      *            *       =            =
+//        +----------------+      **************      **************       =  Executor  =
+//        |                |      *            *      *            *       =            =
+//   <--- |  HTTP response | <=== * OnResponse * <=== * OnResponse * <===  =            =
+//        |                |      *            *      *            *       ==============
+//        +----------------+      **************      **************
 //
 // As you see, the request goes through the all layers forward and
-// backward. This is a contract of this package. Also, the executor does
-// not raise an error. If the request is finished with an error, it has
-// to be terminated within an executor. If executor got an error, it has
-// to write into HTTP response about it.
+// backward. This is a contract of this package.
 //
-// Not let's see what is happening if OnRequest gives an error:
+// Features
 //
-//            HTTP interface            Layer 1                 Layer 2
-//          +----------------+      **************           **************
-//          |                |      *            *           *            *       ==============
-//     ---> |  HTTP request  | ===> *  OnRequest * ===> X    *  OnRequest *       =            =
-//          |                |      *            *      |    *            *       =            =
-//          +----------------+      **************      |    **************       =  Executor  =
-//          |                |      *            *      |    *            *       =            =
-//     <--- |  HTTP response | <=== * OnResponse * <=== +    * OnResponse *       =            =
-//          |                |      *            *           *            *       ==============
-//          +----------------+      **************           **************
+// 1. Interface of HTTP proxy
 //
-// Almost the same story: the error is propagated back through the
-// layers. On error, httransform generates a default InternalServerError
-// response, and this error returns back through the chain of layers.
+// 2. Interface of HTTPS proxy (e.g CONNECT method)
+//
+// 3. CONNECT method can be used to establish plain TCP tunnels. Upgrade
+// to TLS is not mandatory.
+//
+// 4. Both HTTP request and responses can be processed: headers
+// are added/removed/changed and so on.
+//
+// 5. TCP connection upgrade is supported. Websockets are supported. But
+// by default you can't interfere: you can just watch.
 package httransform

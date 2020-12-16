@@ -1,104 +1,160 @@
-package httransform
+package httransform_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/9seconds/httransform/v2"
+	"github.com/9seconds/httransform/v2/auth"
+	"github.com/9seconds/httransform/v2/events"
+	"github.com/9seconds/httransform/v2/layers"
 	"github.com/stretchr/testify/suite"
 )
 
-type ServerOptsTestSuite struct {
+type OptsTestSuite struct {
 	suite.Suite
 
-	opts ServerOpts
+	o httransform.ServerOpts
 }
 
-func (suite *ServerOptsTestSuite) SetupTest() {
-	suite.opts = ServerOpts{
-		CertCA:           []byte("certca"),
-		CertKey:          []byte("certkey"),
-		OrganizationName: "name",
-	}
+func (suite *OptsTestSuite) SetupTest() {
+	suite.o = httransform.ServerOpts{}
 }
 
-func (suite *ServerOptsTestSuite) TestGetConcurrency() {
-	suite.Equal(suite.opts.GetConcurrency(), DefaultConcurrency)
-	suite.opts.Concurrency = DefaultConcurrency + 1
-	suite.Equal(suite.opts.GetConcurrency(), suite.opts.Concurrency)
+func (suite *OptsTestSuite) TestNil() {
+	var opts *httransform.ServerOpts
+
+	suite.Equal(httransform.DefaultConcurrency, opts.GetConcurrency())
+	suite.Equal(httransform.DefaultReadBufferSize, opts.GetReadBufferSize())
+	suite.Equal(httransform.DefaultWriteBufferSize, opts.GetWriteBufferSize())
+	suite.Equal(httransform.DefaultReadTimeout, opts.GetReadTimeout())
+	suite.Equal(httransform.DefaultWriteTimeout, opts.GetWriteTimeout())
+	suite.Equal(httransform.DefaultTCPKeepAlivePeriod, opts.GetTCPKeepAlivePeriod())
+	suite.NotNil(opts.GetEventProcessorFactory())
+	suite.Empty(opts.GetTLSCertCA())
+	suite.Empty(opts.GetTLSPrivateKey())
+	suite.False(opts.GetTLSSkipVerify())
+	suite.Len(opts.GetLayers(), 2)
+	suite.IsType(auth.NoopAuth{}, opts.GetAuthenticator())
+	suite.Nil(opts.GetExecutor())
 }
 
-func (suite *ServerOptsTestSuite) TestGetReadBufferSize() {
-	suite.Equal(suite.opts.GetReadBufferSize(), DefaultReadBufferSize)
-	suite.opts.ReadBufferSize = DefaultReadBufferSize + 1
-	suite.Equal(suite.opts.GetReadBufferSize(), suite.opts.ReadBufferSize)
+func (suite *OptsTestSuite) TestGetConcurrency() {
+	suite.Equal(httransform.DefaultConcurrency, suite.o.GetConcurrency())
+
+	suite.o.Concurrency = httransform.DefaultConcurrency + 1
+
+	suite.Equal(httransform.DefaultConcurrency+1, suite.o.GetConcurrency())
 }
 
-func (suite *ServerOptsTestSuite) TestGetWriteBufferSize() {
-	suite.Equal(suite.opts.GetWriteBufferSize(), DefaultWriteBufferSize)
-	suite.opts.WriteBufferSize = DefaultWriteBufferSize + 1
-	suite.Equal(suite.opts.GetWriteBufferSize(), suite.opts.WriteBufferSize)
+func (suite *OptsTestSuite) TestGetReadBufferSize() {
+	suite.Equal(httransform.DefaultReadBufferSize, suite.o.GetReadBufferSize())
+
+	suite.o.ReadBufferSize = httransform.DefaultReadBufferSize + 1
+
+	suite.Equal(httransform.DefaultReadBufferSize+1, suite.o.GetReadBufferSize())
 }
 
-func (suite *ServerOptsTestSuite) TestGetReadTimeout() {
-	suite.Equal(suite.opts.GetReadTimeout(), DefaultReadTimeout)
-	suite.opts.ReadTimeout = DefaultReadTimeout + time.Second
-	suite.Equal(suite.opts.GetReadTimeout(), suite.opts.ReadTimeout)
+func (suite *OptsTestSuite) TestGetWriteBufferSize() {
+	suite.Equal(httransform.DefaultWriteBufferSize, suite.o.GetWriteBufferSize())
+
+	suite.o.WriteBufferSize = httransform.DefaultWriteBufferSize + 1
+
+	suite.Equal(httransform.DefaultWriteBufferSize+1, suite.o.GetWriteBufferSize())
 }
 
-func (suite *ServerOptsTestSuite) TestGetWriteTimeout() {
-	suite.Equal(suite.opts.GetWriteTimeout(), DefaultWriteTimeout)
-	suite.opts.WriteTimeout = DefaultWriteTimeout + time.Second
-	suite.Equal(suite.opts.GetWriteTimeout(), suite.opts.WriteTimeout)
+func (suite *OptsTestSuite) TestGetReadTimeout() {
+	suite.Equal(httransform.DefaultReadTimeout, suite.o.GetReadTimeout())
+
+	suite.o.ReadTimeout = httransform.DefaultReadTimeout + time.Second
+
+	suite.Equal(httransform.DefaultReadTimeout+time.Second, suite.o.GetReadTimeout())
 }
 
-func (suite *ServerOptsTestSuite) TestGetCertCA() {
-	suite.Equal(suite.opts.GetCertCA(), []byte("certca"))
+func (suite *OptsTestSuite) TestGetWriteTimeout() {
+	suite.Equal(httransform.DefaultWriteTimeout, suite.o.GetWriteTimeout())
+
+	suite.o.WriteTimeout = httransform.DefaultWriteTimeout + time.Second
+
+	suite.Equal(httransform.DefaultWriteTimeout+time.Second, suite.o.GetWriteTimeout())
 }
 
-func (suite *ServerOptsTestSuite) TestGetCertKey() {
-	suite.Equal(suite.opts.GetCertKey(), []byte("certkey"))
+func (suite *OptsTestSuite) TestGetTCPKeepAlivePeriod() {
+	suite.Equal(httransform.DefaultTCPKeepAlivePeriod, suite.o.GetTCPKeepAlivePeriod())
+
+	suite.o.TCPKeepAlivePeriod = httransform.DefaultTCPKeepAlivePeriod + time.Second
+
+	suite.Equal(httransform.DefaultTCPKeepAlivePeriod+time.Second, suite.o.GetTCPKeepAlivePeriod())
 }
 
-func (suite *ServerOptsTestSuite) TestGetOrganizationName() {
-	suite.Equal(suite.opts.GetOrganizationName(), "name")
+func (suite *OptsTestSuite) TestGetMaxRequestBodySize() {
+	suite.Equal(httransform.DefaultMaxRequestBodySize, suite.o.GetMaxRequestBodySize())
+
+	suite.o.MaxRequestBodySize = httransform.DefaultMaxRequestBodySize + 1
+
+	suite.Equal(httransform.DefaultMaxRequestBodySize+1, suite.o.GetMaxRequestBodySize())
 }
 
-func (suite *ServerOptsTestSuite) TestGetTLSCertCacheSize() {
-	suite.Equal(suite.opts.GetTLSCertCacheSize(), DefaultTLSCertCacheSize)
-	suite.opts.TLSCertCacheSize = DefaultTLSCertCacheSize + 1
-	suite.Equal(suite.opts.GetTLSCertCacheSize(), suite.opts.TLSCertCacheSize)
+func (suite *OptsTestSuite) TestGetEventProcessorFactory() {
+	suite.NotNil(suite.o.GetEventProcessorFactory())
+
+	suite.o.EventProcessorFactory = func() events.Processor { return nil }
+
+	// https://github.com/stretchr/testify/issues/182
+	suite.NotNil(suite.o.GetEventProcessorFactory())
 }
 
-func (suite *ServerOptsTestSuite) TestGetTracerPool() {
-	suite.Equal(suite.opts.GetTracerPool(), defaultNoopTracerPool)
-	suite.opts.TracerPool = NewTracerPool(func() Tracer { return nil })
-	suite.Equal(suite.opts.GetTracerPool(), suite.opts.TracerPool)
+func (suite *OptsTestSuite) TestGetTLSCertCA() {
+	suite.Empty(suite.o.GetTLSCertCA())
+
+	suite.o.TLSCertCA = []byte("hello")
+
+	suite.Equal("hello", string(suite.o.GetTLSCertCA()))
 }
 
-func (suite *ServerOptsTestSuite) TestGetExecutor() {
-	suite.NotNil(suite.opts.GetExecutor())
-	suite.opts.Executor = func(_ *LayerState) {}
-	suite.NotNil(suite.opts.GetExecutor())
+func (suite *OptsTestSuite) TestGetTLSPrivateKey() {
+	suite.Empty(suite.o.GetTLSPrivateKey())
+
+	suite.o.TLSPrivateKey = []byte("hello")
+
+	suite.Equal("hello", string(suite.o.GetTLSPrivateKey()))
 }
 
-func (suite *ServerOptsTestSuite) TestGetLayers() {
-	suite.Len(suite.opts.GetLayers(), 0)
-	suite.opts.Layers = []Layer{nil}
-	suite.Len(suite.opts.GetLayers(), 1)
+func (suite *OptsTestSuite) TestGetTLSSkipVerify() {
+	suite.False(suite.o.GetTLSSkipVerify())
+
+	suite.o.TLSSkipVerify = true
+
+	suite.True(suite.o.GetTLSSkipVerify())
 }
 
-func (suite *ServerOptsTestSuite) TestGetLogger() {
-	suite.IsType(&NoopLogger{}, suite.opts.GetLogger())
-	suite.opts.Logger = &StdLogger{}
-	suite.IsType(&StdLogger{}, suite.opts.GetLogger())
+func (suite *OptsTestSuite) TestGetLayers() {
+	suite.Len(suite.o.GetLayers(), 2)
+
+    lr := layers.TimeoutLayer{Timeout: time.Second}
+
+	suite.o.Layers = []layers.Layer{lr}
+
+	suite.Len(suite.o.GetLayers(), 3)
+    suite.Equal(lr, suite.o.GetLayers()[1])
 }
 
-func (suite *ServerOptsTestSuite) TestGetMetrics() {
-	suite.IsType(&NoopMetrics{}, suite.opts.GetMetrics())
-	suite.opts.Metrics = &MockMetrics{}
-	suite.IsType(&MockMetrics{}, suite.opts.GetMetrics())
+func (suite *OptsTestSuite) TestGetAuthenticator() {
+    suite.IsType(auth.NoopAuth{}, suite.o.GetAuthenticator())
+
+    suite.o.Authenticator = auth.NewBasicAuth(nil)
+
+    suite.Equal(suite.o.Authenticator, suite.o.GetAuthenticator())
 }
 
-func TestServerOpts(t *testing.T) {
-	suite.Run(t, &ServerOptsTestSuite{})
+func (suite *OptsTestSuite) TestGetExecutor() {
+    suite.Nil(suite.o.GetExecutor())
+
+    suite.o.Executor = func(_ *layers.Context) error { return nil }
+
+    suite.NotNil(suite.o.GetExecutor())
+}
+
+func TestOpts(t *testing.T) {
+	suite.Run(t, &OptsTestSuite{})
 }

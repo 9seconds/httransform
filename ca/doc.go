@@ -1,4 +1,4 @@
-// Package ca contains functions to manage lifecycle of TLS CA.
+// Lifecycle management of generated TLS certificates.
 //
 // This CA is required to generate TLS certificate for hostnames on the
 // fly. It uses self-signed certificate + its primary key (or, if you
@@ -7,6 +7,8 @@
 //
 // The certificates are generated in determenistic way derived from your
 // CA private key so please keep it is secret.
+//
+// How to generate your own pair
 //
 // To generate your own set of CA certificate and private key, please
 // use the following command line:

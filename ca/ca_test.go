@@ -1,13 +1,16 @@
-package ca
+package ca_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/9seconds/httransform/v2/ca"
+	"github.com/9seconds/httransform/v2/events"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-var testCaCACert = []byte(`-----BEGIN CERTIFICATE-----
+var CACert = []byte(`-----BEGIN CERTIFICATE-----
 MIICWzCCAcSgAwIBAgIJAJ34yk7oiKv5MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 aWRnaXRzIFB0eSBMdGQwHhcNMTgxMjAyMTQyNTAyWhcNMjgxMTI5MTQyNTAyWjBF
@@ -23,7 +26,7 @@ s7P0wJ8ON8ieEJe4pAfACpL6IyhZ5YK/C/hip+czxdvZHc5zngVwHP2vsIcHKBTr
 rMk/LWMzH/S6bLcsAm0GfVIrUNfg0eF0ZVIjxINBVA==
 -----END CERTIFICATE-----`)
 
-var testCaPrivateKey = []byte(`-----BEGIN PRIVATE KEY-----
+var PrivateKey = []byte(`-----BEGIN PRIVATE KEY-----
 MIICdwIBADANBgkqhkiG9w0BAQEFAASCAmEwggJdAgEAAoGBAMvsfN+bHvF8VZNG
 bbq3+UuwJnA6uLpUjOnZ1gzkenR1XhdRn6rrScRsfA3dSysYoAr9Gyv0JpqbcDXx
 SmfaXLr1PKvb2RUr4+Ww6BJIJScBhypPXrr+PbTmfcIY0ss4+1Ap8BP+Ifd08E5t
@@ -40,53 +43,56 @@ npjRm++Rs1AdvoIbZb52OqIoqoaVoxJnVchLD6t5LYXnecesAcok1e8CQEKB7ycJ
 4J45NsSQjuuAAWs=
 -----END PRIVATE KEY-----`)
 
-type MockCertificateMetrics struct {
+type EventChannelMock struct {
 	mock.Mock
 }
 
-func (m *MockCertificateMetrics) NewCertificate() {
-	m.Called()
-}
-
-func (m *MockCertificateMetrics) DropCertificate() {
-	m.Called()
+func (e *EventChannelMock) Send(ctx context.Context, eventType events.EventType, value interface{}, shardKey string) {
+	e.Called(ctx, eventType, value, shardKey)
 }
 
 type CATestSuite struct {
 	suite.Suite
 
-	ca   *CA
-	mock *MockCertificateMetrics
+	ca                 *ca.CA
+	mockedEventChannel *EventChannelMock
+	cancel             context.CancelFunc
 }
 
 func (suite *CATestSuite) SetupTest() {
-	suite.mock = &MockCertificateMetrics{}
-
-	ca, err := NewCA(testCaCACert, testCaPrivateKey, suite.mock, -1, []string{"name"})
-	if err != nil {
-		panic(err)
-	}
-
-	suite.ca = ca
-}
-
-func (suite *CATestSuite) TestDoubleGet() {
-	suite.mock.On("NewCertificate").Once()
-	suite.mock.On("DropCertificate").Maybe()
-
-	conf1, err := suite.ca.Get("hostname")
-	suite.NoError(err)
-
-	conf2, err := suite.ca.Get("hostname")
-	suite.NoError(err)
-
-	suite.Equal(conf1.Certificates[0].PrivateKey, conf2.Certificates[0].PrivateKey)
-	suite.Equal(conf1.Certificates[0].Certificate[0], conf2.Certificates[0].Certificate[0])
+	ctx, cancel := context.WithCancel(context.Background())
+	suite.cancel = cancel
+	suite.mockedEventChannel = &EventChannelMock{}
+	suite.ca, _ = ca.NewCA(ctx, suite.mockedEventChannel, CACert, PrivateKey)
 }
 
 func (suite *CATestSuite) TearDownTest() {
-	suite.mock.AssertExpectations(suite.T())
-	suite.ca.Close()
+	suite.mockedEventChannel.AssertExpectations(suite.T())
+}
+
+func (suite *CATestSuite) TestDoubleGet() {
+	suite.mockedEventChannel.On("Send",
+		mock.Anything,
+		events.EventTypeNewCertificate,
+		"hostname.com",
+		"hostname.com",
+		mock.Anything,
+	).Once()
+
+	conf1, err := suite.ca.Get("hostname.com")
+
+	suite.NoError(err)
+	suite.NotNil(conf1)
+
+	conf2, err := suite.ca.Get("hostname.com")
+
+	suite.NoError(err)
+	suite.NotNil(conf2)
+
+	suite.Equal(conf1.Certificates[0].PrivateKey, conf2.Certificates[0].PrivateKey)
+	suite.Equal(conf1.Certificates[0].Certificate[0], conf2.Certificates[0].Certificate[0])
+	suite.Equal(conf1.ServerName, conf2.ServerName)
+	suite.Equal("hostname.com", conf1.ServerName)
 }
 
 func TestCA(t *testing.T) {

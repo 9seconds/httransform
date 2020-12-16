@@ -51,13 +51,13 @@ func (s *Server) Close() error {
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 	user, err := s.authenticator.Authenticate(ctx)
 	if err != nil {
-		var customErr *errors.Error
-
-		if !errors.As(err, &customErr) {
-			customErr = errors.Annotate(err, "authenication is failed", "bad_auth", fasthttp.StatusProxyAuthRequired)
+		errToReturn := &errors.Error{
+			Message:    "authenication is failed",
+			StatusCode: fasthttp.StatusProxyAuthRequired,
+			Err:        err,
 		}
 
-		customErr.WriteTo(ctx)
+		errToReturn.WriteTo(ctx)
 		ctx.Response.Header.Add("Proxy-Authenticate", "Basic")
 		s.eventStream.Send(ctx, events.EventTypeFailedAuth, nil, "")
 
@@ -71,7 +71,13 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 
 		address, err := s.extractAddress(string(ctx.RequestURI()), true)
 		if err != nil {
-			ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
+			errToReturn := &errors.Error{
+				Message:    "cannot extract a host for tunneled connection",
+				StatusCode: fasthttp.StatusBadGateway,
+				Err:        err,
+			}
+
+			errToReturn.WriteTo(ctx)
 
 			return
 		}
@@ -84,7 +90,13 @@ func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
 
 	address, err := s.extractAddress(string(ctx.Host()), false)
 	if err != nil {
-		ctx.Error(fmt.Sprintf("cannot extract a host for tunneled connection: %s", err.Error()), fasthttp.StatusBadRequest)
+		errToReturn := &errors.Error{
+			Message:    "cannot extract a host for tunneled connection",
+			StatusCode: fasthttp.StatusBadGateway,
+			Err:        err,
+		}
+
+		errToReturn.WriteTo(ctx)
 
 		return
 	}
@@ -217,7 +229,6 @@ func (s *Server) completeRequestType(ctx *layers.Context) {
 	ctx.Request().Header.VisitAll(func(key, value []byte) {
 		if bytes.EqualFold(key, []byte("Connection")) {
 			values := headers.Values(string(value))
-			ctx.RequestType &^= events.RequestTypeUpgraded
 
 			for i := range values {
 				if strings.EqualFold(values[i], "Upgrade") {

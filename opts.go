@@ -63,7 +63,7 @@ type ServerOpts struct {
 	// WriteTimeout defines a timeout for writing to client socket.
 	WriteTimeout time.Duration
 
-	// TCPKeepAlivePeriod defines a time period between 2 consequtive
+	// TCPKeepAlivePeriod defines a time period between 2 consecutive
 	// TCP keepalive probes.
 	TCPKeepAlivePeriod time.Duration
 
@@ -210,7 +210,7 @@ func (s *ServerOpts) GetLayers() []layers.Layer {
 	return toReturn
 }
 
-// GetLayers returns an authenticator instanse to use paying attention
+// GetLayers returns an authenticator instance to use paying attention
 // to default value (no auth).
 func (s *ServerOpts) GetAuthenticator() auth.Interface {
 	if s == nil || s.Authenticator == nil {

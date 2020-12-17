@@ -85,7 +85,7 @@ func defaultExecutorConnectionUpgrade(ctx *layers.Context, conn net.Conn) error 
 		upgrader := upgrades.AcquireTCP(upgrades.NoopTCPReactor{})
 		defer upgrades.ReleaseTCP(upgrader)
 
-		upgrader.Manage(ctx, clientConn, netlocConn)
+		upgrader.Manage(clientConn, netlocConn)
 	})
 
 	return nil

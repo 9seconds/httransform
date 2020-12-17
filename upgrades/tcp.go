@@ -35,8 +35,8 @@ type tcpInterface struct {
 	netlocBuffer []byte
 }
 
-func (t *tcpInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
-	ctx, cancel := context.WithCancel(ctx)
+func (t *tcpInterface) Manage(clientConn, netlocConn net.Conn) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	wg := &sync.WaitGroup{}

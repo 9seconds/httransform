@@ -37,7 +37,7 @@ func (suite *WebsocketTestSuite) TestPump() {
 	suite.netlocConn.On("Write", mock.Anything).Return(5, nil)
 	suite.netlocConn.On("Close").Return(nil)
 
-	suite.up.Manage(suite.ctx, suite.clientConn, suite.netlocConn)
+	suite.up.Manage(suite.clientConn, suite.netlocConn)
 	time.Sleep(50 * time.Millisecond)
 
 	msgs, err := wsutil.ReadClientMessage(&suite.netlocConn.WriteBuffer, nil)

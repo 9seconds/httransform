@@ -23,8 +23,8 @@ type websocketInterface struct {
 	netlocBuffer []byte
 }
 
-func (w *websocketInterface) Manage(ctx context.Context, clientConn, netlocConn net.Conn) {
-	ctx, cancel := context.WithCancel(ctx)
+func (w *websocketInterface) Manage(clientConn, netlocConn net.Conn) {
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	wg := &sync.WaitGroup{}

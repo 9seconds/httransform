@@ -2,7 +2,6 @@ package upgrades_test
 
 import (
 	"bytes"
-	"context"
 	"net"
 	"time"
 
@@ -60,18 +59,14 @@ type UpgradesTestSuite struct {
 	up         upgrades.Interface
 	clientConn *MockConn
 	netlocConn *MockConn
-	ctx        context.Context
-	ctxCancel  context.CancelFunc
 }
 
 func (suite *UpgradesTestSuite) SetupTest() {
 	suite.clientConn = &MockConn{}
 	suite.netlocConn = &MockConn{}
-	suite.ctx, suite.ctxCancel = context.WithCancel(context.Background())
 }
 
 func (suite *UpgradesTestSuite) TearDownTest() {
-	suite.ctxCancel()
 	suite.clientConn.AssertExpectations(suite.T())
 	suite.netlocConn.AssertExpectations(suite.T())
 }

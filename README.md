@@ -3,7 +3,7 @@ httransform
 
 [![Build Status](https://github.com/9seconds/httransform/workflows/CI/badge.svg)](https://github.com/9seconds/httransform)
 [![codecov](https://codecov.io/gh/9seconds/httransform/branch/master/graph/badge.svg?token=cyMF66trUZ)](https://codecov.io/gh/9seconds/httransform)
-[![GoDoc Reference](https://camo.githubusercontent.com/7540274b4c20318e1b1f2d8abe11ba136c926233/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f76616c79616c612f66617374687474703f7374617475732e737667)](https://pkg.go.dev/github.com/9seconds/httransform)
+[![Go Reference](https://pkg.go.dev/badge/github.com/9seconds/httransform/v2.svg)](https://pkg.go.dev/github.com/9seconds/httransform/v2)
 
 httransform is the library/framework to build your own HTTP
 proxies. It relies on high-performant and memory-efficient
@@ -28,7 +28,7 @@ Main features of this framework:
    ability to look into them.
 
 Please check the [full
-documentation](https://pkg.go.dev/github.com/9seconds/httransform) for
+documentation](https://pkg.go.dev/github.com/9seconds/httransform/v2) for
 more details.
 
 Example

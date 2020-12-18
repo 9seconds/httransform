@@ -49,6 +49,6 @@ install-tools-godoc:
 	@mkdir -p "$(GOBIN)" || true && \
 		$(GOTOOL) go get -u golang.org/x/tools/cmd/godoc
 
-.PHONY: update-deps
+.PHONY: upgrade-deps
 upgrade-deps:
-	$go get -u && go mod tidy
+	@go get -u && go mod tidy

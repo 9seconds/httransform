@@ -3,6 +3,7 @@ package ca_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/9seconds/httransform/v2/ca"
 	"github.com/9seconds/httransform/v2/events"
@@ -83,6 +84,9 @@ func (suite *CATestSuite) TestDoubleGet() {
 
 	suite.NoError(err)
 	suite.NotNil(conf1)
+
+	// this is required for eventual consistency of the cache
+	time.Sleep(time.Second)
 
 	conf2, err := suite.ca.Get("hostname.com")
 

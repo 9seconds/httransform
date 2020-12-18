@@ -24,6 +24,7 @@ func (suite *CacheTestSuite) TestGetNothing() {
 
 func (suite *CacheTestSuite) TestAddGet() {
 	suite.cache.Add("key", 1)
+	time.Sleep(10 * time.Millisecond)
 	suite.EqualValues(1, suite.cache.Get("key"))
 }
 
@@ -43,6 +44,12 @@ func (suite *CacheTestSuite) TestEvict() {
 	suite.Eventually(func() bool {
 		return cc.Get("key") == nil
 	}, time.Second, 50*time.Millisecond)
+
+	// 5 seconds are taken from dgraph sources. This is quite related to
+	// how version 0.0.3 is made there.
+	suite.Eventually(func() bool {
+		return foundKey != ""
+	}, 5*time.Second, 50*time.Millisecond)
 
 	suite.Equal("key", foundKey)
 	suite.EqualValues(1, foundValue)

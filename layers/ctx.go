@@ -51,6 +51,10 @@ type Context struct {
 	//
 	// Underlying fasthttp.Request headers are going to be dropped
 	// before sending a request and repopulated from this one.
+	//
+	// If you implement a middleware, you should update this set only on
+	// OnRequest chain flow. Please do not update them in any OnResponse
+	// handler.
 	RequestHeaders headers.Headers
 
 	// ResponseHeaders is a headers of the response.
@@ -61,6 +65,10 @@ type Context struct {
 	//
 	// Underlying fasthttp.Response headers are going to be dropped before
 	// sending a response and repopulated from this one.
+	//
+	// If you implement a middleware, you should update this set only on
+	// OnResponse chain flow. Please do not update them in any OnRequest
+	// handler.
 	ResponseHeaders headers.Headers
 
 	ctxCancel   context.CancelFunc
@@ -174,7 +182,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
 	eventStream events.Stream,
 	user string,
-	requestType events.RequestType) {
+	requestType events.RequestType) error {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.RequestID = uuid.Must(uuid.NewV4()).String()
@@ -194,6 +202,16 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	} else {
 		uri.SetScheme("http")
 	}
+
+	c.RequestHeaders.Reset(headers.NewRequestHeaderWrapper(&fasthttpCtx.Request.Header))
+	c.ResponseHeaders.Reset(headers.NewResponseHeaderWrapper(&fasthttpCtx.Response.Header))
+
+	if err := c.RequestHeaders.Pull(); err != nil {
+		return errors.Annotate(err,
+			"cannot read request headers", "sync_headers", fasthttp.StatusBadRequest)
+	}
+
+	return nil
 }
 
 // Reset resets a state of the given context. It also cancels it if
@@ -215,8 +233,8 @@ func (c *Context) Reset() {
 	c.ConnectTo = ""
 	c.User = ""
 
-	c.RequestHeaders.Reset()
-	c.ResponseHeaders.Reset()
+	c.RequestHeaders.Reset(nil)
+	c.ResponseHeaders.Reset(nil)
 
 	for key := range c.values {
 		delete(c.values, key)

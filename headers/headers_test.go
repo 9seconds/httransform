@@ -28,7 +28,13 @@ func (suite *HeadersTestSuite) SetupTest() {
 	wrapper := headers.NewRequestHeaderWrapper(suite.original)
 
 	suite.NoError(wrapper.Read(strings.NewReader(req)))
-	suite.NoError(suite.hdrs.Init(wrapper))
+
+    suite.hdrs.Reset(wrapper)
+    suite.NoError(suite.hdrs.Pull())
+}
+
+func (suite *HeadersTestSuite) TearDownTest() {
+	headers.ReleaseHeaderSet(suite.hdrs)
 }
 
 func (suite *HeadersTestSuite) TestCheckHeaders() {
@@ -213,15 +219,11 @@ func (suite *HeadersTestSuite) TestRemoveExact() {
 	suite.Len(suite.hdrs.GetAll("accept-encoding"), 1)
 }
 
-func (suite *HeadersTestSuite) TestSync() {
+func (suite *HeadersTestSuite) TestPush() {
 	suite.hdrs.Append("accept-encoding", "hello")
 
-	suite.NoError(suite.hdrs.Sync())
-    suite.Contains(string(suite.original.RawHeaders()), "accept-encoding: ")
-}
-
-func (suite *HeadersTestSuite) TearDownTest() {
-	headers.ReleaseHeaderSet(suite.hdrs)
+	suite.NoError(suite.hdrs.Push())
+	suite.Contains(string(suite.original.RawHeaders()), "accept-encoding: ")
 }
 
 func TestHeaders(t *testing.T) {

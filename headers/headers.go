@@ -227,9 +227,17 @@ func (h *Headers) Append(name, value string) {
 	})
 }
 
-// Sync resets underlying fasthttp Header structure and restores it
+// Reset rebinds Headers to corresponding fasthttp data structure.
+func (h *Headers) Reset(original FastHTTPHeaderWrapper) {
+	h.Headers = h.Headers[:0]
+	h.original = original
+}
+
+// Push resets underlying fasthttp Header structure and restores it
 // based on a given header list.
-func (h *Headers) Sync() error {
+//
+// Ananlogy: git push where origin is fasthttp.Header.
+func (h *Headers) Push() error {
 	if h.original == nil {
 		return nil
 	}
@@ -239,11 +247,11 @@ func (h *Headers) Sync() error {
 	buf := acquireBytesBuffer()
 	defer releaseBytesBuffer(buf)
 
-	if err := h.syncWriteFirstLine(buf); err != nil {
+	if err := h.pushFirstLine(buf); err != nil {
 		return errors.Annotate(err, "cannot get a first line", "headers_sync", 0)
 	}
 
-	h.syncWriteHeaders(buf)
+	h.pushHeaders(buf)
 
 	if err := h.original.Read(buf); err != nil {
 		return errors.Annotate(err, "cannot parse given headers", "headers_sync", 0)
@@ -258,7 +266,7 @@ func (h *Headers) Sync() error {
 	return nil
 }
 
-func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
+func (h *Headers) pushFirstLine(buf *bytes.Buffer) error {
 	bytesReader := acquireBytesReader(h.original.Headers())
 	defer releaseBytesReader(bytesReader)
 
@@ -279,7 +287,7 @@ func (h *Headers) syncWriteFirstLine(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (h *Headers) syncWriteHeaders(buf *bytes.Buffer) {
+func (h *Headers) pushHeaders(buf *bytes.Buffer) {
 	for i := range h.Headers {
 		buf.WriteString(h.Headers[i].name)
 		buf.WriteByte(':')
@@ -293,23 +301,18 @@ func (h *Headers) syncWriteHeaders(buf *bytes.Buffer) {
 	buf.WriteByte('\n')
 }
 
-func (h *Headers) Reset() {
+// Pull reads underlying fasthttp.Header and fills a header list with
+// its contents.
+//
+// Ananlogy: git pull where origin is fasthttp.Header.
+func (h *Headers) Pull() error {
 	h.Headers = h.Headers[:0]
-	h.original = nil
-}
 
-// Init initializes a Headers datastructure based on given fasthttp
-// Header. It also binds to it so corresponding Syncs work correctly.
-func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
-	h.Reset()
-
-	if original == nil {
+	if h.original == nil {
 		return nil
 	}
 
-	h.original = original
-
-	bytesReader := acquireBytesReader(original.Headers())
+	bytesReader := acquireBytesReader(h.original.Headers())
 	defer releaseBytesReader(bytesReader)
 
 	bufReader := acquireBufioReader(bytesReader)
@@ -330,15 +333,11 @@ func (h *Headers) Init(original FastHTTPHeaderWrapper) error {
 		}
 
 		if err != nil {
-			h.Reset()
-
 			return errors.Annotate(err, "cannot parse headers", "headers_init", 0)
 		}
 
 		colPosition := bytes.IndexByte(line, ':')
 		if colPosition < 0 {
-			h.Reset()
-
 			return errors.Annotate(err, "malformed header "+string(line), "headers_init", 0)
 		}
 
@@ -375,6 +374,6 @@ func AcquireHeaderSet() *Headers {
 // ReleaseHeaderSet resets a Headers and returns it back to a pool.
 // You should not use an instance of that header after this operation.
 func ReleaseHeaderSet(set *Headers) {
-	set.Reset()
+	set.Reset(nil)
 	poolHeaderSet.Put(set)
 }

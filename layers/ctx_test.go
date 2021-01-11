@@ -1,9 +1,11 @@
 package layers_test
 
 import (
+	"bufio"
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/9seconds/httransform/v2/errors"
@@ -29,16 +31,24 @@ func (suite *ContextTestSuite) SetupTest() {
 		Port: 65342,
 	}
 
-	suite.fhttpCtx.Init(&fasthttp.Request{}, remoteAddr, nil)
+	request := &fasthttp.Request{}
+	rawReqReader := bufio.NewReader(
+		strings.NewReader("GET / HTTP1.1\r\nHost: google.com\r\n\r\n"))
+
+	if err := request.Read(rawReqReader); err != nil {
+		panic(err)
+	}
+
+	suite.fhttpCtx.Init(request, remoteAddr, nil)
 
 	suite.ctx = layers.AcquireContext()
 	suite.eventsChannel = &EventChannelMock{}
 
-	suite.ctx.Init(suite.fhttpCtx,
+	suite.NoError(suite.ctx.Init(suite.fhttpCtx,
 		"127.0.0.1:8000",
 		suite.eventsChannel,
 		"user",
-		events.RequestTypeTLS)
+		events.RequestTypeTLS))
 }
 
 func (suite *ContextTestSuite) TearDownTest() {
@@ -104,6 +114,25 @@ func (suite *ContextTestSuite) TestRespond() {
 	suite.Equal("message", string(resp.Body()))
 	suite.Equal(fasthttp.StatusBadGateway, resp.StatusCode())
 	suite.Equal("text/plain", string(resp.Header.ContentType()))
+}
+
+func (suite *ContextTestSuite) TestErrorRequest() {
+	ctx := layers.AcquireContext()
+	defer layers.ReleaseContext(ctx)
+
+	fhttpCtx := &fasthttp.RequestCtx{}
+	remoteAddr := &net.TCPAddr{
+		IP:   net.ParseIP("127.0.0.1"),
+		Port: 65342,
+	}
+
+	fhttpCtx.Init(&fasthttp.Request{}, remoteAddr, nil)
+
+	suite.Error(ctx.Init(fhttpCtx,
+		"127.0.0.1:8000",
+		suite.eventsChannel,
+		"user",
+		events.RequestTypeTLS))
 }
 
 func (suite *ContextTestSuite) TestErrorGeneril() {

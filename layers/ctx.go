@@ -51,6 +51,10 @@ type Context struct {
 	//
 	// Underlying fasthttp.Request headers are going to be dropped
 	// before sending a request and repopulated from this one.
+	//
+	// If you implement a middleware, you should update this set only on
+	// OnRequest chain flow. Please do not update them in any OnResponse
+	// handler.
 	RequestHeaders headers.Headers
 
 	// ResponseHeaders is a headers of the response.
@@ -61,6 +65,10 @@ type Context struct {
 	//
 	// Underlying fasthttp.Response headers are going to be dropped before
 	// sending a response and repopulated from this one.
+	//
+	// If you implement a middleware, you should update this set only on
+	// OnResponse chain flow. Please do not update them in any OnRequest
+	// handler.
 	ResponseHeaders headers.Headers
 
 	ctxCancel   context.CancelFunc

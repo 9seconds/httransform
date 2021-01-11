@@ -165,7 +165,17 @@ func (s *Server) runMain(ctx *fasthttp.RequestCtx, address, user string, request
 	ownCtx := layers.AcquireContext()
 	defer layers.ReleaseContext(ownCtx)
 
-	ownCtx.Init(ctx, address, s.eventStream, user, requestType)
+	if err := ownCtx.Init(ctx, address, s.eventStream, user, requestType); err != nil {
+		errToReturn := &errors.Error{
+			Message: "cannot execute this request",
+			Err:     err,
+		}
+
+		errToReturn.WriteTo(ctx)
+
+		return false
+	}
+
 	s.main(ownCtx)
 
 	return ownCtx.Hijacked()

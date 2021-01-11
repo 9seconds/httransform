@@ -236,7 +236,7 @@ func (h *Headers) Reset(original FastHTTPHeaderWrapper) {
 // Push resets underlying fasthttp Header structure and restores it
 // based on a given header list.
 //
-// Ananlogy: git push where origin is fasthttp.Header
+// Ananlogy: git push where origin is fasthttp.Header.
 func (h *Headers) Push() error {
 	if h.original == nil {
 		return nil
@@ -303,6 +303,8 @@ func (h *Headers) pushHeaders(buf *bytes.Buffer) {
 
 // Pull reads underlying fasthttp.Header and fills a header list with
 // its contents.
+//
+// Ananlogy: git pull where origin is fasthttp.Header.
 func (h *Headers) Pull() error {
 	h.Headers = h.Headers[:0]
 

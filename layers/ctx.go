@@ -203,7 +203,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 			"cannot read request headers", "sync_headers", fasthttp.StatusBadRequest)
 	}
 
-    return nil
+	return nil
 }
 
 // Reset resets a state of the given context. It also cancels it if

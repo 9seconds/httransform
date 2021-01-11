@@ -19,7 +19,7 @@ require (
 	github.com/valyala/fasthttp v1.18.0
 	github.com/valyala/fastrand v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/net v0.0.0-20201216054612-986b41b23924
+	golang.org/x/net v0.0.0-20201224014010-6772e930b67b
 	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e // indirect
 )
 

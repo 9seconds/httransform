@@ -174,7 +174,7 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	connectTo string,
 	eventStream events.Stream,
 	user string,
-	requestType events.RequestType) {
+	requestType events.RequestType) error {
 	ctx, cancel := context.WithCancel(fasthttpCtx)
 
 	c.RequestID = uuid.Must(uuid.NewV4()).String()
@@ -194,6 +194,16 @@ func (c *Context) Init(fasthttpCtx *fasthttp.RequestCtx,
 	} else {
 		uri.SetScheme("http")
 	}
+
+	c.RequestHeaders.Reset(headers.NewRequestHeaderWrapper(&fasthttpCtx.Request.Header))
+	c.ResponseHeaders.Reset(headers.NewResponseHeaderWrapper(&fasthttpCtx.Response.Header))
+
+	if err := c.RequestHeaders.Pull(); err != nil {
+		return errors.Annotate(err,
+			"cannot read request headers", "sync_headers", fasthttp.StatusBadRequest)
+	}
+
+    return nil
 }
 
 // Reset resets a state of the given context. It also cancels it if
@@ -215,8 +225,8 @@ func (c *Context) Reset() {
 	c.ConnectTo = ""
 	c.User = ""
 
-	c.RequestHeaders.Reset()
-	c.ResponseHeaders.Reset()
+	c.RequestHeaders.Reset(nil)
+	c.ResponseHeaders.Reset(nil)
 
 	for key := range c.values {
 		delete(c.values, key)

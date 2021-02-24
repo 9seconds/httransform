@@ -305,7 +305,7 @@ func (h *Headers) pushHeaders(buf *bytes.Buffer) {
 // its contents.
 //
 // Ananlogy: git pull where origin is fasthttp.Header.
-func (h *Headers) Pull() error {
+func (h *Headers) Pull() error { // nolint: cyclop
 	h.Headers = h.Headers[:0]
 
 	if h.original == nil {

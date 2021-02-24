@@ -27,7 +27,9 @@ func (h *httpProxy) Dial(ctx context.Context, host, port string) (net.Conn, erro
 	return h.baseDialer.Dial(ctx, h.proxyHost, h.proxyPort)
 }
 
-func (h *httpProxy) UpgradeToTLS(ctx context.Context, conn net.Conn, host, port string) (net.Conn, error) {
+func (h *httpProxy) UpgradeToTLS(ctx context.Context, // nolint: cyclop
+	conn net.Conn,
+	host, port string) (net.Conn, error) {
 	subCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

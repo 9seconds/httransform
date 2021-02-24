@@ -16,9 +16,8 @@ type ipWhitelist struct {
 
 func (i *ipWhitelist) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 	ip := ctx.RemoteIP()
-	ip4 := ip.To4()
 
-	if ip4 != nil {
+	if ip4 := ip.To4(); ip4 != nil {
 		addr := patricia.NewIPv4AddressFromBytes(ip4, 32)
 
 		if ok, user, err := i.v4.FindDeepestTag(addr); ok && err == nil {

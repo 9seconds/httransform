@@ -76,7 +76,7 @@ func (e EventType) IsUser() bool {
 }
 
 // String conforms fmt.Stringer interface.
-func (e EventType) String() string {
+func (e EventType) String() string { // nolint: cyclop
 	switch e {
 	case EventTypeNotSet:
 		return "NOT_SET"

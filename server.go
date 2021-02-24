@@ -295,6 +295,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 					WriteTimeout:                  oopts.GetWriteTimeout(),
 					TCPKeepalivePeriod:            oopts.GetTCPKeepAlivePeriod(),
 					MaxRequestBodySize:            oopts.GetMaxRequestBodySize(),
+					StreamRequestBody:             true,
 					DisableKeepalive:              false,
 					TCPKeepalive:                  true,
 					DisableHeaderNamesNormalizing: true,

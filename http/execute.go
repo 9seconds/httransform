@@ -43,7 +43,7 @@ func Execute(ctx context.Context, // nolint: funlen, cyclop
 
 	bufReader := acquireBufioReader(conn)
 
-	for code := fasthttp.StatusContinue; code == fasthttp.StatusContinue; code = response.Header.StatusCode() {
+	for code := fasthttp.StatusContinue; code < fasthttp.StatusOK; code = response.Header.StatusCode() {
 		if err := response.Header.Read(bufReader); err != nil {
 			releaseBufioReader(bufReader)
 

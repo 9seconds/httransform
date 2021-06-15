@@ -15,6 +15,7 @@ func (r requestHeaderWrapper) Read(rd io.Reader) error {
 	method := append([]byte(nil), r.ref.Method()...)
 	requestURI := append([]byte(nil), r.ref.RequestURI()...)
 	host := append([]byte(nil), r.ref.Host()...)
+	protocol := append([]byte(nil), r.ref.Protocol()...)
 
 	r.ref.Reset()
 	r.ref.DisableNormalizing()
@@ -26,6 +27,7 @@ func (r requestHeaderWrapper) Read(rd io.Reader) error {
 		return errors.Annotate(err, "cannot read request headers", "headers_sync", 0)
 	}
 
+	r.ref.SetProtocolBytes(protocol)
 	r.ref.SetHostBytes(host)
 	r.ref.SetMethodBytes(method)
 	r.ref.SetRequestURIBytes(requestURI)
@@ -42,7 +44,15 @@ func (r requestHeaderWrapper) ResetConnectionClose() {
 }
 
 func (r requestHeaderWrapper) Headers() []byte {
-	return r.ref.RawHeaders()
+	buf := append([]byte(nil), r.ref.Method()...)
+	buf = append(buf, ' ')
+	buf = append(buf, r.ref.RequestURI()...)
+	buf = append(buf, ' ')
+	buf = append(buf, r.ref.Protocol()...)
+	buf = append(buf, '\r', '\n')
+	buf = append(buf, r.ref.RawHeaders()...)
+
+	return buf
 }
 
 type responseHeaderWrapper struct {

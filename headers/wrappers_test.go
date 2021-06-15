@@ -84,11 +84,12 @@ func (suite *RequestHeaderWrapperTestSuite) TestRawHeaders() {
 	suite.hdr.SetConnectionClose()
 
 	request := []string{
+		"GET http://example.com HTTP/1.1",
 		"Host: example.com",
 		"accept: deflate",
 		"connection: close",
 	}
-	fullRequest := strings.Join(append([]string{"GET / HTTP/1.1"}, request...), "\r\n") + "\r\n\r\n"
+	fullRequest := strings.Join(request, "\r\n") + "\r\n\r\n"
 
 	suite.NoError(suite.wrp.Read(strings.NewReader(fullRequest)))
 	suite.Equal([]byte(strings.Join(request, "\r\n")+"\r\n\r\n"), suite.wrp.Headers())
@@ -116,7 +117,7 @@ func (suite *ResponseWrapperTestSuite) TestCorrectRestore() {
 	}, "\r\n") + "\r\n\r\n"
 
 	suite.NoError(suite.wrp.Read(strings.NewReader(request)))
-    suite.Equal(fasthttp.StatusCreated, suite.hdr.StatusCode())
+	suite.Equal(fasthttp.StatusCreated, suite.hdr.StatusCode())
 }
 
 func (suite *ResponseWrapperTestSuite) TestDisableNormalizing() {
@@ -137,5 +138,5 @@ func TestRequestHeaderWrapper(t *testing.T) {
 }
 
 func TestResponseHeaderWrapper(t *testing.T) {
-    suite.Run(t, &ResponseWrapperTestSuite{})
+	suite.Run(t, &ResponseWrapperTestSuite{})
 }

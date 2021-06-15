@@ -116,25 +116,6 @@ func (suite *ContextTestSuite) TestRespond() {
 	suite.Equal("text/plain", string(resp.Header.ContentType()))
 }
 
-func (suite *ContextTestSuite) TestErrorRequest() {
-	ctx := layers.AcquireContext()
-	defer layers.ReleaseContext(ctx)
-
-	fhttpCtx := &fasthttp.RequestCtx{}
-	remoteAddr := &net.TCPAddr{
-		IP:   net.ParseIP("127.0.0.1"),
-		Port: 65342,
-	}
-
-	fhttpCtx.Init(&fasthttp.Request{}, remoteAddr, nil)
-
-	suite.Error(ctx.Init(fhttpCtx,
-		"127.0.0.1:8000",
-		suite.eventsChannel,
-		"user",
-		events.RequestTypeTLS))
-}
-
 func (suite *ContextTestSuite) TestErrorGeneril() {
 	suite.ctx.Error(io.EOF)
 

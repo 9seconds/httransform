@@ -220,6 +220,13 @@ func (suite *ServerTestSuite) TestHTTPSAuthRequired() {
 	suite.Error(err)
 }
 
+func (suite *ServerTestSuite) TestGolangOrg() {
+	resp, err := suite.http.Get("https://golang.org")
+
+	suite.NoError(err)
+	suite.Equal(http.StatusOK, resp.StatusCode)
+}
+
 func TestServer(t *testing.T) {
 	suite.Run(t, &ServerTestSuite{})
 }

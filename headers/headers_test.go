@@ -38,7 +38,7 @@ func (suite *HeadersTestSuite) TearDownTest() {
 }
 
 func (suite *HeadersTestSuite) TestCheckHeaders() {
-	suite.Len(suite.hdrs.Headers, 2)
+	suite.Len(suite.hdrs.Headers, 3)
 
 	headerNames := map[string]bool{
 		"Accept-Encoding": true,
@@ -147,7 +147,7 @@ func (suite *HeadersTestSuite) TestSetNoCleanup() {
 
 func (suite *HeadersTestSuite) TestSetUnknown() {
 	suite.hdrs.Set("hello", "NewValue", false)
-	suite.Len(suite.hdrs.Headers, 3)
+	suite.Len(suite.hdrs.Headers, 4)
 
 	header := suite.hdrs.GetFirst("hello")
 

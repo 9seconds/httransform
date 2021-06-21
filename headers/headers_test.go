@@ -29,8 +29,8 @@ func (suite *HeadersTestSuite) SetupTest() {
 
 	suite.NoError(wrapper.Read(strings.NewReader(req)))
 
-    suite.hdrs.Reset(wrapper)
-    suite.NoError(suite.hdrs.Pull())
+	suite.hdrs.Reset(wrapper)
+	suite.NoError(suite.hdrs.Pull())
 }
 
 func (suite *HeadersTestSuite) TearDownTest() {

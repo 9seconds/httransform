@@ -67,7 +67,7 @@ func (suite *EventStreamTestSuite) SetupTest() {
 	suite.factory = &ProcessorMockFactory{
 		All: []*ProcessorMock{},
 	}
-    suite.stream = events.NewStream(ctx, suite.factory.Make)
+	suite.stream = events.NewStream(ctx, suite.factory.Make)
 
 	sleep()
 }

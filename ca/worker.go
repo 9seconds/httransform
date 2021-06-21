@@ -61,7 +61,7 @@ func (w *worker) Run() {
 			var conf *tls.Config
 
 			if cert := w.cache.Get(req.host); cert != nil {
-				conf = cert.(*tls.Config)
+				conf, _ = cert.(*tls.Config)
 			} else {
 				conf = w.process(req.host)
 				w.cache.Add(req.host, conf)
@@ -79,11 +79,13 @@ func (w *worker) process(host string) *tls.Config {
 	now := time.Now()
 
 	template := x509.Certificate{
-		SerialNumber:          &big.Int{},
-		Issuer:                w.ca.Leaf.Subject,
-		Subject:               pkix.Name{},
-		NotBefore:             now.AddDate(0, 0, -1), // 1 day before
-		NotAfter:              now.AddDate(0, 3, 0),  // 3 months after
+		SerialNumber: &big.Int{},
+		Issuer:       w.ca.Leaf.Subject,
+		Subject:      pkix.Name{},
+		// 1 day before
+		NotBefore: now.AddDate(0, 0, -1),
+		// 3 months after
+		NotAfter:              now.AddDate(0, 3, 0), // nolint: gomnd
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
@@ -96,8 +98,8 @@ func (w *worker) process(host string) *tls.Config {
 		template.Subject.CommonName = host
 	}
 
-	randBytes := make([]byte, 64)
-	rand.Read(randBytes) // nolint: errcheck
+	randBytes := make([]byte, 64) // nolint: gomnd
+	rand.Read(randBytes)          // nolint: errcheck
 	template.SerialNumber.SetBytes(randBytes)
 
 	certPriv, err := rsa.GenerateKey(rand.Reader, RSAKeyLength)

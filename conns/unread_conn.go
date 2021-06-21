@@ -32,7 +32,7 @@ func (u *UnreadConn) Read(p []byte) (int, error) {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
 
-	return u.reader.Read(p)
+	return u.reader.Read(p) // nolint: wrapcheck
 }
 
 // Unread transitions UnreadConn into 'unreading' state.

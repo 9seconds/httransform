@@ -19,7 +19,7 @@ type DNS struct {
 // Lookup to conform Interface.
 func (d *DNS) Lookup(ctx context.Context, hostname string) (hosts []string, err error) {
 	if hh := d.cache.Get(hostname); hh != nil {
-		hosts = hh.([]string)
+		hosts, _ = hh.([]string)
 	} else {
 		hosts, err = d.doLookup(ctx, hostname)
 
@@ -35,7 +35,7 @@ func (d *DNS) Lookup(ctx context.Context, hostname string) (hosts []string, err 
 
 func (d *DNS) doLookup(ctx context.Context, hostname string) ([]string, error) {
 	if net.ParseIP(hostname) == nil {
-		return d.resolver.LookupHost(ctx, hostname)
+		return d.resolver.LookupHost(ctx, hostname) // nolint: wrapcheck
 	}
 
 	addrs, err := d.resolver.LookupIPAddr(ctx, hostname)

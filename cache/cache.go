@@ -44,7 +44,7 @@ func New(size int, ttl time.Duration, callback EvictCallback) Interface {
 		BufferItems: 64, // nolint: gomnd
 		Metrics:     false,
 		OnEvict: func(_, _ uint64, value interface{}, _ int64) {
-			vv := value.(*cacheItem)
+			vv, _ := value.(*cacheItem)
 			callback(vv.key, vv.value)
 		},
 	}

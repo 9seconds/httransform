@@ -260,7 +260,7 @@ func (c *Context) Done() <-chan struct{} {
 
 // Err conforms a context.Context interface.
 func (c *Context) Err() error {
-	return c.ctx.Err()
+	return c.ctx.Err() // nolint: wrapcheck
 }
 
 // Value conforms a context.Context interface.

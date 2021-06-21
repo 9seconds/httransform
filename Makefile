@@ -1,6 +1,6 @@
 ROOT_DIR   := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-GOLANGCI_LINT_VERSION := v1.37.1
+GOLANGCI_LINT_VERSION := v1.41.1
 
 GOBIN  := $(ROOT_DIR)/.bin
 GOTOOL := env "GOBIN=$(GOBIN)" "PATH=$(ROOT_DIR)/.bin:$(PATH)"

@@ -19,7 +19,7 @@ var poolBufioReader = sync.Pool{
 }
 
 func acquireBufioReader(rd io.Reader) *bufio.Reader {
-	reader := poolBufioReader.Get().(*bufio.Reader)
+	reader, _ := poolBufioReader.Get().(*bufio.Reader)
 
 	reader.Reset(rd)
 

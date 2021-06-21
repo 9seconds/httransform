@@ -16,7 +16,7 @@ type errorJSON struct {
 type errorJSONStackEntry struct {
 	Code       string `json:"code"`
 	Message    string `json:"message"`
-	StatusCode int    `json:"status_code"`
+	StatusCode int    `json:"status_code"` // nolint: tagliatelle
 }
 
 func writeErrorAsJSON(err *Error, writer io.Writer) {

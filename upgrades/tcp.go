@@ -113,7 +113,7 @@ var poolTCP = sync.Pool{
 
 // AcquireTCP returns a new TCP upgrader from the pool.
 func AcquireTCP(reactor TCPReactor) Interface {
-	rv := poolTCP.Get().(*tcpInterface)
+	rv, _ := poolTCP.Get().(*tcpInterface)
 
 	rv.reactor = reactor
 
@@ -122,7 +122,7 @@ func AcquireTCP(reactor TCPReactor) Interface {
 
 // ReleaseTCP returns TCP upgrader back to the object pool.
 func ReleaseTCP(up Interface) {
-	value := up.(*tcpInterface)
+	value, _ := up.(*tcpInterface)
 	value.reactor = nil
 
 	poolTCP.Put(value)

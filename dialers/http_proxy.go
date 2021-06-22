@@ -95,7 +95,7 @@ func (h *httpProxy) PatchHTTPRequest(req *fasthttp.Request) {
 }
 
 func (h *httpProxy) acquireBufioReader(rd io.Reader) *bufio.Reader {
-	rv := h.bufioReaderPool.Get().(*bufio.Reader)
+	rv, _ := h.bufioReaderPool.Get().(*bufio.Reader)
 
 	rv.Reset(rd)
 

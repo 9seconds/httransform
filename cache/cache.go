@@ -6,7 +6,6 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-// please remove it when ristretto >0.0.3 will be released.
 type cacheItem struct {
 	key   string
 	value interface{}
@@ -41,10 +40,11 @@ func New(size int, ttl time.Duration, callback EvictCallback) Interface {
 		NumCounters: int64(10 * size), // nolint: gomnd
 		MaxCost:     int64(size),
 		// 64 is also taken from official documentation.
-		BufferItems: 64, // nolint: gomnd
-		Metrics:     false,
-		OnEvict: func(_, _ uint64, value interface{}, _ int64) {
-			vv := value.(*cacheItem)
+		BufferItems:        64, // nolint: gomnd
+		Metrics:            false,
+		IgnoreInternalCost: true,
+		OnEvict: func(item *ristretto.Item) {
+			vv, _ := item.Value.(*cacheItem)
 			callback(vv.key, vv.value)
 		},
 	}

@@ -38,14 +38,14 @@ type Server struct {
 
 // Serve starts to serve on given net.Listener instance.
 func (s *Server) Serve(ln net.Listener) error {
-	return s.server.Serve(ln)
+	return s.server.Serve(ln) // nolint: wrapcheck
 }
 
 // Close stops server.
 func (s *Server) Close() error {
 	s.ctxCancel()
 
-	return s.server.Shutdown()
+	return s.server.Shutdown() // nolint: wrapcheck
 }
 
 func (s *Server) entrypoint(ctx *fasthttp.RequestCtx) {
@@ -134,7 +134,7 @@ func (s *Server) upgradeToTLS(requestType events.RequestType, user, address stri
 			uConn.Seal()
 		}
 
-		srv := s.serverPool.Get().(*fasthttp.Server)
+		srv, _ := s.serverPool.Get().(*fasthttp.Server)
 		defer s.serverPool.Put(srv)
 
 		needToClose := true
@@ -318,7 +318,7 @@ func NewServer(ctx context.Context, opts ServerOpts) (*Server, error) { // nolin
 			},
 		},
 	}
-	srv.server = srv.serverPool.Get().(*fasthttp.Server)
+	srv.server, _ = srv.serverPool.Get().(*fasthttp.Server)
 	srv.server.Handler = srv.entrypoint
 
 	go func() {

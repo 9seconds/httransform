@@ -12,7 +12,7 @@ var poolBytesReader = sync.Pool{
 }
 
 func acquireBytesReader(data []byte) *bytes.Reader {
-	rd := poolBytesReader.Get().(*bytes.Reader)
+	rd, _ := poolBytesReader.Get().(*bytes.Reader)
 
 	rd.Reset(data)
 

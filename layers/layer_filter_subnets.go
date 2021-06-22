@@ -22,7 +22,7 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 	resolved, err := dns.Default.Lookup(ctx, host)
 	if err != nil {
 		// pass unresolved name, delegate it to executor.
-		return nil
+		return nil // nolint: nilerr
 	}
 
 	for _, v := range resolved {
@@ -39,9 +39,7 @@ func (f *filterSubnetsLayer) OnRequest(ctx *Context) error {
 }
 
 func (f *filterSubnetsLayer) filterIP(ip net.IP) bool {
-	ip4 := ip.To4()
-
-	if ip4 != nil {
+	if ip4 := ip.To4(); ip4 != nil {
 		return f.filterIPv4(ip4)
 	}
 
@@ -49,7 +47,7 @@ func (f *filterSubnetsLayer) filterIP(ip net.IP) bool {
 }
 
 func (f *filterSubnetsLayer) filterIPv4(addr net.IP) bool {
-	ip := patricia.NewIPv4AddressFromBytes(addr, 32)
+	ip := patricia.NewIPv4AddressFromBytes(addr, 32) // nolint: gomnd
 
 	if ok, _, err := f.v4.FindDeepestTag(ip); ok && err == nil {
 		return true
@@ -59,7 +57,7 @@ func (f *filterSubnetsLayer) filterIPv4(addr net.IP) bool {
 }
 
 func (f *filterSubnetsLayer) filterIPv6(addr net.IP) bool {
-	ip := patricia.NewIPv6Address(addr, 128)
+	ip := patricia.NewIPv6Address(addr, 128) // nolint: gomnd
 
 	if ok, _, err := f.v6.FindDeepestTag(ip); ok && err == nil {
 		return true

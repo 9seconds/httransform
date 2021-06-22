@@ -18,7 +18,7 @@ func (i *ipWhitelist) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 	ip := ctx.RemoteIP()
 
 	if ip4 := ip.To4(); ip4 != nil {
-		addr := patricia.NewIPv4AddressFromBytes(ip4, 32)
+		addr := patricia.NewIPv4AddressFromBytes(ip4, 32) // nolint: gomnd
 
 		if ok, user, err := i.v4.FindDeepestTag(addr); ok && err == nil {
 			return user, nil
@@ -27,7 +27,7 @@ func (i *ipWhitelist) Authenticate(ctx *fasthttp.RequestCtx) (string, error) {
 		return "", ErrFailedAuth
 	}
 
-	addr := patricia.NewIPv6Address(ip, 128)
+	addr := patricia.NewIPv6Address(ip, 128) // nolint: gomnd
 
 	if ok, user, err := i.v6.FindDeepestTag(addr); ok && err == nil {
 		return user, nil

@@ -14,18 +14,17 @@ type FilterSubnetLayerTestSuite struct {
 
 func (suite *FilterSubnetLayerTestSuite) SetupTest() {
 	suite.BaseLayerTestSuite.SetupTest()
-
 }
 
 func (suite *FilterSubnetLayerTestSuite) TestIPv4() {
 	suite.l, _ = layers.NewFilterSubnetsLayer([]net.IPNet{
-		net.IPNet{IP: net.ParseIP("127.0.0.1"), Mask: net.CIDRMask(24, 32)},
+		{IP: net.ParseIP("127.0.0.1"), Mask: net.CIDRMask(24, 32)},
 	})
 
 	suite.Error(suite.l.OnRequest(suite.ctx))
 
 	suite.l, _ = layers.NewFilterSubnetsLayer([]net.IPNet{
-		net.IPNet{IP: net.ParseIP("10.0.0.10"), Mask: net.CIDRMask(24, 32)},
+		{IP: net.ParseIP("10.0.0.10"), Mask: net.CIDRMask(24, 32)},
 	})
 
 	suite.NoError(suite.l.OnRequest(suite.ctx))

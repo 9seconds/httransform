@@ -30,8 +30,8 @@ func (suite *IPWhitelistAuthTestSuite) SetupTest() {
 	_, netv6, _ := net.ParseCIDR("2001:db8:85a3:8d3:1319:8a2e:370:7348/64")
 
 	suite.auth, _ = auth.NewIPWhitelist(map[string][]net.IPNet{
-		"user1": []net.IPNet{*net127, *net192},
-		"user2": []net.IPNet{*netv6},
+		"user1": {*net127, *net192},
+		"user2": {*netv6},
 	})
 }
 

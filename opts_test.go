@@ -131,28 +131,28 @@ func (suite *OptsTestSuite) TestGetTLSSkipVerify() {
 func (suite *OptsTestSuite) TestGetLayers() {
 	suite.Len(suite.o.GetLayers(), 2)
 
-    lr := layers.TimeoutLayer{Timeout: time.Second}
+	lr := layers.TimeoutLayer{Timeout: time.Second}
 
 	suite.o.Layers = []layers.Layer{lr}
 
 	suite.Len(suite.o.GetLayers(), 3)
-    suite.Equal(lr, suite.o.GetLayers()[1])
+	suite.Equal(lr, suite.o.GetLayers()[1])
 }
 
 func (suite *OptsTestSuite) TestGetAuthenticator() {
-    suite.IsType(auth.NoopAuth{}, suite.o.GetAuthenticator())
+	suite.IsType(auth.NoopAuth{}, suite.o.GetAuthenticator())
 
-    suite.o.Authenticator = auth.NewBasicAuth(nil)
+	suite.o.Authenticator = auth.NewBasicAuth(nil)
 
-    suite.Equal(suite.o.Authenticator, suite.o.GetAuthenticator())
+	suite.Equal(suite.o.Authenticator, suite.o.GetAuthenticator())
 }
 
 func (suite *OptsTestSuite) TestGetExecutor() {
-    suite.Nil(suite.o.GetExecutor())
+	suite.Nil(suite.o.GetExecutor())
 
-    suite.o.Executor = func(_ *layers.Context) error { return nil }
+	suite.o.Executor = func(_ *layers.Context) error { return nil }
 
-    suite.NotNil(suite.o.GetExecutor())
+	suite.NotNil(suite.o.GetExecutor())
 }
 
 func TestOpts(t *testing.T) {

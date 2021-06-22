@@ -84,7 +84,7 @@ func (suite *UnhijackTestSuite) TestKeepOpened() {
 }
 
 func (suite *UnhijackTestSuite) TestClose() {
-    suite.raw.On("Close").Return(nil)
+	suite.raw.On("Close").Return(nil)
 
 	conns.FixHijackHandler(func(net.Conn) bool {
 		return true

@@ -54,7 +54,7 @@ func (m *MockConn) SetWriteDeadline(tm time.Time) error {
 }
 
 type UpgradesTestSuite struct {
-    suite.Suite
+	suite.Suite
 
 	up         upgrades.Interface
 	clientConn *MockConn

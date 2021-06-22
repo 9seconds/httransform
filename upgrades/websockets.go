@@ -124,7 +124,7 @@ var poolWebsocket = sync.Pool{
 
 // AcquireWebsocket returns a new Websocket upgrader from the pool.
 func AcquireWebsocket(reactor WebsocketReactor) Interface {
-	rv := poolWebsocket.Get().(*websocketInterface)
+	rv, _ := poolWebsocket.Get().(*websocketInterface)
 
 	rv.reactor = reactor
 
@@ -133,7 +133,7 @@ func AcquireWebsocket(reactor WebsocketReactor) Interface {
 
 // ReleaseWebsocket returns Websocket back to the object pool.
 func ReleaseWebsocket(up Interface) {
-	value := up.(*websocketInterface)
+	value, _ := up.(*websocketInterface)
 	value.reactor = nil
 
 	poolWebsocket.Put(value)

@@ -25,7 +25,7 @@ func (s StdDialerWrapper) DialContext(ctx context.Context, network, address stri
 		return nil, fmt.Errorf("incorrect address: %w", err)
 	}
 
-	return s.Dialer.Dial(ctx, host, port)
+	return s.Dialer.Dial(ctx, host, port) // nolint: wrapcheck
 }
 
 // Dial is to conform Dial method of net.Dialer.

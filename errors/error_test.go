@@ -47,7 +47,6 @@ const errorJSONSchema = `
 var errorJSONValidator = func() *gojsonschema.Schema {
 	loader := gojsonschema.NewStringLoader(errorJSONSchema)
 	rv, err := gojsonschema.NewSchema(loader)
-
 	if err != nil {
 		panic(err)
 	}

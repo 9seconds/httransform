@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const bufioReaderSize = 1024 * 4
+const bufioReaderSize = 1024 * 64
 
 var poolBufioReader = sync.Pool{
 	New: func() interface{} {

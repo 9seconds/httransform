@@ -18,7 +18,7 @@ require (
 	github.com/valyala/fasthttp v1.34.0
 	github.com/valyala/fastrand v1.0.0
 	github.com/xeipuuv/gojsonschema v1.2.0
-	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+	golang.org/x/net v0.7.0
 )
 
 go 1.15
